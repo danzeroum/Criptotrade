@@ -1,5 +1,36 @@
-chromadb==0.4.22
-langchain==0.1.0
-langraph==0.0.20
+# Core
+python-dotenv==1.0.0
 pydantic==2.5.0
-pytest>=7.4
+pydantic-settings==2.1.0
+PyYAML==6.0.1
+
+# API & Web
+fastapi==0.108.0
+uvicorn[standard]==0.25.0
+streamlit==1.29.0
+
+# AI & Agents
+langchain==0.1.0
+langchain-google-genai==0.0.5
+chromadb==0.4.22
+
+# Trading & Market Data
+ccxt==4.5.7
+pandas==2.1.4
+numpy==1.26.2
+
+# Database & Storage
+sqlalchemy==2.0.25
+alembic==1.13.1
+
+# Monitoring & Logging
+prometheus-client==0.19.0
+python-json-logger==2.0.7
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+
+# Security
+cryptography==41.0.7
