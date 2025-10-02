@@ -1,0 +1,39 @@
+{
+  "version": "6.0",
+  "timestamp": "2025-01-XX",
+  "foundation_level": "lite|standard|enterprise",
+  "votes": {
+    "architect": {"level": "lite", "confidence": 0.9},
+    "developer": {"level": "lite", "confidence": 0.85},
+    "auditor": {"level": "standard", "confidence": 0.75},
+    "designer": {"level": "lite", "confidence": 0.8},
+    "ops": {"level": "standard", "confidence": 0.7}
+  },
+  "consensus": {
+    "level": "lite",
+    "reasoning": "MVP rápido com vendabilidade",
+    "method": "fast-consensus-majority",
+    "upgrade_triggers": [
+      "Volume > 1000 req/s",
+      "Compliance regulatória",
+      "Multi-tenant obrigatório"
+    ]
+  },
+  "implementation_profile": {
+    "lite": {
+      "stack": ["Spring Boot", "Postgres", "Docker"],
+      "infra": ["Single server", "Basic monitoring"],
+      "timeline": "2-3 semanas"
+    },
+    "standard": {
+      "stack": ["+ Redis", "+ Kafka", "+ OAuth2"],
+      "infra": ["Load balancer", "Auto-scaling", "Full observability"],
+      "timeline": "6-8 semanas"
+    },
+    "enterprise": {
+      "stack": ["+ Multi-region", "+ Event sourcing", "+ CQRS"],
+      "infra": ["Kubernetes", "Service mesh", "DR setup"],
+      "timeline": "3-6 meses"
+    }
+  }
+}

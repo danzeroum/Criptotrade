@@ -1,0 +1,24 @@
+{
+  "pattern": "prompt_chaining",
+  "validation_criteria": {
+    "functional_requirements": [
+      "Chain must handle minimum 3 sequential steps",
+      "Error propagation must be explicit",
+      "State must be preserved between steps"
+    ],
+    "performance_benchmarks": {
+      "latency_p95": "< 2000ms per step",
+      "success_rate": "> 95%",
+      "memory_footprint": "< 100MB per chain"
+    },
+    "test_coverage": {
+      "unit": "> 80%",
+      "integration": "> 60%",
+      "edge_cases": [
+        "null_input",
+        "timeout",
+        "partial_failure"
+      ]
+    }
+  }
+}

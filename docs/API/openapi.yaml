@@ -1,0 +1,65 @@
+openapi: 3.0.3
+info:
+  title: BuildToValue v6 API
+  version: 1.0.0
+  description: |
+    API que segue RFC 7807 para respostas de erro e suporta traceId para rastreabilidade.
+servers:
+  - url: https://api.BuildToValue.local
+paths:
+  /api/v1/resources:
+    get:
+      summary: Lista recursos ativos
+      responses:
+        '200':
+          description: Lista de recursos retornada com sucesso.
+        '500':
+          description: Erro interno conforme RFC 7807.
+    post:
+      summary: Cria um recurso
+      responses:
+        '201':
+          description: Recurso criado.
+        '422':
+          description: Erro de validação com Problem Detail.
+  /api/v1/resources/{id}:
+    get:
+      summary: Obtém um recurso específico
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Recurso encontrado.
+        '404':
+          description: Recurso não encontrado (Problem Detail).
+components:
+  schemas:
+    ProblemDetail:
+      type: object
+      required:
+        - type
+        - title
+        - status
+        - detail
+        - instance
+        - traceId
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        traceId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time

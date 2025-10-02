@@ -1,0 +1,63 @@
+technical_metrics:
+  performance:
+    - metric: p95_latency
+      target: "< 800ms"
+      alert: "> 1000ms"
+      dashboard: grafana.performance
+    - metric: throughput
+      target: "> 100 req/s"
+      alert: "< 50 req/s"
+      dashboard: grafana.performance
+  availability:
+    - metric: uptime
+      target: "> 99.9%"
+      alert: "< 99.5%"
+      dashboard: grafana.availability
+    - metric: error_rate
+      target: "< 1%"
+      alert: "> 2%"
+      dashboard: grafana.errors
+business_metrics:
+  engagement:
+    - metric: daily_active_users
+      target: "growth > 5%"
+      alert: "decline > 10%"
+      dashboard: grafana.business
+    - metric: feature_adoption_rate
+      target: "> 60%"
+      alert: "< 30%"
+      dashboard: grafana.business
+  quality:
+    - metric: customer_satisfaction
+      target: "> 4.0/5.0"
+      alert: "< 3.5/5.0"
+      dashboard: grafana.quality
+ai_squad_metrics:
+  consensus:
+    - metric: consensus_time
+      target: "< 5 minutes"
+      alert: "> 15 minutes"
+      dashboard: grafana.ai
+    - metric: confidence_average
+      target: "> 0.80"
+      alert: "< 0.60"
+      dashboard: grafana.ai
+  productivity:
+    - metric: features_per_sprint
+      target: ">= 3"
+      alert: "< 2"
+      dashboard: grafana.productivity
+agent_metrics:
+  performance:
+    - metric: agent_task_success_rate
+      target: "> 90%"
+      alert: "< 80%"
+  quality:
+    - metric: agent_confidence_average
+      target: "> 0.85"
+      alert: "< 0.70"
+  collaboration:
+    - metric: inter_agent_messages
+      target: "> 10/task"
+      alert: "< 3/task"
+

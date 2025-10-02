@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: BuildToValue-v6
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:BuildToValue}
+    username: ${DB_USER:BuildToValue}
+    password: ${DB_PASSWORD:changeme}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+      environment: ${ENVIRONMENT:dev}
+
+logging:
+  pattern:
+    console: '{"timestamp":"%d{ISO8601}","level":"%level","service":"${spring.application.name}","traceId":"%X{traceId}","spanId":"%X{spanId}","message":"%msg"}%n'
+  level:
+    root: INFO
+    com.BuildToValue: DEBUG
+
+server:
+  port: ${APP_PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never
+
+features:
+  mock-data-enabled: ${FEATURE_MOCK_DATA:false}
+  rate-limit-enabled: ${FEATURE_RATE_LIMIT:true}
+  cache-enabled: ${FEATURE_CACHE:true}

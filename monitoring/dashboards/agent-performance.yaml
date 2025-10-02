@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Dashboard
+metadata:
+  name: BuildToValue-agent-performance
+spec:
+  panels:
+    - title: "Agent Consensus Strength"
+      type: graph
+      targets:
+        - expr: "avg(agent_consensus_strength)"
+    - title: "Security Sandbox Violations"
+      type: counter
+      targets:
+        - expr: "sum(rate(sandbox_violations_total[5m]))"
+      alert:
+        condition: "> 0"
+        severity: critical
+    - title: "Agent Autonomy Levels"
+      type: heatmap
+      targets:
+        - expr: "agent_autonomy_level by (agent_name)"
+    - title: "Memory Usage and Compression"
+      type: gauge
+      targets:
+        - expr: "agent_memory_usage_gb"
+        - expr: "agent_memory_compression_ratio"
+    - title: "Replanning Events"
+      type: histogram
+      targets:
+        - expr: "rate(plan_adaptations_total[1h])"
+    - title: "Human Interventions Required"
+      type: timeseries
+      targets:
+        - expr: "sum(human_intervention_required) by (reason)"
+    - title: "A/B Test Results"
+      type: table
+      targets:
+        - expr: "ab_test_winner_confidence by (test_id)"
