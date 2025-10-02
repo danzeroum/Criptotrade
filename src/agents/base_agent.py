@@ -5,6 +5,12 @@ from typing import Any, Dict, Optional
 import logging
 import uuid
 
+# Conditional import for memory
+try:  # pragma: no cover - optional dependency
+    from src.memory.agent_memory import AgentMemorySystem
+except Exception:  # pragma: no cover - fallback when memory optional
+    AgentMemorySystem = None  # type: ignore[assignment]
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,7 +22,16 @@ class BaseAgent(ABC):
         self.agent_id = str(uuid.uuid4())
         self.created_at = datetime.now(timezone.utc)
         self.confidence_threshold = 0.6
-        self.memory = None
+
+        # Initialize memory if available
+        if AgentMemorySystem:
+            try:
+                self.memory = AgentMemorySystem()
+            except Exception:  # pragma: no cover - optional
+                self.memory = None
+        else:
+            self.memory = None
+
         self.tools: list[str] = []
 
     @abstractmethod

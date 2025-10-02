@@ -73,11 +73,12 @@ class GuardrailSystem:
         if entry > 0 and stop > 0 and target > 0:
             risk = abs(entry - stop)
             reward = abs(target - entry)
+            min_ratio = 2.5
 
             if risk > 0:
                 ratio = reward / risk
-                if ratio < 1.5:
-                    return False, f"Risk-reward ratio {ratio:.2f} is below minimum 1.5"
+                if ratio < min_ratio:
+                    return False, f"Risk-reward ratio {ratio:.2f} is below minimum {min_ratio}"
 
         return True, ""
 

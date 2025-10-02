@@ -1,6 +1,7 @@
 """Security configuration and constants."""
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from typing import Any, ClassVar, Dict, List, Tuple
+import json
 import re
 
 
@@ -15,6 +16,18 @@ class SecurityConfig:
     MAX_EXECUTION_TIME_SECONDS: int = 30
 
     FORBIDDEN_PATTERNS: List[str] | None = None
+    FORBIDDEN_TOOL_NAMES: ClassVar[Tuple[str, ...]] = (
+        "rm",
+        "delete_resource",
+        "format_disk",
+        "drop_database",
+    )
+    SENSITIVE_PARAM_PATTERNS: ClassVar[Tuple[str, ...]] = (
+        r"rm\s+-rf",
+        r"drop\s+table",
+        r"delete\s+from",
+        r"format\s+",
+    )
 
     def __post_init__(self) -> None:
         if self.FORBIDDEN_PATTERNS is None:
@@ -44,5 +57,21 @@ class SecurityConfig:
         exchange = order.get("exchange", "").lower()
         if exchange and exchange not in cls.ALLOWED_EXCHANGES:
             return False, f"Exchange {exchange} not in allowed list"
+
+        return True, "OK"
+
+    @classmethod
+    def validate_tool_call(cls, tool_name: str, params: Dict[str, Any]) -> Tuple[bool, str]:
+        """Validate whether a tool invocation is allowed within the sandbox."""
+
+        normalized = tool_name.lower()
+        if normalized in cls.FORBIDDEN_TOOL_NAMES:
+            return False, f"Tool {tool_name} is blocked by security policy"
+
+        param_blob = json.dumps(params, ensure_ascii=False)
+        combined_patterns = list(cls().FORBIDDEN_PATTERNS or []) + list(cls.SENSITIVE_PARAM_PATTERNS)
+        for pattern in combined_patterns:
+            if re.search(pattern, param_blob, re.IGNORECASE):
+                return False, f"Parameters match forbidden pattern: {pattern}"
 
         return True, "OK"
