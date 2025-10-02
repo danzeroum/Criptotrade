@@ -1,36 +1,45 @@
 # Core
-python-dotenv==1.0.0
-pydantic==2.5.0
+python-dotenv==1.0.1
+pydantic==2.6.0
 pydantic-settings==2.1.0
 PyYAML==6.0.1
 
 # API & Web
-fastapi==0.108.0
-uvicorn[standard]==0.25.0
-streamlit==1.29.0
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+streamlit==1.31.0
 
-# AI & Agents
-langchain==0.1.0
-langchain-google-genai==0.0.5
-chromadb==0.4.22
+# AI & Agents (versões compatíveis)
+langchain==0.1.6
+langchain-core==0.1.23
+langchain-google-genai==0.0.6
+
+# Vector Store (OPCIONAL - comentado por padrão)
+# chromadb==0.4.22  # Descomente apenas se precisar de RAG
 
 # Trading & Market Data
-ccxt==4.5.7
+ccxt==4.2.25
 pandas==2.1.4
-numpy==1.26.2
+numpy==1.26.3
+
+# Technical Analysis
+ta==0.11.0
 
 # Database & Storage
 sqlalchemy==2.0.25
-alembic==1.13.1
 
 # Monitoring & Logging
 prometheus-client==0.19.0
 python-json-logger==2.0.7
 
 # Testing
-pytest==7.4.3
-pytest-asyncio==0.21.1
+pytest==7.4.4
+pytest-asyncio==0.23.3
 pytest-cov==4.1.0
 
 # Security
-cryptography==41.0.7
+cryptography==42.0.2
+
+# Async support
+aiohttp==3.9.3
+asyncio==3.4.3
