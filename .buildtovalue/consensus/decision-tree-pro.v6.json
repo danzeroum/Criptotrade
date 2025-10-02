@@ -1,39 +1,166 @@
 {
-  "version": "6.0",
-  "timestamp": "2025-01-XX",
-  "foundation_level": "lite|standard|enterprise",
+  "version": "6.1",
+  "timestamp": "2025-10-02T14:30:00Z",
+  "foundation_level": "lite",
   "votes": {
-    "architect": {"level": "lite", "confidence": 0.9},
-    "developer": {"level": "lite", "confidence": 0.85},
-    "auditor": {"level": "standard", "confidence": 0.75},
-    "designer": {"level": "lite", "confidence": 0.8},
-    "ops": {"level": "standard", "confidence": 0.7}
+    "architect": {
+      "level": "lite",
+      "confidence": 0.95,
+      "reasoning": "A complexidade está no software e nos agentes, não na infraestrutura. Um setup 'lite' é suficiente e cumpre o requisito de baixo custo. A arquitetura baseada em agentes especializados (Strategy, Risk, Execution) pode ser implementada eficientemente em single-server.",
+      "concerns": [
+        "Necessidade de monitoramento rigoroso de resources",
+        "Plano de escalabilidade documentado"
+      ]
+    },
+    "developer": {
+      "level": "lite",
+      "confidence": 0.9,
+      "reasoning": "Permite um 'time-to-market' mais rápido para o MVP em paper trading, focando na lógica das estratégias e na segurança do código. Python + FastAPI + LangChain é um stack leve e produtivo.",
+      "concerns": [
+        "Testes de carga essenciais antes de live trading"
+      ]
+    },
+    "auditor": {
+      "level": "lite",
+      "confidence": 0.8,
+      "reasoning": "A segurança pode ser garantida com Sandbox, Guardrails fortes e HITL no nível 'lite'. Recomendo a passagem para 'standard' se o sistema passar para 'live trading' com capital significativo (>$50k).",
+      "concerns": [
+        "API key rotation strategy obrigatória",
+        "Audit trail completo implementado desde dia 1"
+      ]
+    },
+    "designer": {
+      "level": "lite",
+      "confidence": 0.85,
+      "reasoning": "A interface para um único utilizador pode ser um dashboard simples, perfeitamente suportado pela infra 'lite'. Streamlit ou Gradio são opções adequadas para MVP.",
+      "concerns": [
+        "Garantir responsividade em mobile para alertas críticos"
+      ]
+    },
+    "ops": {
+      "level": "lite",
+      "confidence": 1.0,
+      "reasoning": "É a única opção que cumpre o rigoroso requisito de baixo custo operacional ($200/mês). A manutenção de um único servidor VPS (DigitalOcean/Hetzner) é simples e barata. Docker Compose facilita deployment e rollback.",
+      "concerns": [
+        "Backup strategy definida",
+        "Monitoring básico via Prometheus"
+      ]
+    }
   },
   "consensus": {
     "level": "lite",
-    "reasoning": "MVP rápido com vendabilidade",
+    "reasoning": "Consenso unânime com alta confiança (média 0.9). A abordagem 'lite' equilibra perfeitamente a necessidade de um sistema seguro e robusto com a restrição crítica de baixo custo para um único utilizador. A segurança será garantida por software robusto (Sandbox, Guardrails, HITL), não por uma infraestrutura complexa e cara.",
     "method": "fast-consensus-majority",
+    "decision_date": "2025-10-02",
+    "decision_maker": "unanimous",
+    "dissenting_opinions": [],
     "upgrade_triggers": [
-      "Volume > 1000 req/s",
-      "Compliance regulatória",
-      "Multi-tenant obrigatório"
+      "Necessidade de processar mais de 5 pares de moedas em paralelo",
+      "Atingir um capital sob gestão superior a $50,000",
+      "Necessidade de redundância e alta disponibilidade (uptime > 99.9%)",
+      "Consistente lucratividade que justifique o aumento do custo operacional",
+      "Implementação de estratégias complexas que exijam mais recursos computacionais",
+      "Requisito de compliance avançado (regulamentação específica)"
     ]
   },
   "implementation_profile": {
     "lite": {
-      "stack": ["Spring Boot", "Postgres", "Docker"],
-      "infra": ["Single server", "Basic monitoring"],
-      "timeline": "2-3 semanas"
+      "stack": [
+        "Python 3.11+",
+        "FastAPI (API framework)",
+        "LangChain (Agent orchestration)",
+        "ChromaDB (Vector store para RAG)",
+        "SQLite/PostgreSQL (Ledger)",
+        "Docker & Docker Compose"
+      ],
+      "infra": [
+        "Single VPS (2-4 vCPUs, 4-8GB RAM)",
+        "Providers sugeridos: Hetzner ($20/mês) ou DigitalOcean ($40/mês)",
+        "Basic monitoring (Prometheus + Grafana)",
+        "Backup diário automatizado para S3/Backblaze"
+      ],
+      "timeline": "4-6 semanas (MVP funcional em paper trading)",
+      "estimated_cost": {
+        "infrastructure": "$40-60/mês",
+        "api_costs": "$50-100/mês (Gemini Pro + backup GPT)",
+        "backup_storage": "$5/mês",
+        "total": "$95-165/mês"
+      }
     },
     "standard": {
-      "stack": ["+ Redis", "+ Kafka", "+ OAuth2"],
-      "infra": ["Load balancer", "Auto-scaling", "Full observability"],
-      "timeline": "6-8 semanas"
+      "stack": [
+        "+ Redis (Caching & real-time data)",
+        "+ WebSocket Client (Real-time market data)",
+        "+ PostgreSQL (Primary DB)",
+        "+ Celery (Background tasks)"
+      ],
+      "infra": [
+        "Load balancer",
+        "Auto-scaling group (mínimo 2 instâncias)",
+        "Managed Redis",
+        "Full observability stack (ELK/Loki)",
+        "Multi-region backup"
+      ],
+      "timeline": "8-12 semanas",
+      "estimated_cost": {
+        "infrastructure": "$200-400/mês",
+        "api_costs": "$150-300/mês",
+        "monitoring": "$50/mês",
+        "total": "$400-750/mês"
+      }
     },
     "enterprise": {
-      "stack": ["+ Multi-region", "+ Event sourcing", "+ CQRS"],
-      "infra": ["Kubernetes", "Service mesh", "DR setup"],
-      "timeline": "3-6 meses"
+      "stack": [
+        "+ Kafka (Event streaming)",
+        "+ Multi-region PostgreSQL",
+        "+ Kubernetes",
+        "+ Service mesh (Istio)"
+      ],
+      "infra": [
+        "Kubernetes cluster (multi-AZ)",
+        "Service mesh",
+        "Disaster Recovery setup",
+        "24/7 monitoring & alerting",
+        "Compliance tooling"
+      ],
+      "timeline": "6+ meses",
+      "estimated_cost": {
+        "infrastructure": "$1500-3000/mês",
+        "total": "$2000-4000/mês"
+      }
     }
+  },
+  "security_requirements_by_level": {
+    "lite": [
+      "API keys em variáveis de ambiente (nunca em código)",
+      "Sandbox para execução de estratégias",
+      "Guardrails obrigatórios antes de qualquer ordem",
+      "HITL para aprovação de ordens",
+      "Ledger de auditoria append-only",
+      "SSL/TLS para todas as comunicações",
+      "Rate limiting nas APIs"
+    ],
+    "standard": [
+      "+ Vault para gestão de secrets",
+      "+ Multi-factor authentication",
+      "+ WAF (Web Application Firewall)",
+      "+ DDoS protection",
+      "+ Penetration testing trimestral"
+    ],
+    "enterprise": [
+      "+ HSM (Hardware Security Module)",
+      "+ Zero-trust architecture",
+      "+ SOC 2 Type II compliance",
+      "+ Bug bounty program"
+    ]
+  },
+  "validation": {
+    "architect_approved": true,
+    "developer_approved": true,
+    "auditor_approved": true,
+    "designer_approved": true,
+    "ops_approved": true,
+    "consensus_strength": 0.9,
+    "approved_date": "2025-10-02T14:30:00Z"
   }
 }

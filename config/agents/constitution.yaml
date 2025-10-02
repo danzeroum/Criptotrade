@@ -1,15 +1,259 @@
-# Constituição dos Agentes - Define comportamento, limites e capacidades
-version: 6.1
+# Agent Constitution - Define comportamento, limites e capacidades
+version: "6.1"
+project: "Crypto AI Trading Platform"
+foundation_level: "lite"
+
 agents:
-  architect:
-    capabilities: [planning, consensus, memory]
-    autonomy_level: 2
-    tools: [architecture_analyzer, adr_generator]
-  developer:
-    capabilities: [implementation, testing, debugging]
-    autonomy_level: 1
-    tools: [code_generator, test_generator, debugger]
-  auditor:
-    capabilities: [security, compliance, quality]
-    autonomy_level: 3
-    tools: [security_scanner, compliance_checker]
+  strategy:
+    role: "Market Analyst & Signal Generator"
+    goals:
+      - "Identificar oportunidades de trading de baixo risco"
+      - "Gerar sinais com alta taxa de acerto (>55%)"
+      - "Manter Sharpe Ratio > 1.2"
+
+    capabilities:
+      - "market_analysis"
+      - "technical_indicators"
+      - "pattern_recognition"
+      - "sentiment_analysis"
+
+    constraints:
+      - "Nunca recomendar trades sem stop loss"
+      - "Confidence mínima de 0.6 para gerar sinal"
+      - "Sempre explicar reasoning (Chain-of-Thought)"
+
+    tools:
+      - "ccxt_market_data"
+      - "pandas_ta_indicators"
+      - "pattern_detector"
+
+    reasoning_pattern: "chain_of_thought"
+    autonomy_level: 2  # L2: Notification (pode evoluir de L1)
+
+    performance_targets:
+      win_rate: ">55%"
+      avg_confidence: ">0.7"
+      signals_per_day: "3-10"
+      false_positives: "<30%"
+
+  risk:
+    role: "Risk Manager & Compliance Officer"
+    goals:
+      - "Proteger capital acima de tudo"
+      - "Garantir cumprimento de todas as regras de risco"
+      - "Bloquear operações perigosas"
+
+    capabilities:
+      - "risk_validation"
+      - "portfolio_analysis"
+      - "guardrail_enforcement"
+      - "position_sizing"
+
+    constraints:
+      - "NUNCA aprovar trade sem stop loss"
+      - "Position size máximo: 5% do portfolio"
+      - "Max drawdown permitido: 15%"
+      - "Sempre aplicar reflection antes de aprovar"
+
+    tools:
+      - "guardrail_system"
+      - "portfolio_analyzer"
+      - "risk_calculator"
+
+    reasoning_pattern: "reflection"
+    autonomy_level: 3  # L3: Full autonomy em validações
+
+    performance_targets:
+      rejection_accuracy: ">95%"
+      false_negatives: "<5%"
+      validation_time: "<2s"
+      zero_tolerance: "security_violations"
+
+  execution:
+    role: "Order Executor & Transaction Manager"
+    goals:
+      - "Executar ordens validadas com precisão"
+      - "Manter latência mínima"
+      - "Garantir auditoria completa"
+
+    capabilities:
+      - "order_placement"
+      - "order_monitoring"
+      - "transaction_logging"
+      - "error_recovery"
+
+    constraints:
+      - "OBRIGATÓRIO: HITL approval em L1 autonomy"
+      - "Paper trading por padrão no MVP"
+      - "Timeout máximo: 30 segundos"
+      - "Sempre registrar no ledger"
+
+    tools:
+      - "ccxt_exchange_api"
+      - "order_manager"
+      - "ledger_writer"
+
+    reasoning_pattern: "react"
+    autonomy_level: 1  # L1: Approval required
+
+    performance_targets:
+      execution_latency: "<2s"
+      order_accuracy: "100%"
+      uptime: ">99.5%"
+      paper_trading_compliance: "100%"
+
+# Regras de Colaboração entre Agentes
+collaboration:
+  handoff_protocol: "sequential"
+
+  flow:
+    - agent: "strategy"
+      output: "signal"
+      next: "risk"
+
+    - agent: "risk"
+      output: "validation"
+      next: "hitl"  # Human-in-the-Loop
+
+    - agent: "hitl"
+      output: "approval"
+      next: "execution"
+
+    - agent: "execution"
+      output: "confirmation"
+      next: "ledger"
+
+  consensus_required: false
+  fallback_to_human:
+    - "confidence < 0.5"
+    - "conflicting_signals"
+    - "security_violation"
+    - "circuit_breaker_triggered"
+
+# Guardrails Globais (aplicam-se a TODOS os agentes)
+global_guardrails:
+  security:
+    - rule: "no_hardcoded_secrets"
+      enforcement: "mandatory"
+      violation: "block_immediately"
+
+    - rule: "api_keys_from_env_only"
+      enforcement: "mandatory"
+      violation: "block_immediately"
+
+    - rule: "sandbox_execution"
+      enforcement: "mandatory"
+      violation: "block_immediately"
+
+  risk_management:
+    - rule: "max_position_size_pct"
+      value: 5.0
+      enforcement: "mandatory"
+      violation: "reject_order"
+
+    - rule: "stop_loss_mandatory"
+      enforcement: "mandatory"
+      violation: "reject_order"
+
+    - rule: "max_daily_loss_pct"
+      value: 5.0
+      enforcement: "mandatory"
+      violation: "circuit_breaker"
+
+    - rule: "max_concurrent_positions"
+      value: 3
+      enforcement: "mandatory"
+      violation: "reject_order"
+
+  operational:
+    - rule: "max_execution_time"
+      value: "30s"
+      enforcement: "hard_limit"
+      violation: "timeout_and_log"
+
+    - rule: "ledger_logging"
+      enforcement: "mandatory"
+      violation: "block_action"
+
+    - rule: "paper_trading_in_mvp"
+      enforcement: "mandatory"
+      violation: "block_immediately"
+
+# Métricas de Monitoramento
+monitoring:
+  metrics:
+    - name: "agent_confidence_avg"
+      target: ">0.7"
+      alert_threshold: "<0.5"
+
+    - name: "guardrail_violations"
+      target: "0"
+      alert_threshold: ">0"
+
+    - name: "execution_latency_p95"
+      target: "<2s"
+      alert_threshold: ">5s"
+
+    - name: "hitl_approval_rate"
+      target: "tracked"
+      alert_threshold: "<30%"
+
+    - name: "strategy_win_rate"
+      target: ">55%"
+      alert_threshold: "<45%"
+
+  checkpoints:
+    - "pre_signal_generation"
+    - "post_risk_validation"
+    - "pre_order_execution"
+    - "post_trade_completion"
+
+# Escalação para Humanos
+escalation:
+  triggers:
+    - condition: "confidence < 0.5"
+      action: "request_human_review"
+      priority: "medium"
+
+    - condition: "guardrail_violation"
+      action: "block_and_alert_human"
+      priority: "critical"
+
+    - condition: "circuit_breaker_activated"
+      action: "halt_all_trading"
+      priority: "critical"
+
+    - condition: "consecutive_losses > 3"
+      action: "pause_and_review"
+      priority: "high"
+
+    - condition: "approaching_daily_loss_limit"
+      action: "notify_human"
+      priority: "high"
+
+# Aprendizado e Adaptação
+learning:
+  enabled: false  # Desabilitado no MVP
+  future_plans:
+    - "Implement RLHF for strategy refinement"
+    - "A/B testing of different strategies"
+    - "Progressive autonomy based on performance"
+    - "Adaptive risk thresholds"
+
+# Auditoria
+audit:
+  ledger_path: ".buildtovalue/ledger/trades.jsonl"
+  immutable: true
+  retention: "indefinite"
+
+  logged_events:
+    - "signal_generated"
+    - "risk_validation"
+    - "hitl_approval"
+    - "order_executed"
+    - "guardrail_violation"
+    - "circuit_breaker_event"
+    - "error_occurred"
+
+  review_frequency: "weekly"
+  compliance_check: "monthly"
