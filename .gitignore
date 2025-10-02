@@ -1,1 +1,35 @@
+# Environment and secrets
+.env
+.env.*
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.eggs/
+.Python
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+venv/
+.envrc
+
+# Project data and logs
+data/
+logs/
+
+# Tooling
+.coverage
+htmlcov/
+
+# Node/Streamlit caches
+.streamlit/
+
+# BuildToValue assets
 docs/UX/mockups.zip
+
+# OS files
+.DS_Store
+Thumbs.db

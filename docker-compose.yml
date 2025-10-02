@@ -1,54 +1,30 @@
 version: '3.8'
 
 services:
-  BuildToValue-app:
+  app:
     build: .
     ports:
-      - "8080:8000"
-    environment:
-      - ENVIRONMENT=production
-      - LOG_LEVEL=INFO
-    volumes:
-      - ./logs:/app/logs
-      - ./data:/app/data
-    depends_on:
-      - redis
-      - postgres
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_DB=BuildToValue
-      - POSTGRES_USER=agent
-      - POSTGRES_PASSWORD=REDACTED
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-
-  monitoring:
-    image: grafana/grafana:9.0.0
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    volumes:
-      - grafana_data:/var/lib/grafana
-
-  chromadb:
-    image: chromadb/chroma:latest
-    ports:
       - "8000:8000"
+      - "8501:8501"
+    env_file:
+      - .env
     volumes:
-      - ./data/chromadb:/chroma/chroma
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    restart: unless-stopped
 
 volumes:
-  redis_data:
-  postgres_data:
-  grafana_data:
+  prometheus_data:

@@ -1,67 +1,87 @@
-"""Guardrail system to validate agent outputs."""
+"""Guardrail system for order validation."""
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple
+import logging
 
+logger = logging.getLogger(__name__)
 
-Guardrail = Callable[[str, Dict[str, object]], Tuple[bool, str]]
+Guardrail = Callable[[Dict[str, Any]], Tuple[bool, str]]
 
 
 @dataclass
 class GuardrailSystem:
-    """Collection of guardrail rules that can be evaluated sequentially."""
+    """Collection of guardrails for trade validation."""
 
     rules: List[Guardrail] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if not self.rules:
             self.rules = [
-                self.check_no_pii,
-                self.check_no_harmful_code,
-                self.check_business_logic_consistency,
-                self.check_performance_bounds,
+                self.check_position_size,
+                self.check_stop_loss,
+                self.check_risk_reward,
+                self.check_market_conditions,
             ]
 
-    def validate_output(self, output: str, context: Dict[str, object]) -> Tuple[bool, List[str]]:
-        """Validate the output against configured guardrails."""
-
+    def validate_order(self, order: Dict[str, Any]) -> Tuple[bool, List[str]]:
+        """Validate order against all guardrails."""
         violations: List[str] = []
+
         for rule in self.rules:
-            passed, message = rule(output, context)
+            passed, message = rule(order)
             if not passed and message:
                 violations.append(message)
+                logger.warning("Guardrail violation: %s", message)
+
         return len(violations) == 0, violations
 
-    def check_no_pii(self, output: str, context: Dict[str, object]) -> Tuple[bool, str]:
-        patterns = [r"\b\d{3}-\d{3}-\d{3}\b", r"\b\d{11}\b"]
-        for pattern in patterns:
-            if re.search(pattern, output):
-                return False, "Possível PII detectada"
+    def check_position_size(self, order: Dict[str, Any]) -> Tuple[bool, str]:
+        """Validate position size."""
+        max_size = 5.0
+        position_size = order.get("position_size_pct", 0)
+
+        if position_size > max_size:
+            return False, f"Position size {position_size}% exceeds maximum {max_size}%"
+
         return True, ""
 
-    def check_no_harmful_code(self, output: str, context: Dict[str, object]) -> Tuple[bool, str]:
-        dangerous_patterns = [r"rm\s+-rf\s+/", r"DROP\s+DATABASE", r"eval\(", r"__import__\("]
-        for pattern in dangerous_patterns:
-            if re.search(pattern, output, re.IGNORECASE):
-                return False, f"Código potencialmente perigoso detectado: {pattern}"
+    def check_stop_loss(self, order: Dict[str, Any]) -> Tuple[bool, str]:
+        """Validate stop loss is present."""
+        if "stop_loss" not in order or order["stop_loss"] is None:
+            return False, "Stop loss is mandatory"
+
+        entry = order.get("entry_price", 0)
+        stop = order["stop_loss"]
+
+        if entry > 0:
+            action = order.get("action", "").upper()
+            if action == "BUY" and stop >= entry:
+                return False, "Stop loss must be below entry for BUY orders"
+            if action == "SELL" and stop <= entry:
+                return False, "Stop loss must be above entry for SELL orders"
+
         return True, ""
 
-    def check_business_logic_consistency(self, output: str, context: Dict[str, object]) -> Tuple[bool, str]:
-        required_terms = context.get("required_terms", [])
-        for term in required_terms:
-            if term not in output:
-                return False, f"Termo obrigatório ausente: {term}"
+    def check_risk_reward(self, order: Dict[str, Any]) -> Tuple[bool, str]:
+        """Validate risk-reward ratio."""
+        entry = order.get("entry_price", 0)
+        stop = order.get("stop_loss", 0)
+        target = order.get("take_profit", 0)
+
+        if entry > 0 and stop > 0 and target > 0:
+            risk = abs(entry - stop)
+            reward = abs(target - entry)
+
+            if risk > 0:
+                ratio = reward / risk
+                if ratio < 1.5:
+                    return False, f"Risk-reward ratio {ratio:.2f} is below minimum 1.5"
+
         return True, ""
 
-    def check_performance_bounds(self, output: str, context: Dict[str, object]) -> Tuple[bool, str]:
-        limit = context.get("latency_budget_ms")
-        if isinstance(limit, (int, float)):
-            try:
-                latency = float(context.get("estimated_latency_ms", 0))
-            except (TypeError, ValueError):
-                latency = 0.0
-            if latency > limit:
-                return False, "Latência estimada acima do limite"
+    def check_market_conditions(self, order: Dict[str, Any]) -> Tuple[bool, str]:
+        """Check if market conditions are suitable."""
+        # TODO: Implement market condition checks
         return True, ""

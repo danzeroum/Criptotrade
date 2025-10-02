@@ -1,0 +1,255 @@
+# Risk Management Parameters
+version: "1.0"
+last_updated: "2025-10-02"
+
+# Perfil de Risco Global
+risk_profile: "conservative"  # conservative | moderate | aggressive
+
+# Limites de Posição
+position_limits:
+  max_position_size_pct: 5.0  # Máximo 5% do portfolio por trade
+  min_position_size_pct: 1.0  # Mínimo 1% para justificar o trade
+  max_concurrent_positions: 3  # Máximo 3 trades simultâneos
+  max_exposure_per_asset: 15.0  # Máximo 15% em um único ativo
+
+# Stop Loss e Take Profit
+stop_loss:
+  mandatory: true
+  default_pct: 3.0  # 3% de stop loss padrão
+  max_allowed_pct: 5.0  # Nunca mais que 5%
+  trailing_enabled: false  # Desabilitado no MVP
+
+  
+
+take_profit:
+  mandatory: false  # Não obrigatório
+  default_pct: 9.0  # 3x o stop loss (risk-reward 1:3)
+  min_risk_reward_ratio: 1.5  # Mínimo 1.5:1
+
+# Limites de Perda
+loss_limits:
+  max_loss_per_trade_pct: 3.0  # Máximo -3% por trade
+  max_daily_loss_pct: 5.0  # Máximo -5% por dia
+  max_weekly_loss_pct: 10.0  # Máximo -10% por semana
+  max_monthly_loss_pct: 15.0  # Máximo -15% por mês (= max drawdown)
+
+  # Circuit Breaker
+  circuit_breaker:
+    enabled: true
+    trigger_daily_loss_pct: 4.0  # Pausa trading se perder 4% em um dia
+    trigger_consecutive_losses: 3  # Pausa após 3 perdas consecutivas
+    cooldown_period_hours: 24  # 24h de pausa após ativação
+
+# Diversificação
+diversification:
+  max_correlation: 0.7  # Não abrir posições com correlação > 0.7
+  min_different_assets: 2  # Mínimo 2 ativos diferentes
+  sector_limits:
+    defi: 30.0  # Máximo 30% em DeFi
+    layer1: 40.0  # Máximo 40% em Layer 1s
+    stablecoins: 20.0  # Máximo 20% em stablecoins
+
+# Alavancagem
+leverage:
+  allowed: false  # Proibido no MVP
+  max_leverage: 1.0  # Sem alavancagem (1x)
+
+# Tipos de Ordem
+order_types:
+  allowed:
+    - "limit"
+
+  prohibited:
+    - "market"  # Proibido para evitar slippage
+    - "stop_market"  # Proibido no MVP
+
+  slippage:
+    max_allowed_pct: 0.5  # Máximo 0.5% de slippage
+    simulated_in_paper: 0.2  # Simular 0.2% em paper trading
+
+# Horários de Trading
+trading_hours:
+  enabled: true
+  timezone: "UTC"
+
+  allowed_periods:
+    # Evitar períodos de baixa liquidez
+    - start: "08:00"
+      end: "20:00"
+      days: ["monday", "tuesday", "wednesday", "thursday", "friday"]
+
+  blackout_periods:
+    # Não tradear durante eventos de alto risco
+    - event: "fomc_meetings"
+      description: "Federal Reserve meetings"
+    - event: "major_cpi_releases"
+      description: "CPI data releases"
+
+# Condições de Mercado
+market_conditions:
+  volatility:
+    max_allowed: 80.0  # VIX equivalente para cripto
+    measurement: "atr_pct"  # Average True Range %
+
+  liquidity:
+    min_24h_volume_usd: 100000000  # Mínimo $100M de volume 24h
+    min_order_book_depth: 50000  # Mínimo $50k de cada lado
+
+  trend:
+    require_confirmation: true
+    min_indicators_aligned: 2  # Mínimo 2 indicadores confirmando
+
+# Capital Management
+capital:
+  initial_capital: 10000  # $10,000 inicial (paper trading)
+  reserve_pct: 20.0  # 20% sempre em reserva (não tradear)
+  max_deployed_pct: 80.0  # Máximo 80% do capital em posições
+
+  rebalancing:
+    enabled: false  # Desabilitado no MVP
+    frequency: "monthly"
+
+# Métricas de Performance Alvo
+performance_targets:
+  sharpe_ratio: 1.5  # Alvo: > 1.5
+  max_drawdown: 15.0  # Máximo: 15%
+  win_rate: 55.0  # Alvo: > 55%
+  profit_factor: 1.8  # Alvo: > 1.8 (ganhos/perdas)
+
+  evaluation_period_days: 90  # Avaliar após 90 dias
+
+# Validação de Sinais
+signal_validation:
+  min_confidence: 0.6  # Confidence mínimo para considerar sinal
+  require_multiple_timeframes: false  # Desabilitado no MVP
+
+  filters:
+    - name: "volume_surge"
+      enabled: true
+      threshold: 1.5  # Volume > 1.5x média
+
+    - name: "spread_check"
+      enabled: true
+      max_spread_pct: 0.3  # Spread < 0.3%
+
+    - name: "momentum_confirmation"
+      enabled: true
+      lookback_periods: 14
+
+# Fees e Custos
+fees:
+  exchange_fee_pct: 0.1  # 0.1% por trade (maker/taker médio)
+  slippage_estimate_pct: 0.2  # Estimar 0.2% de slippage
+
+  cost_per_trade:
+    fixed: 0.0  # Sem custo fixo
+    variable_pct: 0.3  # Total ~0.3% (fees + slippage)
+
+  break_even_move_pct: 0.6  # Precisa de 0.6% de movimento para empatar
+
+# Estratégias Específicas
+strategies:
+  dca_optimized:
+    enabled: true
+    position_size_pct: 2.0  # 2% por entrada
+    num_entries: 3  # 3 entradas graduais
+    spacing_pct: 1.0  # 1% de espaçamento entre entradas
+
+  grid_trading:
+    enabled: false  # Nice-to-have
+    grid_levels: 5
+    spacing_pct: 2.0
+
+  momentum:
+    enabled: false  # Nice-to-have
+    lookback_period: 14
+    threshold: 0.7
+
+# Testes e Validação
+backtesting:
+  required_before_live: true
+  min_historical_data_days: 365  # 1 ano de dados
+  min_num_trades: 100  # Mínimo 100 trades no backtest
+
+  out_of_sample:
+    enabled: true
+    test_period_pct: 20.0  # 20% dos dados para teste
+
+  walk_forward:
+    enabled: false  # Enterprise feature
+
+# Modo de Operação
+mode:
+  current: "paper_trading"
+  allowed_modes:
+    - "paper_trading"
+    - "live_trading"
+
+  transition_criteria:
+    to_live:
+      - metric: "sharpe_ratio"
+        operator: ">"
+        value: 1.5
+      - metric: "win_rate"
+        operator: ">"
+        value: 55.0
+      - metric: "max_drawdown"
+        operator: "<"
+        value: 10.0
+      - metric: "paper_trading_days"
+        operator: ">="
+        value: 90
+      - metric: "total_trades"
+        operator: ">="
+        value: 100
+      - metric: "guardrail_violations"
+        operator: "=="
+        value: 0
+
+# Alertas e Notificações
+alerts:
+  enabled: true
+  channels:
+    - "console"  # MVP: apenas console
+    # - "telegram"  # Nice-to-have
+    # - "email"  # Nice-to-have
+
+  triggers:
+    - event: "circuit_breaker_activated"
+      priority: "critical"
+      notify: true
+
+    - event: "daily_loss_limit_approaching"
+      priority: "high"
+      threshold: 0.8  # 80% do limite
+      notify: true
+
+    - event: "position_closed"
+      priority: "medium"
+      notify: true
+
+    - event: "guardrail_violation"
+      priority: "critical"
+      notify: true
+
+# Compliance e Auditoria
+compliance:
+  audit_required: true
+  audit_frequency: "weekly"
+
+  checks:
+    - "all_trades_have_stop_loss"
+    - "no_position_exceeds_limits"
+    - "circuit_breaker_functional"
+    - "ledger_integrity"
+    - "no_unauthorized_leverage"
+
+  reporting:
+    enabled: true
+    frequency: "daily"
+    metrics:
+      - "total_trades"
+      - "win_rate"
+      - "pnl_daily"
+      - "max_drawdown"
+      - "sharpe_ratio"
