@@ -1,44 +1,190 @@
 {
-  "version": "6.0",
-  "timestamp": "2025-01-XX",
+  "project_type": "ai_agent",
+  "agent_configuration": {
+    "framework": "langchain",
+    "primary_model": "gemini-pro",
+    "deployment_mode": "api",
+    "fallback_model": "gpt-3.5-turbo"
+  },
   "project": {
-    "name": "project-name",
-    "domain": "fintech|healthtech|saas|erp",
-    "buyer": "startup|enterprise",
-    "timeline": "2-3 semanas MVP",
-    "budget_range": "low|medium|high"
+    "name": "Plataforma de Trading de Cripto com IA",
+    "codename": "crypto-ai-trader",
+    "domain": "fintech",
+    "buyer": "startup",
+    "timeline": "4-6 semanas para MVP em Paper Trading",
+    "budget_range": "low",
+    "version": "0.1.0-alpha"
   },
   "problem": {
-    "statement": "Descrição clara do problema",
-    "current_pain": "Dor atual do cliente",
-    "desired_outcome": "Estado futuro desejado"
+    "statement": "Construir uma plataforma de trading automatizada que gere ganhos consistentes e de baixo risco, com perdas estritamente controladas, operável por um único utilizador com baixo custo de manutenção.",
+    "current_pain": "A complexidade e o risco do mercado de criptomoedas exigem monitorização constante e disciplina rigorosa, o que é difícil para um único investidor.",
+    "desired_outcome": "Um sistema autónomo que executa estratégias de trading validadas, protege o capital e exige apenas supervisão humana para decisões críticas."
   },
   "must_have": [
-    "Feature essencial 1",
-    "Feature essencial 2",
-    "Feature essencial 3"
+    "Execução de trades em modo 'Paper Trading' para validação sem risco.",
+    "Implementação de pelo menos uma estratégia de baixo risco (ex: DCA Otimizado).",
+    "Mecanismo de 'Human-in-the-Loop' (HITL) para aprovação manual de todas as ordens.",
+    "Gestão de risco com Stop Loss rígido e limite de Posição por trade.",
+    "Execução segura de ordens em ambiente isolado (Sandbox).",
+    "Dashboard de monitorização com métricas essenciais (P&L diário, drawdown).",
+    "Sistema de Guardrails para validação de ordens antes da execução.",
+    "Ledger de auditoria imutável para todas as decisões e operações."
   ],
   "nice_to_have": [
-    "Feature desejável 1",
-    "Feature desejável 2"
+    "Implementação de estratégias de risco moderado (Grid, Momentum).",
+    "Mecanismo de 'Progressive Autonomy' para evoluir de L1 (aprovação) para L2 (notificação).",
+    "Coleta de dados de mercado em tempo real via WebSockets.",
+    "Circuit Breaker para interrupção automática em caso de falhas de API.",
+    "Base de conhecimento (RAG) para enriquecer a tomada de decisão.",
+    "Sistema de backtesting com dados históricos.",
+    "Alertas via Telegram para eventos críticos."
   ],
   "explicitly_excluded": [
-    "Fora do escopo 1",
-    "Fora do escopo 2"
+    "Trading de alta frequência (HFT).",
+    "Interface para múltiplos utilizadores.",
+    "Estratégias de alto risco (alavancagem superior a 2x).",
+    "Gestão de carteiras de clientes (apenas para o próprio utilizador).",
+    "Trading com margem ou futuros na fase MVP.",
+    "Integração com exchanges descentralizadas (DEX) no MVP."
   ],
   "constraints": [
-    "Stack obrigatória",
-    "Compliance específica",
-    "Performance mínima"
+    "O custo operacional mensal da infraestrutura deve ser mantido abaixo de $200 na fase inicial.",
+    "A segurança do capital e das chaves de API é a prioridade máxima.",
+    "Todas as operações devem ser auditáveis e registadas num ledger imutável.",
+    "Latência máxima para tomada de decisão: 5 segundos.",
+    "Zero tolerância para violações de segurança (sandbox escapes, API key exposure).",
+    "Compliance com regulamentações de proteção de dados (GDPR para dados pessoais)."
   ],
   "success_metrics": {
     "technical": [
-      "P95 < 800ms",
-      "Uptime > 99.9%"
+      "Latência da execução da ordem < 2 segundos",
+      "Zero violações de segurança registadas",
+      "Uptime > 99.5%",
+      "Agent consensus strength > 0.75 em decisões críticas",
+      "Memory recall precision > 0.90",
+      "Sandbox violations: 0"
     ],
     "business": [
-      "ROI em 6 meses",
-      "10 clientes em 30 dias"
+      "Obter um 'Sharpe Ratio' > 1.2 após 3 meses em paper trading",
+      "Manter o 'Max Drawdown' abaixo de 15% do capital total",
+      "Alcançar uma taxa de acerto ('Win Rate') > 55% nas estratégias de baixo risco",
+      "Retorno anual alvo: 15-25% (conservative)",
+      "Custo operacional mensal < $200"
     ]
+  },
+  "agent_specific_requirements": {
+    "cognitive_capabilities": {
+      "reasoning_depth": "deep",
+      "reasoning_patterns": [
+        "chain_of_thought",
+        "react",
+        "reflection"
+      ],
+      "memory_requirements": {
+        "short_term": "last_24h_trades",
+        "long_term": "vector_db",
+        "episodic": true
+      }
+    },
+    "interaction_boundaries": {
+      "tool_access": [
+        "read_market_data",
+        "write_with_approval"
+      ],
+      "escalation_triggers": [
+        "confidence < 0.6",
+        "position_size > max_limit",
+        "stop_loss_triggered",
+        "api_failure",
+        "circuit_breaker_activated"
+      ],
+      "maximum_autonomy_level": 2
+    },
+    "resource_constraints": {
+      "max_tokens_per_interaction": 8000,
+      "max_api_cost_per_task": 0.05,
+      "timeout_seconds": 30,
+      "max_concurrent_analysis": 3
+    }
+  },
+  "agent_goals": {
+    "primary_objective": {
+      "description": "Executar operações de trading lucrativas, priorizando a preservação de capital e seguindo rigorosamente as regras de gestão de risco definidas.",
+      "success_criteria": [
+        "Todas as ordens propostas são validadas pelo RiskManagerAgent",
+        "Nenhuma ordem excede os limites de risco definidos",
+        "Todas as decisões e execuções são registadas no ledger de auditoria",
+        "Human approval obtido para todas as operações em L1 autonomy"
+      ],
+      "metrics": {
+        "target": ">=0.8 confidence em decisões",
+        "threshold": "0.6 minimum para qualquer ação"
+      }
+    },
+    "monitoring": {
+      "checkpoints": [
+        "pre_trade_analysis",
+        "risk_validation",
+        "human_approval",
+        "execution_confirmation",
+        "post_trade_evaluation"
+      ],
+      "escalation_triggers": [
+        "Confiança do sinal < 0.6",
+        "Falha na API da exchange por mais de 5 minutos",
+        "Ativação do Circuit Breaker",
+        "Max drawdown approaching limit (12%)",
+        "Consecutive losses > 3"
+      ]
+    }
+  },
+  "patterns": {
+    "prompt_chaining": {
+      "priority": "P0",
+      "use_cases": [
+        "Market analysis → Signal generation → Risk assessment"
+      ]
+    },
+    "routing": {
+      "priority": "P0",
+      "use_cases": [
+        "Intent classification for different market conditions"
+      ]
+    },
+    "tool_use": {
+      "priority": "P0",
+      "use_cases": [
+        "Exchange API integration",
+        "Technical indicators calculation"
+      ]
+    },
+    "reasoning_techniques": {
+      "priority": "P0",
+      "use_cases": [
+        "Trade decision justification",
+        "Risk evaluation"
+      ]
+    },
+    "guardrails": {
+      "priority": "P0",
+      "use_cases": [
+        "Order validation",
+        "Position size limits",
+        "API key protection"
+      ]
+    },
+    "memory_management": {
+      "priority": "P1",
+      "use_cases": [
+        "Trade history recall",
+        "Pattern recognition"
+      ]
+    },
+    "multi_agent_collaboration": {
+      "priority": "P1",
+      "use_cases": [
+        "Strategy Agent + Risk Agent + Execution Agent coordination"
+      ]
+    }
   }
 }
