@@ -1,0 +1,54 @@
+agent_advanced_metrics:
+  security:
+    - metric: sandbox_escape_attempts
+      target: "0"
+      alert: "> 0"
+      severity: critical
+    - metric: tool_execution_in_sandbox_percentage
+      target: "100%"
+      alert: "< 100%"
+      severity: critical
+  consensus:
+    - metric: consensus_strength_average
+      target: "> 0.75"
+      alert: "< 0.60"
+    - metric: human_intervention_rate
+      target: "< 10%"
+      alert: "> 20%"
+    - metric: consensus_time_seconds
+      target: "< 3"
+      alert: "> 10"
+  adaptability:
+    - metric: replanning_success_rate
+      target: "> 85%"
+      alert: "< 70%"
+    - metric: plan_adaptation_frequency
+      target: "optimal"
+      alert: "excessive or none"
+  memory_efficiency:
+    - metric: memory_compression_ratio
+      target: "> 10:1"
+      alert: "< 5:1"
+    - metric: relevant_memory_recall_precision
+      target: "> 0.90"
+      alert: "< 0.75"
+    - metric: memory_storage_gb
+      target: "< 1"
+      alert: "> 2"
+  learning:
+    - metric: route_learning_improvement
+      target: "> 5% per week"
+      alert: "< 1% per week"
+    - metric: ab_test_winner_deployment_rate
+      target: "> 60%"
+      alert: "< 30%"
+  resource_optimization:
+    - metric: parallel_execution_efficiency
+      target: "> 80%"
+      alert: "< 60%"
+    - metric: api_cost_per_task
+      target: "< $0.10"
+      alert: "> $0.25"
+    - metric: resource_limit_violations
+      target: "0"
+      alert: "> 5 per hour"

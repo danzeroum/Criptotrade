@@ -1,0 +1,44 @@
+{
+  "version": "6.0",
+  "timestamp": "2025-01-XX",
+  "project": {
+    "name": "project-name",
+    "domain": "fintech|healthtech|saas|erp",
+    "buyer": "startup|enterprise",
+    "timeline": "2-3 semanas MVP",
+    "budget_range": "low|medium|high"
+  },
+  "problem": {
+    "statement": "Descrição clara do problema",
+    "current_pain": "Dor atual do cliente",
+    "desired_outcome": "Estado futuro desejado"
+  },
+  "must_have": [
+    "Feature essencial 1",
+    "Feature essencial 2",
+    "Feature essencial 3"
+  ],
+  "nice_to_have": [
+    "Feature desejável 1",
+    "Feature desejável 2"
+  ],
+  "explicitly_excluded": [
+    "Fora do escopo 1",
+    "Fora do escopo 2"
+  ],
+  "constraints": [
+    "Stack obrigatória",
+    "Compliance específica",
+    "Performance mínima"
+  ],
+  "success_metrics": {
+    "technical": [
+      "P95 < 800ms",
+      "Uptime > 99.9%"
+    ],
+    "business": [
+      "ROI em 6 meses",
+      "10 clientes em 30 dias"
+    ]
+  }
+}

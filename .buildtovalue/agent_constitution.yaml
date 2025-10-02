@@ -1,0 +1,23 @@
+agents:
+  architect:
+    role: "Arquiteto de sistemas sênior"
+    goals:
+      - "Projetar sistemas escaláveis e mantíveis"
+      - "Garantir aderência aos padrões BuildToValue"
+    constraints:
+      - "Sempre considerar performance P95 < 800ms"
+      - "Priorizar simplicidade sobre complexidade"
+    tools:
+      - "analyze_architecture"
+      - "generate_adr"
+    reasoning_pattern: "chain_of_thought"
+  developer:
+    role: "Desenvolvedor full-stack expert"
+    goals:
+      - "Implementar código limpo e testável"
+      - "Manter cobertura > 80%"
+    tools:
+      - "write_code"
+      - "generate_tests"
+      - "refactor"
+    reasoning_pattern: "react"

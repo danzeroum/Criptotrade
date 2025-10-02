@@ -1,0 +1,76 @@
+name: BuildToValue v6 Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality-gates:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Cache Maven
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+
+      - name: Run Tests
+        run: ./mvnw clean verify
+
+      - name: Code Coverage
+        run: ./mvnw jacoco:report
+
+      - name: OWASP Dependency Check
+        run: ./mvnw org.owasp:dependency-check-maven:check
+
+      - name: Run k6 Tests
+        uses: grafana/k6-action@v0.3.0
+        with:
+          filename: k6/load-test.js
+
+      - name: Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          urls: |
+            http://localhost:8080
+          uploadArtifacts: true
+
+      - name: Quality Gates Check
+        run: ./scripts/gates-v6.sh
+
+  docker-build:
+    needs: quality-gates
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Docker Build & Push
+        env:
+          REGISTRY: ${{ secrets.DOCKER_REGISTRY }}
+        run: |
+          docker build -t $REGISTRY/app:${{ github.sha }} .
+          docker push $REGISTRY/app:${{ github.sha }}
+
+  deploy:
+    needs: docker-build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deploy to Production
+        run: |
+          # Deploy logic here (ECS, K8s, etc.)
+          echo "Deploying version ${{ github.sha }}"

@@ -1,0 +1,27 @@
+---
+- name: Configure BuildToValue v6 environment
+  hosts: BuildToValue
+  become: true
+  vars:
+    app_user: BuildToValue
+    app_dir: /opt/BuildToValue
+  tasks:
+    - name: Ensure application directory exists
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        mode: "0755"
+
+    - name: Deploy application configuration
+      template:
+        src: templates/application.yml.j2
+        dest: "{{ app_dir }}/application.yml"
+        owner: "{{ app_user }}"
+        mode: "0644"
+
+    - name: Start BuildToValue services
+      systemd:
+        name: BuildToValue
+        state: started
+        enabled: true

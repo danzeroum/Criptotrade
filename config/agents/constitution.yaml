@@ -1,0 +1,15 @@
+# Constituição dos Agentes - Define comportamento, limites e capacidades
+version: 6.1
+agents:
+  architect:
+    capabilities: [planning, consensus, memory]
+    autonomy_level: 2
+    tools: [architecture_analyzer, adr_generator]
+  developer:
+    capabilities: [implementation, testing, debugging]
+    autonomy_level: 1
+    tools: [code_generator, test_generator, debugger]
+  auditor:
+    capabilities: [security, compliance, quality]
+    autonomy_level: 3
+    tools: [security_scanner, compliance_checker]

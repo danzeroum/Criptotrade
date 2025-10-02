@@ -1,0 +1,148 @@
+{
+  "project_type": "ai_agent",
+  "agent_configuration": {
+    "framework": "langchain",
+    "primary_model": "gpt-4",
+    "deployment_mode": "api"
+  },
+  "use_cases": {
+    "ai_agent": {
+      "description": "Utilizado quando o projeto requer autonomia, raciocínio avançado e interação contínua.",
+      "components": [
+        "SafeAgentBase",
+        "ContinuousEvaluator",
+        "RAGTool",
+        "MCPServer"
+      ]
+    },
+    "traditional": {
+      "description": "Utilizado para tarefas simples e lineares, sem necessidade de autonomia ou raciocínio avançado.",
+      "components": [
+        "LLMChain",
+        "SimpleSequentialChain"
+      ]
+    }
+  },
+  "project": {
+    "name": "BuildToValue v6 Agent System",
+    "version": "6.0.0",
+    "foundation_level": "enterprise"
+  },
+  "patterns": {
+    "prompt_chaining": {
+      "priority": "P0",
+      "use_cases": ["Decomposição de tarefas complexas", "Validação incremental"],
+      "requirements": {
+        "must_have": ["Validação entre etapas", "Logs estruturados"],
+        "nice_to_have": ["Retry automático", "Circuit breaker"]
+      }
+    },
+    "routing": {
+      "priority": "P0",
+      "use_cases": ["Classificação de intenções", "Delegação para sub-agentes"],
+      "requirements": {
+        "must_have": ["Fallback para humano", "Métricas de acurácia"],
+        "nice_to_have": ["Aprendizado contínuo", "Auto-otimização"]
+      }
+    },
+    "parallelization": {
+      "priority": "P0",
+      "use_cases": ["Pesquisa em múltiplas fontes", "Validações concorrentes"],
+      "requirements": {
+        "must_have": ["Synthesis de resultados", "Timeout por tarefa"],
+        "nice_to_have": ["Load balancing", "Circuit breaker"]
+      }
+    },
+    "memory_management": {
+      "priority": "P1",
+      "use_cases": ["Manutenção de contexto", "Recuperação de informações"],
+      "requirements": {
+        "must_have": ["Logs de memória", "Validação de memória"],
+        "nice_to_have": ["Escalabilidade de memória", "Privacidade de dados"]
+      }
+    },
+    "multi_agent_collaboration": {
+      "priority": "P0",
+      "use_cases": ["Tarefas complexas", "Interação com múltiplos agentes"],
+      "requirements": {
+        "must_have": ["Coordenação entre agentes", "Feedback humano"],
+        "nice_to_have": ["Automação de feedback", "Integração contínua"]
+      }
+    },
+    "tool_use": {
+      "priority": "P0",
+      "use_cases": ["Integração com APIs", "Uso de ferramentas externas"],
+      "requirements": {
+        "must_have": ["Validação de uso de ferramentas", "Fallback para humano"],
+        "nice_to_have": ["Automação de integração", "Monitoramento de uso de ferramentas"]
+      }
+    },
+    "reasoning_techniques": {
+      "priority": "P0",
+      "use_cases": ["Raciocínio avançado", "Resolução de problemas complexos"],
+      "requirements": {
+        "must_have": ["Validação de raciocínio", "Transparência nas decisões"],
+        "nice_to_have": ["Iterações de raciocínio", "Auto-correção"]
+      }
+    },
+    "guardrails": {
+      "priority": "P0",
+      "use_cases": ["Segurança e conformidade", "Prevenção de falhas"],
+      "requirements": {
+        "must_have": ["Validação de entradas", "Controle de exceções"],
+        "nice_to_have": ["Detecção de anomalias", "Integração de feedback humano"]
+      }
+    }
+  },
+  "agent_specific_requirements": {
+    "cognitive_capabilities": {
+      "reasoning_depth": "shallow|deep|recursive",
+      "memory_requirements": {
+        "short_term": "last_n_interactions",
+        "long_term": "vector_db|none",
+        "episodic": true
+      }
+    },
+    "interaction_boundaries": {
+      "tool_access": [
+        "read_only",
+        "write_with_approval"
+      ],
+      "escalation_triggers": [
+        "low_confidence < 0.3",
+        "ethical_boundary"
+      ],
+      "maximum_autonomy_level": 3
+    },
+    "resource_constraints": {
+      "max_tokens_per_interaction": 4000,
+      "max_api_cost_per_task": 0.10,
+      "timeout_seconds": 30
+    }
+  },
+  "agent_goals": {
+    "primary_objective": {
+      "description": "Entregar trajetórias de agentes alinhadas à metodologia BuildToValue v6.",
+      "success_criteria": [
+        "Planos aprovados pelo Prompt Engineer",
+        "Execução com fallback concluído",
+        "Trajetórias documentadas no ledger"
+      ],
+      "metrics": {
+        "target": ">=0.9 confiança",
+        "threshold": "0.7 mínima"
+      }
+    },
+    "monitoring": {
+      "checkpoints": [
+        "after_planning",
+        "mid_execution",
+        "final"
+      ],
+      "escalation_triggers": [
+        "confidence < 0.5",
+        "timeout"
+      ]
+    }
+  }
+}
