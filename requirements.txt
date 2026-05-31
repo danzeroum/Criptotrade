@@ -42,4 +42,5 @@ cryptography==42.0.2
 
 # Async support
 aiohttp==3.9.3
-asyncio==3.4.3
+# NOTE: do not add the third-party `asyncio` backport here — it shadows the
+# stdlib `asyncio` module and breaks async/await on Python 3.11+.

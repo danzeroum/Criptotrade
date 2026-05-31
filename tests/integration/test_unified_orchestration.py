@@ -7,8 +7,14 @@ import asyncio
 from src.orchestration.unified_orchestrator import UnifiedOrchestrator
 
 
+async def _approve(agent, action):
+    # Simulates a human approving a low-consensus plan (HITL is fail-closed by default).
+    return {"approved": True, "modifications": None, "feedback": None}
+
+
 def test_orchestrator_simple_task():
     orchestrator = UnifiedOrchestrator()
+    orchestrator.autonomy.approval_handler = _approve
     task = {
         "task_id": "test-001",
         "description": "Create a simple REST API",
@@ -23,6 +29,7 @@ def test_orchestrator_simple_task():
 
 def test_orchestrator_with_replanning():
     orchestrator = UnifiedOrchestrator()
+    orchestrator.autonomy.approval_handler = _approve
     task = {
         "task_id": "test-002",
         "description": "Complex task with potential failure",
