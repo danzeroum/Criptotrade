@@ -1,4 +1,3 @@
-import asyncio
 
 import pytest
 
@@ -35,16 +34,16 @@ class _DummyExchange:
 
 
 @pytest.mark.asyncio
-async def test_execution_agent_requires_hitl():
-    agent = ExecutionAgent(_DummyExchange())
+async def test_execution_agent_requires_hitl(dummy_exchange):
+    agent = ExecutionAgent(dummy_exchange)
     result = await agent.execute({"signal": {}, "human_approved": False})
     assert result["success"] is False
     assert result["error"] == "Human approval required (HITL)"
 
 
 @pytest.mark.asyncio
-async def test_execution_agent_simulates_order():
-    agent = ExecutionAgent(_DummyExchange())
+async def test_execution_agent_simulates_order(dummy_exchange):
+    agent = ExecutionAgent(dummy_exchange)
     result = await agent.execute({
         "signal": {"action": "BUY", "symbol": "BTC/USDT"},
         "human_approved": True,
