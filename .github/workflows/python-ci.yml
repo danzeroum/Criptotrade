@@ -1,0 +1,47 @@
+name: Python CI
+
+# Validates the Python trading core. The existing buildtoflip-v6.yml only
+# builds/tests the (orphan) Java stack and never runs these tests.
+
+on:
+  push:
+    branches: [master, "claude/**"]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff
+
+      - name: Ruff (blocking — correctness gate)
+        run: ruff check .
+
+      - name: Ruff (full — informational backlog)
+        if: always()
+        continue-on-error: true
+        run: ruff check . --select E,F,B,UP,I --output-format=github
+
+      - name: Pytest (with coverage)
+        run: pytest
+
+  docker-build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Python image
+        run: docker build -t criptotrade:ci .
