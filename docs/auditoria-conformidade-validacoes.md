@@ -10,6 +10,31 @@
 
 ---
 
+## 0. Atualização — Correções P0 aplicadas neste PR
+
+Após a auditoria, os seguintes itens **críticos (P0)** já foram corrigidos nesta branch
+(`claude/nifty-shannon-7CgJs`, PR #3), com testes passando (23/23):
+
+| Item | Antes | Depois | Onde |
+|---|---|---|---|
+| HITL bypass | ❌ `human_approved = True` hardcoded | ✅ **Fail-closed**: nega por padrão; aprovação real via `approval_handler` injetável | `squad_orchestrator.py`, `progressive_autonomy.py` |
+| Sandbox fail-open | ❌ retorno simulado sem Docker | ✅ **`raise SecurityError`**; modo simulado só com `allow_unsandboxed=True` (dev explícito) | `secure_executor.py` |
+| `eval()` em exemplo | ❌ `lambda x: eval(x)` | ✅ `safe_calculator` baseado em `ast` (sem RCE) | `docs/examples/tool_use_autonomous.py` |
+| `asyncio==3.4.3` | ❌ sobrescreve stdlib | ✅ removido (com nota explicativa) | `requirements.txt` |
+| Segredos no Git | ❌ `.env.prod`/`.env.dev` versionados | ✅ `git rm --cached` + `.gitignore` mantém só os templates | `.gitignore`, `.env.*` |
+| Bug latente FORBIDDEN_PATTERNS | ❌ `TypeError` em toda chamada benigna ao sandbox | ✅ usa instância (padrão de `validate_tool_call`) | `secure_executor.py` |
+| Cobertura HITL | — | ✅ novo teste de bloqueio fail-closed + sucesso com handler | `test_trading_flow.py`, `test_unified_orchestration.py` |
+
+> **Ação operacional pendente (fora do código):** as credenciais expostas em `.env.prod`/`.env.dev`
+> ainda existem no **histórico do Git** — é obrigatório **rotacionar** as senhas e, idealmente,
+> reescrever o histórico (ex.: `git filter-repo`). Untrackear o arquivo não remove o segredo já
+> commitado.
+
+A tabela detalhada abaixo (seções 3.x) mantém o **status original da auditoria** como registro;
+os itens acima passam a ✅ após este PR.
+
+---
+
 ## 1. Sumário Executivo
 
 Esta auditoria mapeou as validações e pontos de controle **documentados** no projeto e

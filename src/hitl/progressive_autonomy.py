@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 
 @dataclass
@@ -20,6 +20,10 @@ class ProgressiveAutonomyManager:
     )
     agent_trust_scores: Dict[str, float] = field(default_factory=dict)
     action_history: List[Dict[str, Any]] = field(default_factory=list)
+    # Real HITL hook. When None, approvals are denied (fail-closed).
+    approval_handler: Optional[
+        Callable[[str, Dict[str, Any]], Awaitable[Dict[str, Any]]]
+    ] = None
 
     def _get_autonomy_level(self, agent: str) -> int:
         score = self.agent_trust_scores.get(agent, 0.5)
@@ -79,8 +83,14 @@ class ProgressiveAutonomyManager:
         return True
 
     async def _request_human_approval(self, agent: str, action: Dict[str, Any]) -> Dict[str, Any]:
-        # Placeholder for real approval workflow; assume approved with no modifications
-        return {"approved": True, "modifications": None, "feedback": None}
+        # Fail-closed: deny by default until a real approval workflow is wired in.
+        if self.approval_handler is None:
+            return {
+                "approved": False,
+                "modifications": None,
+                "feedback": "No approval handler configured (fail-closed)",
+            }
+        return await self.approval_handler(agent, action)
 
     async def _execute_action(self, action: Dict[str, Any]) -> Dict[str, Any]:
         # Placeholder for actual execution logic
