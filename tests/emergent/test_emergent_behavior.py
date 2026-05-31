@@ -1,15 +1,8 @@
 """Validate emergent properties when patterns are composed together."""
 
-from dataclasses import dataclass, field
-from pathlib import Path
 import re
+from dataclasses import dataclass, field
 from typing import List
-
-import sys
-
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.append(str(ROOT))
 
 from src.core.safe_agent_base import SafeAgentBase
 

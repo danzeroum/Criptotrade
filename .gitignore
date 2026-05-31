@@ -1,6 +1,9 @@
 # Environment and secrets
 .env
 .env.*
+# Keep versioned templates (no real secrets) tracked
+!.env.example
+!.env.template
 
 # Python artifacts
 __pycache__/
