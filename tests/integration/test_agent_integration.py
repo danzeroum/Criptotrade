@@ -6,7 +6,6 @@ import asyncio
 
 from src.agents.architect_agent import ArchitectAgent
 from src.agents.developer_agent import DeveloperAgent
-from src.agents.auditor_agent import AuditorAgent
 from src.consensus.weighted_voting import WeightedConsensusEngine
 from src.planning.adaptive_planner import AdaptivePlanner
 
