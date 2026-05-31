@@ -20,9 +20,9 @@ services:
   postgres:
     image: postgres:15-alpine
     environment:
-      POSTGRES_DB: buildtoflip_dev
-      POSTGRES_USER: devuser
-      POSTGRES_PASSWORD: REDACTED
+      POSTGRES_DB: ${POSTGRES_DB:-buildtoflip_dev}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in your environment (.env)}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in your environment (.env)}
     ports:
       - "5432:5432"
     volumes:
@@ -49,8 +49,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:?set GF_SECURITY_ADMIN_PASSWORD in your environment (.env)}
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning
     depends_on:
