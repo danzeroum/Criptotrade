@@ -129,7 +129,7 @@ A coluna **Evidência** cita `arquivo:linha` reais verificados no repositório.
 
 | Validação Mapeada | Status | Evidência Encontrada | Gap Identificado | Solução Proposta |
 |---|---|---|---|---|
-| Nenhuma API key/credencial hardcoded; `.env` não versionado | ❌ | `.env.prod` (`DB_PASSWORD=REDACTED`) e `.env.dev` (`REDACTED`) versionados; `docker/docker-compose.yml` Grafana `admin`, Postgres `REDACTED` | Credenciais de produção expostas no histórico Git | `git rm --cached` + **rotação** das credenciais + pre-commit hook (gitleaks); senhas via secrets manager (P0 SEC-01/05) |
+| Nenhuma API key/credencial hardcoded; `.env` não versionado | ✅ | Defaults de senha e arquivos `.env.*` órfãos removidos do working tree e expurgados do histórico (git filter-repo); gitleaks adicionado ao CI | Resolvido | Credenciais removidas + histórico reescrito + rotação aplicada (P0 SEC-01/05) |
 | Sem `eval()`/execução arbitrária | ❌ | `docs/examples/tool_use_autonomous.py:30` `func=lambda x: eval(x)` | RCE em exemplo (pode ser copiado) | Substituir por `ast.literal_eval` ou parser matemático seguro (P0 SEC-04) |
 | Type hints + docstrings nos métodos públicos; PEP8/Black | 🟡 | Boa cobertura de docstrings Python (PDF nota B) | Sem `black/flake8/mypy/ruff` instalados/configurados | Adicionar `requirements-dev.txt` + ruff no CI (P1/P2) |
 | Logs não expõem dados sensíveis | 🟡 | Logging estruturado (`python-json-logger`) | Sem evidência de redaction de secrets em logs | Adicionar filtro de redaction no `configure_logging()` |
