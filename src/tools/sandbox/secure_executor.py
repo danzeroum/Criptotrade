@@ -25,6 +25,8 @@ class SecureToolSandbox:
     execution_timeout: int = 30
     memory_limit_mb: int = 512
     cpu_quota: float = 0.5
+    # Fail-closed by default: only an explicit dev opt-in allows unsandboxed execution.
+    allow_unsandboxed: bool = False
 
     def execute_tool_sandboxed(self, tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute the given tool inside an isolated environment when possible."""
@@ -32,12 +34,17 @@ class SecureToolSandbox:
         self._validate_security(tool_name, params)
 
         if self.docker_sandbox is None:
-            logger.warning("Docker sandbox unavailable; returning simulated response")
+            if not self.allow_unsandboxed:
+                raise SecurityError(
+                    "Docker sandbox unavailable; refusing to execute tool unsandboxed "
+                    "(set allow_unsandboxed=True only in an explicit dev environment)"
+                )
+            logger.warning("Docker sandbox unavailable; running in explicit dev mode (unsandboxed)")
             return {
                 "tool": tool_name,
                 "params": params,
                 "sandboxed": False,
-                "message": "Docker indisponível, execução simulada",
+                "message": "Docker indisponível, execução simulada (modo dev explícito)",
             }
 
         command = ["python", "-m", tool_name]
@@ -57,7 +64,9 @@ class SecureToolSandbox:
 
     def _validate_params_safety(self, params: Dict[str, Any]) -> bool:
         param_str = json.dumps(params, ensure_ascii=False)
-        for pattern in SecurityConfig.FORBIDDEN_PATTERNS:
+        # FORBIDDEN_PATTERNS is populated in SecurityConfig.__post_init__, so use an
+        # instance (the class attribute is None until instantiated).
+        for pattern in (SecurityConfig().FORBIDDEN_PATTERNS or []):
             if re.search(pattern, param_str, re.IGNORECASE):
                 logger.error("Forbidden pattern detected during sandbox validation", extra={"pattern": pattern})
                 return False

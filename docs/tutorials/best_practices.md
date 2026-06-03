@@ -37,7 +37,7 @@ Um agente só é confiável se o seu comportamento for testável. Crie testes au
 pytest tests/unit/test_extract_chain.py
 
 # Testa o pipeline completo de ponta a ponta (integração)
-./scripts/test-integration-nfe-processor.sh
+./scripts/test-integration.sh
 ```
 
 ## 3. Escalabilidade (Planejamento para o Futuro)
