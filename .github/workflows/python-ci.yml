@@ -1,7 +1,6 @@
 name: Python CI
 
-# Validates the Python trading core. The existing buildtoflip-v6.yml only
-# builds/tests the (orphan) Java stack and never runs these tests.
+# Validates the Python trading core and scans for leaked secrets.
 
 on:
   push:
@@ -10,6 +9,18 @@ on:
     branches: [master]
 
 jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   test:
     runs-on: ubuntu-latest
     steps:

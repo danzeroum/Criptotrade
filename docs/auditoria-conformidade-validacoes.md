@@ -142,7 +142,7 @@ A coluna **Evidência** cita `arquivo:linha` reais verificados no repositório.
 | Pipeline CI executa lint + testes + cobertura do núcleo | ❌ | `.github/workflows/buildtoflip-v6.yml` **existe**, mas roda `./mvnw clean verify`, JaCoCo, OWASP, k6 (`localhost:8080`) e Lighthouse — **tudo Java**. Não há `pytest`, ruff ou cobertura Python | O CI valida apenas o **stack Java órfão**; o núcleo Python (trading) **não é validado por nenhum pipeline** | Criar job GitHub Actions Python: `ruff` + `pytest --cov` + build Docker (P1 CI/CD). Transformar o `validation-checklist.md` em *quality gate* automatizado |
 | `docker-compose up` sobe os serviços + healthcheck | 🟡 | compose presente | Sem healthcheck; container principal roda como root (sem `USER`) | Adicionar `USER` não-root no `Dockerfile` (P1 SEC-09) + healthcheck |
 | IaC (Terraform) funcional | ❌ | `terraform/main.tf:15-44` referencia módulos `vpc/ecs/rds/monitoring` **inexistentes** no disco | `terraform apply` falha | Remover ou completar os módulos (P0 STR-02); consolidar IaC em Docker Compose para o MVP |
-| `docker-compose-prod.yml` coerente com o projeto | ❌ | Referencia serviço `nfe-processor` (de outro projeto); `pom.xml` artifactId `v6-starter` | Resquícios de template não adaptado | Remover o compose de produção órfão (P1 STR-01) |
+| `docker-compose-prod.yml` coerente com o projeto | ✅ | Resquícios de template de outro projeto (`nfe-processor` / `v6-starter`) removidos | Resolvido | Compose de produção órfão e stack Java removidos (P1 STR-01) |
 
 ---
 

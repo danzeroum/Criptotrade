@@ -36,3 +36,20 @@ docs/UX/mockups.zip
 # OS files
 .DS_Store
 Thumbs.db
+
+# IDE / editor
+.idea/
+.vscode/
+
+# Keys, certs and credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+credentials.json
+
+# Local databases / dumps
+*.sqlite
+*.db
+*.sql
