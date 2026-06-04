@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import secrets
+from contextlib import asynccontextmanager
 from typing import Set
 
 from fastapi import FastAPI, HTTPException, Request
@@ -17,6 +18,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.api.routes import agents, alerts, hitl, metrics, orders, process
+from src.core.db import init_db
 
 PREFIX = "/v1"
 PUBLIC_PATHS: Set[str] = {
@@ -57,6 +59,13 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    # Apply pending SQLite migrations on startup (idempotent; both processes do it).
+    init_db()
+    yield
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Criptotrade API",
@@ -64,6 +73,7 @@ def create_app() -> FastAPI:
         version="1.0.0",
         docs_url="/v1/docs",
         redoc_url="/v1/redoc",
+        lifespan=_lifespan,
     )
 
     app.add_middleware(APIKeyMiddleware)

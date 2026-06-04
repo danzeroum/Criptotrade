@@ -20,12 +20,14 @@ import asyncio
 import logging
 import signal
 
+from src.core.db import init_db
 from src.orchestration.orchestrator_loop import OrchestratorLoop
 
 logger = logging.getLogger(__name__)
 
 
 async def _amain() -> None:
+    init_db()  # ensure the shared SQLite schema exists before the loop runs
     loop = OrchestratorLoop.from_env()  # fail-closed HITL until the bridge is wired
 
     running_loop = asyncio.get_running_loop()

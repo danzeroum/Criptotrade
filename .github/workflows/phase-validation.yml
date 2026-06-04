@@ -32,16 +32,17 @@ jobs:
             "pytest==7.4.4" "pytest-asyncio==0.23.3" ruff
 
       - name: Ruff — new modules (correctness gate)
-        run: ruff check src/api src/core/alerts.py src/core/metrics.py src/hitl src/agents/registry.py tests
+        run: ruff check src/api src/core/alerts.py src/core/metrics.py src/core/db.py src/hitl src/agents/registry.py tests
 
       - name: Smoke — API app imports cleanly
         run: python -c "from src.api.main import app; print('API OK:', app.title)"
 
-      - name: Pytest — Phase 1 (metrics, alerts, API)
+      - name: Pytest — Phase 1 & 5a (metrics, alerts, API, SQLite backend)
         run: |
           python -m pytest -o addopts="" -v \
             tests/unit/test_metrics.py \
             tests/unit/test_alerts.py \
+            tests/unit/test_db.py \
             tests/api/test_api.py
 
       - name: Pytest — Phase 2 & 3 (HITL bridge, agents, process log)
