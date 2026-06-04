@@ -11,6 +11,7 @@ from functools import lru_cache
 
 from src.agents.registry import AgentRegistry
 from src.core.alerts import AlertBus, AlertStore, make_guardrail_sink
+from src.core.db import get_db_path
 from src.core.ledger import TradingLedger
 from src.core.metrics import PortfolioMetricsCalculator
 from src.hitl.config import DEFAULT_LEVEL, MAX_LEVEL, MIN_LEVEL, HITLConfigStore, level_info
@@ -72,8 +73,8 @@ def get_order_store() -> OrderStore:
 
 @lru_cache(maxsize=1)
 def get_agent_registry() -> AgentRegistry:
-    # No ledger: cycle counts are in-memory (ADR-001). The loop calls record_cycle.
-    return AgentRegistry()
+    # Cross-process: read cycle counts from the shared SQLite db the loop writes.
+    return AgentRegistry(db_path=str(get_db_path()))
 
 
 def get_metrics_calculator() -> PortfolioMetricsCalculator:

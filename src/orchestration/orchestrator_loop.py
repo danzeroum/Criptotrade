@@ -145,12 +145,13 @@ class OrchestratorLoop:
         approval_handler: Any = None,
     ) -> "OrchestratorLoop":
         """Real wiring: instantiate the ExchangeClient (mode = EXCHANGE_DRY_RUN)."""
+        from src.core.db import get_db_path
         from src.core.exchange_client import ExchangeClient
         from src.orchestration.squad_orchestrator import SquadOrchestrator
 
         exchange = ExchangeClient()  # requires EXCHANGE_DRY_RUN; offline in dry-run
         ledger = TradingLedger()
-        registry = AgentRegistry()
+        registry = AgentRegistry(db_path=str(get_db_path()))  # loop writes cycle_events
         orchestrator = SquadOrchestrator(exchange, approval_handler=approval_handler)
         orchestrator.ledger = ledger  # share one ledger between pipeline and loop
         return cls(orchestrator, registry, ledger, symbols=symbols)

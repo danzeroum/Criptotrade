@@ -4,12 +4,11 @@ Honest by design (addresses Nielsen heuristic #1, system visibility):
 * ``implemented`` is ``False`` for the agents that are still thin stubs
   (``recovery``, ``exploration`` are security tool-wrappers, not wired into
   trading). The API returns 501 for those instead of pretending they work.
-* ``cycles_today`` is an **in-memory O(1) counter** incremented by the
-  orchestrator loop via :meth:`record_cycle`, NOT a scan of the JSONL ledger on
-  every request. With a continuous loop emitting ~17k events/day and a dashboard
-  refreshing every 5s, scanning the file per request would be millions of line
-  reads/day (see ADR-001). The counter resets lazily at the first access of a new
-  UTC day, so it always reflects "today".
+* ``cycles_today`` is **cross-process** (Phase 5a-iii). The loop process writes a
+  ``cycle_events`` row per cycle; the API reads it with an indexed
+  ``SELECT COUNT`` scoped to the current UTC day — O(log n), not the O(n) JSONL
+  scan that 4b-ii removed. With no ``db_path`` the registry stays fully in-memory
+  (legacy behaviour, unchanged for existing tests).
 
 There is no live ``active`` status until the loop runs; implemented agents report
 ``idle`` until then. This is deliberately truthful.
@@ -20,6 +19,8 @@ import warnings
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
+
+from src.core.db import connection, init_db
 
 
 @dataclass(frozen=True)
@@ -51,43 +52,77 @@ AGENT_REGISTRY: Dict[str, AgentInfo] = {
 }
 
 
-class AgentRegistry:
-    """Reports agent status with O(1) in-memory cycle counters.
+def _utc_day_start() -> str:
+    """ISO-8601 timestamp for 00:00:00 UTC today (lexicographically comparable)."""
+    now = datetime.now(timezone.utc)
+    return now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
 
-    The ``ledger`` argument is accepted for wiring compatibility but is no longer
-    read on the hot path: cycle counts come from memory (see module docstring).
+
+class AgentRegistry:
+    """Reports agent status; cycle counts are cross-process when ``db_path`` is set.
+
+    Two modes, one interface:
+    * ``db_path`` provided — the loop ``record_cycle`` writes ``cycle_events``;
+      ``cycles_today`` reads via ``SELECT COUNT`` (cross-process truth).
+    * ``db_path`` is None — fully in-memory (legacy; existing tests unchanged).
+
+    The ``ledger`` argument is accepted for backward compatibility but ignored.
     """
 
-    def __init__(self, ledger: Any = None) -> None:
-        # Tech debt guard: the ledger is no longer used for cycles (in-memory now).
-        # Warn loudly so a caller passing it expecting it to be scanned isn't bitten
-        # by a silent no-op.
+    def __init__(self, ledger: Any = None, db_path: Optional[str] = None) -> None:
         if ledger is not None:
             warnings.warn(
                 "AgentRegistry(ledger=...) is ignored — cycle counts are in-memory "
-                "(see ADR-001). Drop the argument.",
+                "or in SQLite (see ADR-001). Drop the argument.",
                 DeprecationWarning,
                 stacklevel=2,
             )
-        self._ledger = None  # reserved; never scanned per request
+        self._db_path = db_path
+        if db_path is not None:
+            init_db(db_path)  # idempotent: ensure cycle_events exists
+        # In-memory counter: serves the loop process in O(1) and is the fallback
+        # when no db_path is configured.
         self._cycles: Dict[str, int] = {}
         self._last_action: Dict[str, str] = {}
         self._cycles_date: date = datetime.now(timezone.utc).date()
 
     # ------------------------------------------------------------- aggregation
     def record_cycle(self, agent_id: str, when: Optional[datetime] = None) -> None:
-        """Increment an agent's cycle counter (called on ``agent_cycle_completed``)."""
+        """Record one completed cycle for ``agent_id`` (in-memory + SQLite)."""
         when = when or datetime.now(timezone.utc)
         self._maybe_reset(when.date())
         self._cycles[agent_id] = self._cycles.get(agent_id, 0) + 1
         self._last_action[agent_id] = when.isoformat()
+        if self._db_path is not None:
+            with connection(self._db_path) as conn:
+                conn.execute(
+                    "INSERT INTO cycle_events(agent_id, cycled_at) VALUES (?, ?)",
+                    (agent_id, when.isoformat()),
+                )
+
+    def cycles_today(self, agent_id: str) -> int:
+        """Cycles for ``agent_id`` during the current UTC day."""
+        if self._db_path is None:
+            self._maybe_reset(datetime.now(timezone.utc).date())
+            return self._cycles.get(agent_id, 0)
+        with connection(self._db_path) as conn:
+            return conn.execute(
+                "SELECT COUNT(*) FROM cycle_events WHERE agent_id=? AND cycled_at >= ?",
+                (agent_id, _utc_day_start()),
+            ).fetchone()[0]
+
+    def _last_action_at(self, agent_id: str) -> Optional[str]:
+        if self._db_path is None:
+            return self._last_action.get(agent_id)
+        with connection(self._db_path) as conn:
+            row = conn.execute(
+                "SELECT MAX(cycled_at) FROM cycle_events WHERE agent_id=? AND cycled_at >= ?",
+                (agent_id, _utc_day_start()),
+            ).fetchone()
+        return row[0] if row else None
 
     def _maybe_reset(self, today: date) -> None:
-        """Lazy daily reset: a new UTC day zeroes the per-agent counters.
-
-        Only resets moving *forward* (``>``): wall-clock time never goes back, and
-        this keeps reads consistent regardless of access order.
-        """
+        """Lazy daily reset of the in-memory counters (forward-only)."""
         if today > self._cycles_date:
             self._cycles.clear()
             self._last_action.clear()
@@ -104,15 +139,14 @@ class AgentRegistry:
         info = AGENT_REGISTRY.get(agent_id)
         if info is None:
             return None
-        self._maybe_reset(datetime.now(timezone.utc).date())
         return {
             "id": info.id,
             "domain": info.domain,
             "implemented": info.implemented,
             "description": info.description,
             "status": "idle" if info.implemented else "not_implemented",
-            "cycles": self._cycles.get(agent_id, 0),
-            "last_action_at": self._last_action.get(agent_id),
+            "cycles": self.cycles_today(agent_id),
+            "last_action_at": self._last_action_at(agent_id),
         }
 
     def all_statuses(self) -> List[Dict[str, Any]]:
@@ -120,3 +154,4 @@ class AgentRegistry:
 
 
 __all__ = ["AgentInfo", "AGENT_REGISTRY", "AgentRegistry"]
+

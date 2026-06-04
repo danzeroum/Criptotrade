@@ -110,6 +110,8 @@ def _row_to_order(row: Any) -> Order:
         reason=row["reason"], critical=bool(row["critical"]),
         position_size_pct=row["position_size_pct"] or 0.0,
         stop_loss=row["stop_loss"], take_profit=row["take_profit"],
+        # TODO(5b): position_size_pct uses `or 0.0` while stop_loss/take_profit
+        # preserve None — small semantic inconsistency, normalise in 5b.
         status=OrderStatus(row["status"]), operator_note=row["operator_note"],
         operator_id=row["operator_id"], auto_approved=bool(row["auto_approved"]),
         id=row["id"], created_at=row["created_at"], resolved_at=row["resolved_at"],
@@ -284,6 +286,8 @@ class OrderStore:
                 row = conn.execute(
                     "SELECT status FROM orders WHERE id=?", (order_id,)
                 ).fetchone()
+            # TODO(5b): a non-existent order_id currently waits out the whole
+            # timeout. Return False immediately on `row is None` instead.
             if row is not None:
                 status = row["status"]
                 if status in ("approved", "filled"):
