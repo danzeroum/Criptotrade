@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from src.agents.registry import AgentRegistry
 
 
@@ -25,10 +27,17 @@ def test_cycles_never_scan_the_ledger():
         def get_events(self, *_a, **_k):
             raise AssertionError("registry must not scan the ledger for cycles")
 
-    reg = AgentRegistry(_ExplodingLedger())
+    # Passing a ledger is deprecated (ignored) — and must not be scanned.
+    with pytest.warns(DeprecationWarning):
+        reg = AgentRegistry(_ExplodingLedger())
     for _ in range(1000):
         reg.record_cycle("strategy")
     assert reg.status("strategy")["cycles"] == 1000  # O(1), no file access
+
+
+def test_no_ledger_does_not_warn(recwarn):
+    AgentRegistry()
+    assert not any(issubclass(w.category, DeprecationWarning) for w in recwarn)
 
 
 def test_cycles_reset_on_new_utc_day():

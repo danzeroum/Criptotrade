@@ -16,6 +16,7 @@ There is no live ``active`` status until the loop runs; implemented agents repor
 """
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -58,7 +59,17 @@ class AgentRegistry:
     """
 
     def __init__(self, ledger: Any = None) -> None:
-        self._ledger = ledger  # reserved; not scanned per request
+        # Tech debt guard: the ledger is no longer used for cycles (in-memory now).
+        # Warn loudly so a caller passing it expecting it to be scanned isn't bitten
+        # by a silent no-op.
+        if ledger is not None:
+            warnings.warn(
+                "AgentRegistry(ledger=...) is ignored — cycle counts are in-memory "
+                "(see ADR-001). Drop the argument.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        self._ledger = None  # reserved; never scanned per request
         self._cycles: Dict[str, int] = {}
         self._last_action: Dict[str, str] = {}
         self._cycles_date: date = datetime.now(timezone.utc).date()

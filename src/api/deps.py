@@ -72,7 +72,8 @@ def get_order_store() -> OrderStore:
 
 @lru_cache(maxsize=1)
 def get_agent_registry() -> AgentRegistry:
-    return AgentRegistry(get_ledger())
+    # No ledger: cycle counts are in-memory (ADR-001). The loop calls record_cycle.
+    return AgentRegistry()
 
 
 def get_metrics_calculator() -> PortfolioMetricsCalculator:
