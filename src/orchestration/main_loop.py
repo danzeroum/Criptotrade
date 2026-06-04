@@ -9,10 +9,11 @@ Run:
 
 Requires ``EXCHANGE_DRY_RUN`` (the ExchangeClient refuses to start otherwise).
 
-HITL note: with no cross-process approval bridge wired yet, the loop runs
-**fail-closed** — no ``approval_handler`` means no order is executed. The loop
-still drives strategy + risk and emits the full observability trail (XES events,
-cycle counters). Wiring the approval bridge (Redis or HTTP) is the next decision.
+HITL: the loop wires the live cross-process bridge (``make_approval_handler`` over
+an ``OrderStore`` on the shared SQLite db). Orders within the env autonomy
+threshold auto-approve and fill; larger ones wait (pending) for a human to approve
+via the API on the same db. Full observability (XES events, cycle counters) is
+emitted either way.
 """
 from __future__ import annotations
 
@@ -28,7 +29,9 @@ logger = logging.getLogger(__name__)
 
 async def _amain() -> None:
     init_db()  # ensure the shared SQLite schema exists before the loop runs
-    loop = OrchestratorLoop.from_env()  # fail-closed HITL until the bridge is wired
+    # Live HITL bridge: orders within the autonomy threshold auto-approve; larger
+    # ones wait (pending) for a human to approve via the API on the shared db.
+    loop = OrchestratorLoop.from_env()
 
     running_loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):

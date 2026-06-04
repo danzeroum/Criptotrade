@@ -11,6 +11,7 @@ ledger — no fabricated numbers.
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
@@ -52,6 +53,23 @@ def level_info(level: int) -> AutonomyLevel:
     if level not in AUTONOMY_LEVELS:
         raise ValueError(f"Autonomy level must be {MIN_LEVEL}-{MAX_LEVEL}, got {level}")
     return AUTONOMY_LEVELS[level]
+
+
+def level_from_env() -> int:
+    """Read ``AUTONOMY_LEVEL`` from the env, clamped to a valid level (default 2).
+
+    Used by the loop process (which has no API HITLConfigStore) to size its
+    auto-approval threshold from the deployment's configured autonomy level.
+    """
+    raw = os.getenv("AUTONOMY_LEVEL")
+    if raw is None:
+        return DEFAULT_LEVEL
+    try:
+        level = int(raw)
+    except ValueError:
+        return DEFAULT_LEVEL
+    return level if MIN_LEVEL <= level <= MAX_LEVEL else DEFAULT_LEVEL
+
 
 
 class HITLConfigStore:

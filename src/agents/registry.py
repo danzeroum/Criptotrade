@@ -112,6 +112,8 @@ class AgentRegistry:
             ).fetchone()[0]
 
     def _last_action_at(self, agent_id: str) -> Optional[str]:
+        """Most recent cycle timestamp within the current UTC day, or None if no
+        cycle ran today (even if there were cycles on previous days)."""
         if self._db_path is None:
             return self._last_action.get(agent_id)
         with connection(self._db_path) as conn:

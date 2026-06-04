@@ -20,6 +20,7 @@ process events, fills, HITL approvals) still goes to the JSONL ledger in 5a.
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
@@ -348,16 +349,30 @@ def make_approval_handler(store: OrderStore) -> Callable[[Dict[str, Any]], Any]:
     """
 
     async def handler(signal: Dict[str, Any]) -> bool:
+        price = float(signal.get("entry_price", 0.0)) or 0.0
+        size_pct = float(signal.get("position_size_pct", 0.0)) or 0.0
+        quantity = float(signal.get("quantity", 0.0)) or 0.0
+        if quantity <= 0 and price > 0 and size_pct > 0:
+            # Demo signals carry position_size_pct, not an absolute quantity:
+            # derive qty = capital * size_pct% / price (same basis as the ledger fill).
+            capital = float(os.getenv("INITIAL_CAPITAL", "10000"))
+            quantity = (capital * size_pct / 100.0) / price
+        if quantity <= 0 or price <= 0:
+            # Can't size the order -> fail-closed (never INSERT an invalid order).
+            return False
         order = Order(
             pair=signal.get("symbol", "UNKNOWN"),
             side=signal.get("action", "buy").lower(),
-            quantity=float(signal.get("quantity", 0.0)) or 0.0,
-            price=float(signal.get("entry_price", 0.0)) or 0.0,
+            quantity=quantity,
+            price=price,
             strategy=signal.get("strategy", "unknown"),
             agent_id=signal.get("agent_id", "strategy_agent"),
             confidence=float(signal.get("confidence", 0.0)) or 0.0,
             reason=signal.get("reason", "n/a"),
             critical=bool(signal.get("critical", False)),
+            position_size_pct=size_pct,
+            stop_loss=signal.get("stop_loss"),
+            take_profit=signal.get("take_profit"),
         )
         store.submit(order)
         if order.status == OrderStatus.filled:  # auto-approved
