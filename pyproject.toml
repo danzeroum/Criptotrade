@@ -14,8 +14,6 @@ branch = true
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-# Exclude the orphan Java tree and illustrative demo snippets under docs/examples.
-extend-exclude = ["src/main/java", "docs/examples"]
 
 [tool.ruff.lint]
 # Enforced gate (blocking in CI): ruff's default correctness set
