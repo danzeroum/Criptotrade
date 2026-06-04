@@ -35,6 +35,11 @@ class SquadOrchestrator:
         # Optional alert sink. When provided, risk rejections emit guardrail alerts.
         self.alert_store = alert_store
         self.alert_bus = alert_bus
+        # Wire the RiskAgent's guardrails to publish each violation as an alert.
+        if alert_store is not None:
+            from src.core.alerts import make_guardrail_sink
+
+            self.risk_agent.guardrails.alert_sink = make_guardrail_sink(alert_store)
 
     async def _request_human_approval(self, order: Dict[str, Any]) -> bool:
         """Request real human approval. Fail-closed: deny when no handler is configured."""

@@ -13,6 +13,7 @@ from src.hitl.orders import (
     OrderStore,
     make_approval_handler,
 )
+from src.safety.guardrails import GuardrailSystem
 
 
 @pytest.fixture
@@ -31,6 +32,9 @@ def _order(notional_price=100.0, qty=1.0, critical=False) -> Order:
         confidence=0.8,
         reason="RSI oversold, DCA schedule reached",
         critical=critical,
+        position_size_pct=2.0,
+        stop_loss=notional_price * 0.97,
+        take_profit=notional_price * 1.08,  # RR 2.67 -> passes guardrails
     )
 
 
@@ -156,3 +160,37 @@ def test_reject_emits_rejected_event(ledger):
     store.resolve(order.id, approved=False, operator_note="risco")
     activities = [e["data"]["activity"] for e in ledger.get_process_events(order.id)]
     assert "order_rejected" in activities
+
+
+# ----------------------------------------------------------------- guardrail gate
+def test_guardrails_reject_before_threshold(ledger):
+    # Even with a huge auto-approve threshold, a risk violation rejects first.
+    store = OrderStore(
+        ledger, threshold_provider=lambda: 1_000_000.0, guardrails=GuardrailSystem()
+    )
+    bad = _order()
+    bad.take_profit = bad.price * 1.01  # RR ~0.33 -> violates
+    out = store.submit(bad)
+    assert out.status == OrderStatus.rejected
+    assert "Risk-reward" in out.operator_note
+    activities = [e["data"]["activity"] for e in ledger.get_process_events(out.id)]
+    assert "order_rejected" in activities
+
+
+def test_guardrails_pass_then_auto_fill(ledger):
+    store = OrderStore(
+        ledger, threshold_provider=lambda: 1_000_000.0, guardrails=GuardrailSystem()
+    )
+    out = store.submit(_order())  # compliant
+    assert out.status == OrderStatus.filled
+
+
+def test_guardrails_failure_never_raises(ledger):
+    class _Boom(GuardrailSystem):
+        def validate_order(self, order):
+            raise RuntimeError("guardrail engine down")
+
+    store = OrderStore(ledger, threshold_provider=lambda: 100.0, guardrails=_Boom())
+    out = store.submit(_order())  # must not raise; defensive reject
+    assert out.status == OrderStatus.rejected
+    assert "risk validation error" in out.operator_note

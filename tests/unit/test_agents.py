@@ -20,13 +20,30 @@ async def test_risk_agent_validates_signal():
     agent = RiskAgent()
     signal = {
         "position_size_pct": 3.0,
+        "action": "BUY",
+        "entry_price": 100.0,
+        "stop_loss": 97.0,
+        "take_profit": 108.0,  # RR 2.67 >= 2.5 so it clears the guardrails
+    }
+    result = await agent.execute({"signal": signal, "portfolio": {}})
+    assert result["success"] is True
+    assert result["approved"] is True
+
+
+@pytest.mark.asyncio
+async def test_risk_agent_rejects_guardrail_violation():
+    # Same signal but RR 1.67 (< 2.5) -> guardrails now reject it.
+    agent = RiskAgent()
+    signal = {
+        "position_size_pct": 3.0,
+        "action": "BUY",
         "entry_price": 100.0,
         "stop_loss": 97.0,
         "take_profit": 105.0,
     }
     result = await agent.execute({"signal": signal, "portfolio": {}})
-    assert result["success"] is True
-    assert result["approved"] is True
+    assert result["approved"] is False
+    assert any("Risk-reward" in i for i in result["validation"]["issues"])
 
 
 class _DummyExchange:

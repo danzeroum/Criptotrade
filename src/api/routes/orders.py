@@ -58,9 +58,18 @@ async def create_order(
             confidence=payload.confidence,
             reason=payload.reason,
             critical=payload.critical,
+            position_size_pct=payload.position_size_pct,
+            stop_loss=payload.stop_loss,
+            take_profit=payload.take_profit,
         )
     )
-    response.status_code = 201 if order.status == OrderStatus.filled else 202
+    # 201 filled (auto-approved) · 202 pending HITL · 422 rejected by risk guardrails
+    if order.status == OrderStatus.filled:
+        response.status_code = 201
+    elif order.status == OrderStatus.rejected:
+        response.status_code = 422
+    else:
+        response.status_code = 202
     return APIResponse(data=OrderOut(**order.to_dict()))
 
 
