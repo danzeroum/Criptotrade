@@ -178,7 +178,9 @@ class OrchestratorLoop:
         )
         handler = approval_handler or make_approval_handler(order_store)
 
-        orchestrator = SquadOrchestrator(exchange, approval_handler=handler)
+        orchestrator = SquadOrchestrator(
+            exchange, approval_handler=handler, fill_callback=order_store.mark_filled,
+        )
         orchestrator.ledger = ledger  # share one ledger between pipeline and loop
         loop = cls(orchestrator, registry, ledger, symbols=symbols)
         loop.order_store = order_store  # exposed for inspection / future mark_filled

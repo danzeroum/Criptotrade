@@ -344,11 +344,13 @@ class OrderStore:
 def make_approval_handler(store: OrderStore) -> Callable[[Dict[str, Any]], Any]:
     """Build an orchestrator ``approval_handler`` backed by ``store``.
 
-    The orchestrator passes its signal dict; we register a pending order and
-    block (polling the shared DB) until a human resolves it via the API.
+    Returns the **order id** (truthy) when the order is approved/filled, or
+    ``None`` when rejected/cancelled/unsized. The orchestrator coerces the result
+    to a bool for the approve/deny decision *and* keeps the id so it can call
+    ``mark_filled`` once it has executed the trade (completing the manual path).
     """
 
-    async def handler(signal: Dict[str, Any]) -> bool:
+    async def handler(signal: Dict[str, Any]) -> Optional[str]:
         price = float(signal.get("entry_price", 0.0)) or 0.0
         size_pct = float(signal.get("position_size_pct", 0.0)) or 0.0
         quantity = float(signal.get("quantity", 0.0)) or 0.0
@@ -359,7 +361,7 @@ def make_approval_handler(store: OrderStore) -> Callable[[Dict[str, Any]], Any]:
             quantity = (capital * size_pct / 100.0) / price
         if quantity <= 0 or price <= 0:
             # Can't size the order -> fail-closed (never INSERT an invalid order).
-            return False
+            return None
         order = Order(
             pair=signal.get("symbol", "UNKNOWN"),
             side=signal.get("action", "buy").lower(),
@@ -376,10 +378,11 @@ def make_approval_handler(store: OrderStore) -> Callable[[Dict[str, Any]], Any]:
         )
         store.submit(order)
         if order.status == OrderStatus.filled:  # auto-approved
-            return True
+            return order.id
         if order.status in (OrderStatus.rejected, OrderStatus.cancelled):
-            return False
-        return await store.wait_for_decision(order.id)
+            return None
+        approved = await store.wait_for_decision(order.id)
+        return order.id if approved else None
 
     return handler
 

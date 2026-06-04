@@ -1,7 +1,10 @@
+import asyncio
+
 import pytest
 
 from src.orchestration.squad_orchestrator import SquadOrchestrator
 from src.core.ledger import TradingLedger
+from src.hitl.orders import OrderStatus, OrderStore, make_approval_handler
 
 
 class _DummyExchange:
@@ -25,6 +28,34 @@ async def test_analyze_and_trade_success(tmp_path):
     assert ledger_path.exists()
     entries = ledger_path.read_text(encoding="utf-8").strip().splitlines()
     assert len(entries) >= 3  # signal, validation, execution
+
+
+@pytest.mark.asyncio
+async def test_manual_approval_completes_to_filled(tmp_path):
+    # Follow-up #1: the manual path (approved -> loop executes -> filled).
+    ledger = TradingLedger(tmp_path / "trades.jsonl")
+    store = OrderStore(
+        ledger, threshold_provider=lambda: 0.0,  # nothing auto-approves
+        db_path=str(tmp_path / "orders.db"), poll_interval=0.02,
+    )
+    orchestrator = SquadOrchestrator(
+        _DummyExchange(),
+        approval_handler=make_approval_handler(store),
+        fill_callback=store.mark_filled,
+    )
+    orchestrator.ledger = ledger
+
+    task = asyncio.create_task(orchestrator.analyze_and_trade("BTC/USDT"))
+    await asyncio.sleep(0.05)
+    pending = store.list(status=OrderStatus.pending)
+    assert len(pending) == 1
+    assert pending[0].pair == "BTC/USDT"  # follow-up #2: symbol injected, not UNKNOWN
+
+    # The "API" approves on the shared store; the loop executes and marks filled.
+    store.resolve(pending[0].id, approved=True, operator="daniel")
+    result = await asyncio.wait_for(task, timeout=2.0)
+    assert result["success"] is True
+    assert store.get(pending[0].id).status == OrderStatus.filled
 
 
 @pytest.mark.asyncio
