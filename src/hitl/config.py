@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from src.core.ledger import TradingLedger
 
@@ -66,6 +66,9 @@ class HITLConfigStore:
         self._level = level_info(initial_level).level
         self._last_changed_at: Optional[str] = None
         self._last_changed_by: Optional[str] = None
+        # Optional override for the pending count (e.g. the real OrderStore).
+        # When None, falls back to "open fills" as the closest truthful signal.
+        self.pending_orders_provider: Optional[Callable[[], int]] = None
 
     @property
     def level(self) -> int:
@@ -94,7 +97,11 @@ class HITLConfigStore:
         approvals = self._ledger.get_events("hitl_approval")
         human_approved, human_rejected = self._count_today(approvals, today)
 
-        pending = self._pending_orders_count()
+        pending = (
+            self.pending_orders_provider()
+            if self.pending_orders_provider is not None
+            else self._pending_orders_count()
+        )
 
         return {
             "current_level": self._level,

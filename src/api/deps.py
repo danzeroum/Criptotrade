@@ -12,7 +12,8 @@ from functools import lru_cache
 from src.core.alerts import AlertBus, AlertStore
 from src.core.ledger import TradingLedger
 from src.core.metrics import PortfolioMetricsCalculator
-from src.hitl.config import DEFAULT_LEVEL, MAX_LEVEL, MIN_LEVEL, HITLConfigStore
+from src.hitl.config import DEFAULT_LEVEL, MAX_LEVEL, MIN_LEVEL, HITLConfigStore, level_info
+from src.hitl.orders import OrderStore
 
 
 def _initial_capital() -> float:
@@ -50,7 +51,18 @@ def get_alert_bus() -> AlertBus:
 
 @lru_cache(maxsize=1)
 def get_hitl_store() -> HITLConfigStore:
-    return HITLConfigStore(get_ledger(), initial_level=_initial_level())
+    store = HITLConfigStore(get_ledger(), initial_level=_initial_level())
+    # Reflect real pending orders (not just open fills) in the HITL snapshot.
+    store.pending_orders_provider = get_order_store().pending_count
+    return store
+
+
+@lru_cache(maxsize=1)
+def get_order_store() -> OrderStore:
+    def _threshold() -> float:
+        return level_info(get_hitl_store().level).threshold_usdt
+
+    return OrderStore(get_ledger(), threshold_provider=_threshold)
 
 
 def get_metrics_calculator() -> PortfolioMetricsCalculator:
@@ -59,7 +71,7 @@ def get_metrics_calculator() -> PortfolioMetricsCalculator:
 
 def reset_singletons() -> None:
     """Clear cached singletons (used by tests to inject fresh state)."""
-    for fn in (get_ledger, get_alert_store, get_alert_bus, get_hitl_store):
+    for fn in (get_ledger, get_alert_store, get_alert_bus, get_hitl_store, get_order_store):
         fn.cache_clear()
 
 

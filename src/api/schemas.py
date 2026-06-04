@@ -8,9 +8,10 @@ Conventions (validated against the repo's pydantic==2.6):
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Generic, List, Optional, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 T = TypeVar("T")
 
@@ -89,6 +90,64 @@ class AutonomyLevelPatch(BaseModel):
     operator: str = Field(default="operator", description="Quem alterou o nível")
 
 
+# ----------------------------------------------------------------- orders
+class OrderSide(str, Enum):
+    buy = "buy"
+    sell = "sell"
+
+
+class OrderCreate(BaseModel):
+    """Submit a new order. Validation makes it hard to use incorrectly."""
+
+    pair: str = Field(..., pattern=r"^[A-Z]{2,10}/[A-Z]{2,10}$", examples=["BTC/USDT"])
+    side: OrderSide
+    quantity: float = Field(..., gt=0)
+    price: float = Field(..., gt=0, description="Preço de referência/entrada (USDT)")
+    strategy: str = Field(..., min_length=1)
+    agent_id: str = Field(..., min_length=1)
+    confidence: float = Field(..., ge=0, le=1)
+    reason: str = Field(..., min_length=10)
+    critical: bool = Field(default=False, description="Força aprovação humana mesmo se dentro do limite")
+
+
+class OrderDecisionPatch(BaseModel):
+    """Operator decision on a pending order (the core HITL action)."""
+
+    decision: str = Field(..., pattern="^(approve|reject)$")
+    # validate_default ensures the cross-field check below runs even when the
+    # client omits operator_note (otherwise Pydantic skips validation of defaults).
+    operator_note: Optional[str] = Field(default=None, validate_default=True)
+    operator: str = Field(default="operator")
+
+    @field_validator("operator_note")
+    @classmethod
+    def note_required_on_reject(cls, v, info):
+        if info.data.get("decision") == "reject" and not (v and v.strip()):
+            raise ValueError("operator_note é obrigatório ao rejeitar uma ordem")
+        return v
+
+
+class OrderOut(BaseModel):
+    id: str
+    pair: str
+    side: str
+    quantity: float
+    price: float
+    notional: float
+    status: str
+    strategy: str
+    agent_id: str
+    confidence: float
+    reason: str
+    critical: bool
+    auto_approved: bool
+    operator_note: Optional[str] = None
+    operator_id: Optional[str] = None
+    created_at: str
+    resolved_at: Optional[str] = None
+    filled_at: Optional[str] = None
+
+
 # ----------------------------------------------------------------- alerts
 class AlertOut(BaseModel):
     id: str
@@ -110,5 +169,9 @@ __all__ = [
     "AutonomyLevelOut",
     "HITLConfigOut",
     "AutonomyLevelPatch",
+    "OrderSide",
+    "OrderCreate",
+    "OrderDecisionPatch",
+    "OrderOut",
     "AlertOut",
 ]

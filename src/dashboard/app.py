@@ -36,6 +36,18 @@ def _get(path: str) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
         return None, "API offline"
 
 
+def _send(method: str, path: str, json: Dict[str, Any]) -> tuple[bool, str]:
+    """POST/PATCH helper. Returns ``(ok, message)`` — never raises."""
+    try:
+        resp = httpx.request(method, f"{API_URL}{path}", headers=_headers(), json=json, timeout=5.0)
+        if resp.status_code < 300:
+            return True, "ok"
+        body = resp.json()
+        return False, body.get("message", f"HTTP {resp.status_code}")
+    except httpx.RequestError:
+        return False, "API offline"
+
+
 def _fmt_pct(value: Optional[float]) -> str:
     return f"{value * 100:.1f}%" if value is not None else "Sem dados"
 
@@ -99,6 +111,67 @@ elif metrics:
         f"P&L (7d): ${d['pnl_period_usdt']:,.2f}  ·  "
         f"Trades: {d['total_trades']}  ·  Posições abertas: {d['open_positions']}"
     )
+
+st.divider()
+
+# ── Autonomy control (sidebar) ────────────────────────────────────────────────
+with st.sidebar:
+    st.header("⚙️ Autonomia (HITL)")
+    if hitl:
+        cfg = hitl["data"]
+        new_level = st.slider(
+            "Nível de autonomia", min_value=cfg["min_level"], max_value=cfg["max_level"],
+            value=cfg["current_level"],
+        )
+        st.caption(next(
+            (lvl["description"] for lvl in cfg["levels"] if lvl["level"] == new_level), ""
+        ))
+        if new_level != cfg["current_level"]:
+            reason = st.text_input("Motivo da mudança", value="Ajuste pelo operador")
+            if st.button("Aplicar nível"):
+                ok, msg = _send(
+                    "PATCH", "/v1/hitl/config",
+                    {"level": new_level, "reason": reason, "operator": "dashboard"},
+                )
+                (st.success if ok else st.error)(msg if not ok else "Nível atualizado")
+                if ok:
+                    st.rerun()
+    else:
+        st.caption("Config HITL indisponível.")
+
+# ── HITL console — pending orders ─────────────────────────────────────────────
+st.subheader("⚡ Console HITL — Ordens pendentes")
+pending, pending_err = _get("/v1/orders?status=pending")
+if pending_err:
+    st.warning(f"Não foi possível carregar ordens ({pending_err}).")
+elif pending and pending["data"]:
+    for o in pending["data"]:
+        with st.container(border=True):
+            st.markdown(
+                f"**{o['side'].upper()} {o['pair']}** · Qtd {o['quantity']} · "
+                f"Notional ${o['notional']:,.2f} · Confiança {o['confidence'] * 100:.0f}%"
+            )
+            st.caption(f"🧠 {o['reason']}")
+            note = st.text_input("Nota (obrigatória ao rejeitar)", key=f"note_{o['id']}")
+            ca, cr = st.columns(2)
+            if ca.button("✅ Aprovar", key=f"ap_{o['id']}"):
+                ok, msg = _send(
+                    "PATCH", f"/v1/orders/{o['id']}/status",
+                    {"decision": "approve", "operator": "dashboard"},
+                )
+                (st.error if not ok else st.success)(msg if not ok else "Aprovada")
+                if ok:
+                    st.rerun()
+            if cr.button("❌ Rejeitar", key=f"rj_{o['id']}"):
+                ok, msg = _send(
+                    "PATCH", f"/v1/orders/{o['id']}/status",
+                    {"decision": "reject", "operator_note": note, "operator": "dashboard"},
+                )
+                (st.error if not ok else st.success)(msg if not ok else "Rejeitada")
+                if ok:
+                    st.rerun()
+else:
+    st.caption("Nenhuma ordem pendente de aprovação.")
 
 st.divider()
 

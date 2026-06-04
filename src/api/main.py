@@ -9,13 +9,14 @@ import os
 import secrets
 from typing import Set
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from src.api.routes import alerts, hitl, metrics
+from src.api.routes import alerts, hitl, metrics, orders
 
 PREFIX = "/v1"
 PUBLIC_PATHS: Set[str] = {
@@ -75,6 +76,7 @@ def create_app() -> FastAPI:
 
     app.include_router(metrics.router, prefix=PREFIX)
     app.include_router(hitl.router, prefix=PREFIX)
+    app.include_router(orders.router, prefix=PREFIX)
     app.include_router(alerts.router, prefix=PREFIX)
 
     @app.get("/health", tags=["infra"])
@@ -96,16 +98,28 @@ def create_app() -> FastAPI:
             },
         )
 
-    @app.exception_handler(404)
-    async def not_found(request: Request, exc):
+    async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+        # Route-level HTTPException(detail={...}) passes its structured body through.
+        if isinstance(exc.detail, dict):
+            return JSONResponse(status_code=exc.status_code, content=exc.detail)
+        if exc.status_code == 404:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "error": "not_found",
+                    "message": f"O recurso '{request.url.path}' não existe nesta API.",
+                    "docs": "/v1/docs",
+                },
+            )
         return JSONResponse(
-            status_code=404,
-            content={
-                "error": "not_found",
-                "message": f"O recurso '{request.url.path}' não existe nesta API.",
-                "docs": "/v1/docs",
-            },
+            status_code=exc.status_code,
+            content={"error": "http_error", "message": str(exc.detail), "docs": "/v1/docs"},
         )
+
+    # Register for both FastAPI's and Starlette's HTTPException (route-raised vs
+    # framework-raised, e.g. unmatched paths) so detail handling is consistent.
+    app.add_exception_handler(HTTPException, http_exception_handler)
+    app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 
     return app
 
