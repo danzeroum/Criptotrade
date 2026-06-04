@@ -19,6 +19,7 @@ class SquadOrchestrator:
         self,
         exchange_client: Any,
         approval_handler: Optional[Callable[[Dict[str, Any]], Awaitable[bool]]] = None,
+        initial_capital: float = 10_000.0,
     ) -> None:
         self.strategy_agent = StrategyAgent()
         self.risk_agent = RiskAgent()
@@ -26,6 +27,8 @@ class SquadOrchestrator:
         self.ledger = TradingLedger()
         # Real HITL hook. When None, approvals are denied (fail-closed).
         self.approval_handler = approval_handler
+        # Used to size paper fills (qty = capital * position_size_pct / price).
+        self.initial_capital = initial_capital
 
     async def _request_human_approval(self, order: Dict[str, Any]) -> bool:
         """Request real human approval. Fail-closed: deny when no handler is configured."""
@@ -86,9 +89,35 @@ class SquadOrchestrator:
 
         self.ledger.log_execution(agent="execution", execution=execution_result)
 
+        if execution_result.get("success"):
+            self._log_fill(symbol, strategy_result["signal"], execution_result)
+
         return {
             "success": execution_result["success"],
             "order_id": execution_result.get("order_id"),
             "signal": strategy_result["signal"],
             "confidence": strategy_result["confidence"],
         }
+
+    def _log_fill(self, symbol: str, signal: Dict[str, Any], execution: Dict[str, Any]) -> None:
+        """Record the economic facts of a fill so metrics can value the position.
+
+        Quantity is derived from the signal's ``position_size_pct`` and the
+        configured capital. Best-effort: a malformed signal must not break the
+        trade that already executed.
+        """
+        try:
+            price = float(signal.get("entry_price") or 0.0)
+            size_pct = float(signal.get("position_size_pct") or 0.0)
+            if price <= 0 or size_pct <= 0:
+                return
+            quantity = (self.initial_capital * size_pct / 100.0) / price
+            self.ledger.log_fill(
+                order_id=execution.get("order_id", "UNKNOWN"),
+                symbol=signal.get("symbol", symbol),
+                side=signal.get("action", "buy"),
+                price=price,
+                quantity=quantity,
+            )
+        except (TypeError, ValueError):  # pragma: no cover - defensive
+            logger.warning("Could not record fill for %s", symbol, exc_info=True)

@@ -71,15 +71,94 @@ class TradingLedger:
             },
         )
 
-    def get_recent_trades(self, limit: int = 100) -> List[Dict[str, Any]]:
-        """Retrieve recent trades from ledger."""
+    def log_fill(
+        self,
+        order_id: str,
+        symbol: str,
+        side: str,
+        price: float,
+        quantity: float,
+        fee: float = 0.0,
+        strategy: str | None = None,
+        agent: str = "execution",
+    ) -> None:
+        """Log an order fill with the structured fields needed to value positions.
+
+        Unlike :meth:`log_execution` (which records the agent's raw result), this
+        captures the *economic* facts of the fill (price, quantity, fee) so the
+        metrics engine can compute exposure, open positions and realised P&L.
+        """
+        notional = price * quantity
+        self.log_decision(
+            "order_fill",
+            {
+                "order_id": order_id,
+                "symbol": symbol,
+                "side": side.lower(),
+                "price": price,
+                "quantity": quantity,
+                "notional": notional,
+                "fee": fee,
+                "strategy": strategy,
+                "agent": agent,
+            },
+        )
+
+    def log_position_closed(
+        self,
+        order_id: str,
+        symbol: str,
+        side: str,
+        entry_price: float,
+        exit_price: float,
+        quantity: float,
+        fee: float = 0.0,
+        opened_at: str | None = None,
+    ) -> None:
+        """Log a closed position with realised P&L (net of ``fee``).
+
+        ``side`` is the side of the *opening* trade: ``buy`` for a long,
+        ``sell`` for a short. P&L is expressed in quote currency.
+        """
+        side = side.lower()
+        direction = 1.0 if side == "buy" else -1.0
+        gross_pnl = direction * (exit_price - entry_price) * quantity
+        pnl = gross_pnl - fee
+        entry_notional = entry_price * quantity
+        pnl_pct = (pnl / entry_notional) if entry_notional else 0.0
+        self.log_decision(
+            "position_closed",
+            {
+                "order_id": order_id,
+                "symbol": symbol,
+                "side": side,
+                "entry_price": entry_price,
+                "exit_price": exit_price,
+                "quantity": quantity,
+                "fee": fee,
+                "gross_pnl": gross_pnl,
+                "pnl": pnl,
+                "pnl_pct": pnl_pct,
+                "opened_at": opened_at,
+            },
+        )
+
+    def read_all(self) -> List[Dict[str, Any]]:
+        """Return every ledger entry in chronological (append) order."""
         if not self.ledger_path.exists():
             return []
 
-        trades: List[Dict[str, Any]] = []
+        entries: List[Dict[str, Any]] = []
         with self.ledger_path.open("r", encoding="utf-8") as handle:
             for line in handle:
                 if line.strip():
-                    trades.append(json.loads(line))
+                    entries.append(json.loads(line))
+        return entries
 
-        return trades[-limit:]
+    def get_events(self, event_type: str) -> List[Dict[str, Any]]:
+        """Return all entries matching ``event_type`` (chronological order)."""
+        return [e for e in self.read_all() if e.get("event_type") == event_type]
+
+    def get_recent_trades(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Retrieve recent trades from ledger."""
+        return self.read_all()[-limit:]
