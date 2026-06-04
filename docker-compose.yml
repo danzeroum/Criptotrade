@@ -12,6 +12,9 @@ services:
       # Persist the append-only ledger/alerts on the mounted ./data volume so
       # portfolio metrics survive container restarts.
       - LEDGER_DIR=/app/data/ledger
+      # Synthetic market data, zero network. Never set =false in a versioned file:
+      # real trading must be an explicit, deliberate override in the deploy env.
+      - EXCHANGE_DRY_RUN=true
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
