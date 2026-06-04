@@ -41,7 +41,9 @@ def client(tmp_path):
     app.dependency_overrides[deps.get_alert_store] = lambda: store
     app.dependency_overrides[deps.get_alert_bus] = lambda: bus
     app.dependency_overrides[deps.get_order_store] = lambda: order_store
-    agent_registry = AgentRegistry()  # single instance: in-memory counters persist
+    # Cross-process cycles via SQLite (Phase 5a-iii): record_cycle writes, the
+    # route reads cycles_today from the same db.
+    agent_registry = AgentRegistry(db_path=str(tmp_path / "agents.db"))
     app.dependency_overrides[deps.get_agent_registry] = lambda: agent_registry
 
     test_client = TestClient(app)
@@ -331,8 +333,8 @@ def test_agent_unknown_returns_404(client):
     assert r.json()["error"] == "agent_not_found"
 
 
-def test_agent_cycles_in_memory(client):
-    # 4b-ii: cycles come from the in-memory counter, not a ledger scan.
+def test_agent_cycles_served_from_db(client):
+    # 5a-iii: the loop's record_cycle writes cycle_events; the API reads them.
     client.agent_registry.record_cycle("strategy")
     client.agent_registry.record_cycle("strategy")
     r = client.get("/v1/agents/strategy")

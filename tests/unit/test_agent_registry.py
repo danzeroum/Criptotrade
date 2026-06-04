@@ -68,3 +68,33 @@ def test_stub_agents_flagged_not_implemented():
     reg = AgentRegistry()
     assert reg.status("recovery")["status"] == "not_implemented"
     assert reg.status("strategy")["status"] == "idle"
+
+
+# ----------------------------------------------------------- 5a-iii cross-process
+def test_cross_process_cycles_via_shared_db(tmp_path):
+    db = str(tmp_path / "agents.db")
+    loop_reg = AgentRegistry(db_path=db)   # the loop writes
+    api_reg = AgentRegistry(db_path=db)    # the API reads (separate instance)
+
+    for _ in range(3):
+        loop_reg.record_cycle("strategy")
+
+    assert api_reg.cycles_today("strategy") == 3
+    assert api_reg.status("strategy")["cycles"] == 3
+    assert api_reg.status("strategy")["last_action_at"] is not None
+
+
+def test_no_db_path_is_legacy_in_memory(tmp_path):
+    reg = AgentRegistry()  # no db_path -> pure in-memory, no SQLite touched
+    reg.record_cycle("strategy")
+    assert reg.cycles_today("strategy") == 1
+    # A second registry without a shared db sees nothing — confirms it's local.
+    assert AgentRegistry().cycles_today("strategy") == 0
+
+
+def test_cycles_today_counts_only_current_utc_day(tmp_path):
+    reg = AgentRegistry(db_path=str(tmp_path / "agents.db"))
+    now = datetime.now(timezone.utc)
+    reg.record_cycle("strategy", when=now)
+    reg.record_cycle("strategy", when=now - timedelta(days=2))  # previous day
+    assert reg.cycles_today("strategy") == 1
