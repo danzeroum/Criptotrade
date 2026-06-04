@@ -2,17 +2,30 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 import logging
 
 import ccxt
 
+from src.core import synthetic_market as synth
+
 logger = logging.getLogger(__name__)
 
 
 class ExchangeClient:
-    """Client for interacting with cryptocurrency exchanges via CCXT."""
+    """Client for interacting with cryptocurrency exchanges via CCXT.
+
+    Mode is governed by the **mandatory** ``EXCHANGE_DRY_RUN`` env var (no default,
+    on purpose — an ambiguous mode in a financial system is unacceptable):
+
+    * ``EXCHANGE_DRY_RUN=true``  → fully offline: deterministic synthetic market
+      data, **zero network, no ccxt client instantiated**.
+    * ``EXCHANGE_DRY_RUN=false`` → real ccxt client (production only).
+    * unset → ``RuntimeError`` at construction (fail loud, never guess).
+    """
 
     def __init__(
         self,
@@ -24,6 +37,29 @@ class ExchangeClient:
         """Initialise the exchange client."""
         self.exchange_id = exchange_id
         self.testnet = testnet
+
+        dry_run_raw = os.environ.get("EXCHANGE_DRY_RUN")
+        if dry_run_raw is None:
+            raise RuntimeError(
+                "EXCHANGE_DRY_RUN não configurado. "
+                "Defina EXCHANGE_DRY_RUN=true (dados sintéticos, sem rede) ou "
+                "EXCHANGE_DRY_RUN=false (exchange real — apenas produção). "
+                "Nunca deixe ambíguo."
+            )
+        self.dry_run = dry_run_raw.lower() == "true"
+        self.base_price = float(os.getenv("DRY_RUN_BASE_PRICE", "50000"))
+
+        self.paper_trading = True
+        self.simulated_orders: Dict[str, Dict[str, Any]] = {}
+
+        if self.dry_run:
+            # Offline: do NOT instantiate ccxt at all — zero network dependency.
+            self.exchange = None
+            logger.info(
+                "ExchangeClient in DRY_RUN (synthetic data, no network)",
+                extra={"exchange": exchange_id, "base_price": self.base_price},
+            )
+            return
 
         exchange_class = getattr(ccxt, exchange_id)
         config: Dict[str, Any] = {
@@ -44,20 +80,25 @@ class ExchangeClient:
             except Exception as exc:
                 logger.warning("Unable to enable sandbox mode", exc_info=exc)
 
-        self.paper_trading = True
-        self.simulated_orders: Dict[str, Dict[str, Any]] = {}
-
         logger.info(
             "ExchangeClient initialised",
             extra={
                 "exchange": exchange_id,
                 "testnet": testnet,
                 "paper_trading": self.paper_trading,
+                "dry_run": self.dry_run,
             },
         )
 
+    @staticmethod
+    def _now_ts() -> int:
+        """Mockable timestamp source (tests patch ``time.time``)."""
+        return int(time.time())
+
     async def fetch_ticker(self, symbol: str) -> Dict[str, Any]:
         """Fetch current ticker data for a symbol."""
+        if self.dry_run:
+            return synth.synthetic_ticker(symbol, self.base_price, self._now_ts())
         try:
             ticker = await asyncio.to_thread(self.exchange.fetch_ticker, symbol)
             logger.debug("Fetched ticker for %s: %s", symbol, ticker.get("last"))
@@ -70,6 +111,8 @@ class ExchangeClient:
         self, symbol: str, timeframe: str = "1h", limit: int = 100
     ) -> List[List[float]]:
         """Fetch OHLCV (candlestick) data."""
+        if self.dry_run:
+            return synth.synthetic_ohlcv(self.base_price, self._now_ts(), timeframe, limit)
         try:
             ohlcv = await asyncio.to_thread(
                 self.exchange.fetch_ohlcv, symbol, timeframe, None, limit
@@ -82,6 +125,8 @@ class ExchangeClient:
 
     async def fetch_order_book(self, symbol: str, limit: int = 20) -> Dict[str, Any]:
         """Fetch order book (bids and asks)."""
+        if self.dry_run:
+            return synth.synthetic_order_book(symbol, self.base_price, self._now_ts(), limit)
         try:
             order_book = await asyncio.to_thread(
                 self.exchange.fetch_order_book, symbol, limit
