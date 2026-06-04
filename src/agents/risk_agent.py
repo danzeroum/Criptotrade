@@ -54,6 +54,16 @@ class RiskAgent(BaseAgent):
         issues = []
         warnings = []
 
+        # Risk guardrails: the GuardrailSystem was instantiated but never invoked,
+        # so no order was actually risk-validated. Wire it into the live path here.
+        # A violation becomes an issue -> rejection. Never raises (defensive).
+        try:
+            passed, violations = self.guardrails.validate_order(signal)
+        except Exception as exc:  # pragma: no cover - defensive
+            passed, violations = False, [f"guardrail error: {exc}"]
+        if not passed:
+            issues.extend(violations)
+
         # Check position size
         position_size = signal.get("position_size_pct", 0)
         if position_size > self.max_position_size_pct:

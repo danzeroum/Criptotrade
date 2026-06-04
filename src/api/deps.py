@@ -10,11 +10,12 @@ import os
 from functools import lru_cache
 
 from src.agents.registry import AgentRegistry
-from src.core.alerts import AlertBus, AlertStore
+from src.core.alerts import AlertBus, AlertStore, make_guardrail_sink
 from src.core.ledger import TradingLedger
 from src.core.metrics import PortfolioMetricsCalculator
 from src.hitl.config import DEFAULT_LEVEL, MAX_LEVEL, MIN_LEVEL, HITLConfigStore, level_info
 from src.hitl.orders import OrderStore
+from src.safety.guardrails import GuardrailSystem
 
 
 def _initial_capital() -> float:
@@ -63,7 +64,10 @@ def get_order_store() -> OrderStore:
     def _threshold() -> float:
         return level_info(get_hitl_store().level).threshold_usdt
 
-    return OrderStore(get_ledger(), threshold_provider=_threshold)
+    # Risk gate: guardrail violations are persisted as alerts (in-process sink)
+    # and reject the order before any value-threshold auto-approval.
+    guardrails = GuardrailSystem(alert_sink=make_guardrail_sink(get_alert_store()))
+    return OrderStore(get_ledger(), threshold_provider=_threshold, guardrails=guardrails)
 
 
 @lru_cache(maxsize=1)

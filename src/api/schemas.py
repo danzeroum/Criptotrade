@@ -108,6 +108,10 @@ class OrderCreate(BaseModel):
     confidence: float = Field(..., ge=0, le=1)
     reason: str = Field(..., min_length=10)
     critical: bool = Field(default=False, description="Força aprovação humana mesmo se dentro do limite")
+    # Risk fields — required for real guardrail validation (stop loss is mandatory).
+    position_size_pct: float = Field(..., gt=0, le=100, description="% do portfólio na posição")
+    stop_loss: float = Field(..., gt=0, description="Preço de stop loss (obrigatório)")
+    take_profit: Optional[float] = Field(default=None, gt=0, description="Preço-alvo (opcional)")
 
 
 class OrderDecisionPatch(BaseModel):

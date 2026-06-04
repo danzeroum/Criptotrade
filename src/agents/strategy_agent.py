@@ -63,8 +63,10 @@ class StrategyAgent(BaseAgent):
             "action": "BUY",
             "entry_price": 100.0,
             "stop_loss": 97.0,
-            "take_profit": 105.0,
-            "position_size_pct": 3.0
+            # risk-reward = (108-100)/(100-97) = 2.67 (>= 2.5 min), so the demo
+            # signal passes the guardrails now wired into the RiskAgent.
+            "take_profit": 108.0,
+            "position_size_pct": 3.0,
         }
 
     def _calculate_confidence(self, analysis: Dict[str, Any], signal: Dict[str, Any]) -> float:

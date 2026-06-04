@@ -27,6 +27,7 @@ from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
 from src.core.ledger import TradingLedger
+from src.safety.guardrails import GuardrailSystem
 
 
 class OrderStatus(str, Enum):
@@ -51,6 +52,9 @@ class Order:
     confidence: float
     reason: str
     critical: bool = False
+    position_size_pct: float = 0.0
+    stop_loss: Optional[float] = None
+    take_profit: Optional[float] = None
     status: OrderStatus = OrderStatus.pending
     operator_note: Optional[str] = None
     operator_id: Optional[str] = None
@@ -63,6 +67,16 @@ class Order:
     @property
     def notional(self) -> float:
         return self.price * self.quantity
+
+    def guardrail_view(self) -> Dict[str, Any]:
+        """Project the order into the dict shape GuardrailSystem expects."""
+        return {
+            "position_size_pct": self.position_size_pct,
+            "action": self.side.upper(),
+            "entry_price": self.price,
+            "stop_loss": self.stop_loss,
+            "take_profit": self.take_profit,
+        }
 
     def to_dict(self) -> Dict[str, Any]:
         data = asdict(self)
@@ -91,18 +105,21 @@ class OrderStore:
         ledger: TradingLedger,
         threshold_provider: Callable[[], float],
         decision_timeout: float = 300.0,
+        guardrails: Optional[GuardrailSystem] = None,
     ) -> None:
         self._ledger = ledger
         self._threshold_provider = threshold_provider
         # Pending orders with no human response within this window are auto-
         # cancelled (fail-closed): a stuck approval must never block forever.
         self._decision_timeout = decision_timeout
+        # When set, every order is risk-validated BEFORE any approval decision.
+        self._guardrails = guardrails
         self._orders: Dict[str, Order] = {}
         self._events: Dict[str, asyncio.Event] = {}
 
     # ------------------------------------------------------------------ submit
     def submit(self, order: Order) -> Order:
-        """Register an order; auto-approve+fill it or leave it pending."""
+        """Register an order; risk-validate, then auto-approve+fill or leave pending."""
         self._orders[order.id] = order
         self._events[order.id] = asyncio.Event()
         self._ledger.log_process_event(
@@ -110,12 +127,37 @@ class OrderStore:
             {"pair": order.pair, "side": order.side, "notional": order.notional},
         )
 
+        # Risk gate FIRST: autonomy thresholds are value-based; guardrails are the
+        # risk-based gate. A violation rejects the order with the guardrail reason
+        # and never raises (business rule).
+        if self._guardrails is not None and not self._risk_ok(order):
+            return order
+
         threshold = self._threshold_provider()
         auto = (threshold > 0) and (order.notional <= threshold) and not order.critical
         if auto:
             order.auto_approved = True
             self._fill(order, operator="auto")
         return order
+
+    def _risk_ok(self, order: Order) -> bool:
+        """Run guardrails; reject the order on violation. Returns True if it passed."""
+        try:
+            passed, violations = self._guardrails.validate_order(order.guardrail_view())
+        except Exception as exc:  # defensive: any failure -> rejected, never raise
+            passed, violations = False, [f"risk validation error: {exc}"]
+        if passed:
+            return True
+        reason = "; ".join(violations) or "risk validation failed"
+        order.status = OrderStatus.rejected
+        order.resolved_at = _now()
+        order.operator_note = reason
+        self._ledger.log_hitl_approval(approved=False, order=order.to_dict(), user="guardrails")
+        self._ledger.log_process_event(
+            order.id, "order_rejected", "guardrails", {"violations": violations},
+        )
+        self._signal(order.id)
+        return False
 
     # ------------------------------------------------------------------ resolve
     def resolve(

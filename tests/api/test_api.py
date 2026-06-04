@@ -10,11 +10,12 @@ from fastapi.testclient import TestClient
 from src.agents.registry import AgentRegistry
 from src.api import deps
 from src.api.main import create_app
-from src.core.alerts import Alert, AlertBus, AlertStore
+from src.core.alerts import Alert, AlertBus, AlertStore, make_guardrail_sink
 from src.core.ledger import TradingLedger
 from src.core.metrics import PortfolioMetricsCalculator
 from src.hitl.config import HITLConfigStore, level_info
 from src.hitl.orders import OrderStore
+from src.safety.guardrails import GuardrailSystem
 
 
 @pytest.fixture
@@ -24,7 +25,9 @@ def client(tmp_path):
     bus = AlertBus()
     hitl = HITLConfigStore(ledger, initial_level=2)
     order_store = OrderStore(
-        ledger, threshold_provider=lambda: level_info(hitl.level).threshold_usdt
+        ledger,
+        threshold_provider=lambda: level_info(hitl.level).threshold_usdt,
+        guardrails=GuardrailSystem(alert_sink=make_guardrail_sink(store)),
     )
     hitl.pending_orders_provider = order_store.pending_count
 
@@ -56,6 +59,10 @@ _VALID_ORDER = {
     "agent_id": "strategy_agent",
     "confidence": 0.87,
     "reason": "RSI oversold detectado no schedule DCA",
+    # Risk fields: stop 3% below entry, RR = (1080-1000)/(1000-970) = 2.67 (>= 2.5).
+    "position_size_pct": 2.0,
+    "stop_loss": 970.0,
+    "take_profit": 1080.0,
 }
 
 
@@ -256,6 +263,38 @@ def test_autonomy_level_zero_forces_pending(client):
     r = client.post("/v1/orders", json=_VALID_ORDER)  # tiny notional, but level 0
     assert r.status_code == 202
     assert r.json()["data"]["status"] == "pending"
+
+
+# ----------------------------------------------------------------- risk gate (Phase 4a)
+def test_order_rejected_by_guardrail_risk_reward(client):
+    # take_profit too close -> RR below 2.5 -> rejected by guardrails, not approved.
+    bad = {**_VALID_ORDER, "take_profit": 1010.0}  # RR = 10/30 = 0.33
+    r = client.post("/v1/orders", json=bad)
+    assert r.status_code == 422
+    d = r.json()["data"]
+    assert d["status"] == "rejected"
+    assert "Risk-reward" in d["operator_note"]
+
+
+def test_order_rejected_when_stop_loss_wrong_side(client):
+    # BUY with stop ABOVE entry violates the stop-loss guardrail -> rejected.
+    bad = {**_VALID_ORDER, "stop_loss": 1100.0}
+    r = client.post("/v1/orders", json=bad)
+    assert r.status_code == 422
+    assert r.json()["data"]["status"] == "rejected"
+
+
+def test_guardrail_rejection_publishes_alert(client):
+    client.post("/v1/orders", json={**_VALID_ORDER, "take_profit": 1010.0})
+    alerts = client.get("/v1/alerts/history").json()
+    assert alerts["meta"]["total"] >= 1
+    assert any(a["type"] == "guardrail_violation" for a in alerts["data"])
+
+
+def test_risk_passing_order_still_auto_approves(client):
+    r = client.post("/v1/orders", json=_VALID_ORDER)
+    assert r.status_code == 201
+    assert r.json()["data"]["status"] == "filled"
 
 
 # ----------------------------------------------------------------- agents (Phase 3a)
