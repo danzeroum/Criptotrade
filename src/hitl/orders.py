@@ -90,9 +90,13 @@ class OrderStore:
         self,
         ledger: TradingLedger,
         threshold_provider: Callable[[], float],
+        decision_timeout: float = 300.0,
     ) -> None:
         self._ledger = ledger
         self._threshold_provider = threshold_provider
+        # Pending orders with no human response within this window are auto-
+        # cancelled (fail-closed): a stuck approval must never block forever.
+        self._decision_timeout = decision_timeout
         self._orders: Dict[str, Order] = {}
         self._events: Dict[str, asyncio.Event] = {}
 
@@ -101,6 +105,10 @@ class OrderStore:
         """Register an order; auto-approve+fill it or leave it pending."""
         self._orders[order.id] = order
         self._events[order.id] = asyncio.Event()
+        self._ledger.log_process_event(
+            order.id, "order_submitted", order.agent_id,
+            {"pair": order.pair, "side": order.side, "notional": order.notional},
+        )
 
         threshold = self._threshold_provider()
         auto = (threshold > 0) and (order.notional <= threshold) and not order.critical
@@ -132,6 +140,21 @@ class OrderStore:
             order.status = OrderStatus.rejected
             order.resolved_at = _now()
             self._ledger.log_hitl_approval(approved=False, order=order.to_dict(), user=operator)
+            self._ledger.log_process_event(
+                order.id, "order_rejected", operator, {"note": operator_note},
+            )
+        self._signal(order_id)
+        return order
+
+    def cancel(self, order_id: str, reason: str = "timeout") -> Optional[Order]:
+        """Cancel a pending order (e.g. on decision timeout). Idempotent."""
+        order = self.get(order_id)
+        if order is None or order.status != OrderStatus.pending:
+            return order
+        order.status = OrderStatus.cancelled
+        order.resolved_at = _now()
+        order.operator_note = reason
+        self._ledger.log_process_event(order.id, "order_cancelled", "system", {"reason": reason})
         self._signal(order_id)
         return order
 
@@ -158,12 +181,19 @@ class OrderStore:
         """Await a human decision; returns ``True`` if the order was filled.
 
         Used by an orchestrator ``approval_handler`` so a running pipeline can
-        block on the same store the PATCH endpoint resolves.
+        block on the same store the PATCH endpoint resolves. Fail-closed: if no
+        decision arrives within ``decision_timeout`` seconds the order is
+        auto-cancelled and ``False`` is returned — a stuck approval never blocks
+        the pipeline forever.
         """
         event = self._events.get(order_id)
         if event is None:
             return False
-        await event.wait()
+        try:
+            await asyncio.wait_for(event.wait(), timeout=self._decision_timeout)
+        except asyncio.TimeoutError:
+            self.cancel(order_id, reason="decision_timeout")
+            return False
         order = self._orders[order_id]
         return order.status == OrderStatus.filled
 
@@ -180,6 +210,10 @@ class OrderStore:
             price=order.price,
             quantity=order.quantity,
             strategy=order.strategy,
+        )
+        self._ledger.log_process_event(
+            order.id, "order_filled", operator,
+            {"price": order.price, "quantity": order.quantity, "auto": order.auto_approved},
         )
 
     def _signal(self, order_id: str) -> None:

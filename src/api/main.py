@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from src.api.routes import alerts, hitl, metrics, orders
+from src.api.routes import agents, alerts, hitl, metrics, orders, process
 
 PREFIX = "/v1"
 PUBLIC_PATHS: Set[str] = {
@@ -77,6 +77,8 @@ def create_app() -> FastAPI:
     app.include_router(metrics.router, prefix=PREFIX)
     app.include_router(hitl.router, prefix=PREFIX)
     app.include_router(orders.router, prefix=PREFIX)
+    app.include_router(agents.router, prefix=PREFIX)
+    app.include_router(process.router, prefix=PREFIX)
     app.include_router(alerts.router, prefix=PREFIX)
 
     @app.get("/health", tags=["infra"])

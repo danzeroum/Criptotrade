@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import pytest
 from fastapi.testclient import TestClient
 
+from src.agents.registry import AgentRegistry
 from src.api import deps
 from src.api.main import create_app
 from src.core.alerts import Alert, AlertBus, AlertStore
@@ -28,6 +29,7 @@ def client(tmp_path):
     hitl.pending_orders_provider = order_store.pending_count
 
     app = create_app()
+    app.dependency_overrides[deps.get_ledger] = lambda: ledger
     app.dependency_overrides[deps.get_metrics_calculator] = lambda: PortfolioMetricsCalculator(
         ledger, 10_000.0
     )
@@ -35,6 +37,7 @@ def client(tmp_path):
     app.dependency_overrides[deps.get_alert_store] = lambda: store
     app.dependency_overrides[deps.get_alert_bus] = lambda: bus
     app.dependency_overrides[deps.get_order_store] = lambda: order_store
+    app.dependency_overrides[deps.get_agent_registry] = lambda: AgentRegistry(ledger)
 
     test_client = TestClient(app)
     test_client.ledger = ledger  # type: ignore[attr-defined]
@@ -253,3 +256,55 @@ def test_autonomy_level_zero_forces_pending(client):
     r = client.post("/v1/orders", json=_VALID_ORDER)  # tiny notional, but level 0
     assert r.status_code == 202
     assert r.json()["data"]["status"] == "pending"
+
+
+# ----------------------------------------------------------------- agents (Phase 3a)
+def test_list_agents(client):
+    r = client.get("/v1/agents")
+    assert r.status_code == 200
+    data = r.json()["data"]
+    assert len(data) == 11
+    ids = {a["id"] for a in data}
+    assert {"strategy", "risk", "execution", "recovery"} <= ids
+
+
+def test_agent_detail_implemented(client):
+    r = client.get("/v1/agents/strategy")
+    assert r.status_code == 200
+    assert r.json()["data"]["implemented"] is True
+
+
+def test_agent_stub_returns_501(client):
+    for stub in ("recovery", "exploration"):
+        r = client.get(f"/v1/agents/{stub}")
+        assert r.status_code == 501
+        assert r.json()["error"] == "not_implemented"
+
+
+def test_agent_unknown_returns_404(client):
+    r = client.get("/v1/agents/does_not_exist")
+    assert r.status_code == 404
+    assert r.json()["error"] == "agent_not_found"
+
+
+def test_agent_cycles_reflect_ledger(client):
+    client.ledger.log_signal(agent="strategy", signal={"action": "BUY"})
+    client.ledger.log_signal(agent="strategy", signal={"action": "SELL"})
+    r = client.get("/v1/agents/strategy")
+    assert r.json()["data"]["cycles"] == 2
+
+
+# ----------------------------------------------------------------- process log (Phase 3b)
+def test_process_events_after_order(client):
+    order = client.post("/v1/orders", json=_VALID_ORDER).json()["data"]  # auto-filled
+    r = client.get(f"/v1/process/events?case_id={order['id']}")
+    assert r.status_code == 200
+    activities = [e["activity"] for e in r.json()["data"]]
+    assert "order_submitted" in activities
+    assert "order_filled" in activities
+
+
+def test_process_events_empty(client):
+    r = client.get("/v1/process/events")
+    assert r.status_code == 200
+    assert r.json()["data"] == []

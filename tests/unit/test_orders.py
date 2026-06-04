@@ -129,3 +129,30 @@ async def test_bridge_handler_auto_approves(ledger):
               "quantity": 1.0, "confidence": 0.8, "reason": "x" * 12}
     approved = await asyncio.wait_for(handler(signal), timeout=1.0)
     assert approved is True
+
+
+@pytest.mark.asyncio
+async def test_wait_for_decision_timeout_auto_cancels(ledger):
+    # No human responds within the (tiny) window -> auto-cancel, fail-closed.
+    store = OrderStore(ledger, threshold_provider=lambda: 0.0, decision_timeout=0.05)
+    order = store.submit(_order())
+    approved = await store.wait_for_decision(order.id)
+    assert approved is False
+    assert store.get(order.id).status == OrderStatus.cancelled
+
+
+def test_transitions_emit_process_events(ledger):
+    store = OrderStore(ledger, threshold_provider=lambda: 0.0)
+    order = store.submit(_order())
+    store.resolve(order.id, approved=True, operator="daniel")
+    activities = [e["data"]["activity"] for e in ledger.get_process_events(order.id)]
+    assert "order_submitted" in activities
+    assert "order_filled" in activities
+
+
+def test_reject_emits_rejected_event(ledger):
+    store = OrderStore(ledger, threshold_provider=lambda: 0.0)
+    order = store.submit(_order())
+    store.resolve(order.id, approved=False, operator_note="risco")
+    activities = [e["data"]["activity"] for e in ledger.get_process_events(order.id)]
+    assert "order_rejected" in activities

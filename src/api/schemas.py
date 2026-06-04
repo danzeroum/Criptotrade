@@ -148,6 +148,26 @@ class OrderOut(BaseModel):
     filled_at: Optional[str] = None
 
 
+# ----------------------------------------------------------------- agents
+class AgentStatusOut(BaseModel):
+    id: str
+    domain: str
+    implemented: bool
+    description: str
+    status: str
+    cycles: int
+    last_action_at: Optional[str] = None
+
+
+# ----------------------------------------------------------------- process log
+class ProcessEventOut(BaseModel):
+    case_id: str
+    activity: str
+    actor: str
+    timestamp: str
+    attributes: dict = Field(default_factory=dict)
+
+
 # ----------------------------------------------------------------- alerts
 class AlertOut(BaseModel):
     id: str
@@ -173,5 +193,7 @@ __all__ = [
     "OrderCreate",
     "OrderDecisionPatch",
     "OrderOut",
+    "AgentStatusOut",
+    "ProcessEventOut",
     "AlertOut",
 ]

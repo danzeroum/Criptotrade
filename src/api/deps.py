@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 
+from src.agents.registry import AgentRegistry
 from src.core.alerts import AlertBus, AlertStore
 from src.core.ledger import TradingLedger
 from src.core.metrics import PortfolioMetricsCalculator
@@ -65,13 +66,21 @@ def get_order_store() -> OrderStore:
     return OrderStore(get_ledger(), threshold_provider=_threshold)
 
 
+@lru_cache(maxsize=1)
+def get_agent_registry() -> AgentRegistry:
+    return AgentRegistry(get_ledger())
+
+
 def get_metrics_calculator() -> PortfolioMetricsCalculator:
     return PortfolioMetricsCalculator(get_ledger(), initial_capital=_initial_capital())
 
 
 def reset_singletons() -> None:
     """Clear cached singletons (used by tests to inject fresh state)."""
-    for fn in (get_ledger, get_alert_store, get_alert_bus, get_hitl_store, get_order_store):
+    for fn in (
+        get_ledger, get_alert_store, get_alert_bus, get_hitl_store,
+        get_order_store, get_agent_registry,
+    ):
         fn.cache_clear()
 
 
@@ -80,6 +89,8 @@ __all__ = [
     "get_alert_store",
     "get_alert_bus",
     "get_hitl_store",
+    "get_order_store",
+    "get_agent_registry",
     "get_metrics_calculator",
     "reset_singletons",
 ]

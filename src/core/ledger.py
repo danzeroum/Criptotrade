@@ -71,6 +71,37 @@ class TradingLedger:
             },
         )
 
+    def log_process_event(
+        self,
+        case_id: str,
+        activity: str,
+        actor: str,
+        attributes: Dict[str, Any] | None = None,
+    ) -> None:
+        """Append an XES-style process event for process mining.
+
+        Maps to the classic XES triple: ``case_id`` (the trace, e.g. an order id),
+        ``activity`` (the step, e.g. ``order_filled``) and ``actor`` (resource that
+        performed it). ``attributes`` carries any extra payload. These events are
+        the event log a tool like PM4Py consumes to discover the real process.
+        """
+        self.log_decision(
+            "process_event",
+            {
+                "case_id": case_id,
+                "activity": activity,
+                "actor": actor,
+                "attributes": attributes or {},
+            },
+        )
+
+    def get_process_events(self, case_id: str | None = None) -> List[Dict[str, Any]]:
+        """Return process events (XES log), optionally filtered by ``case_id``."""
+        events = self.get_events("process_event")
+        if case_id is None:
+            return events
+        return [e for e in events if e["data"].get("case_id") == case_id]
+
     def log_fill(
         self,
         order_id: str,
