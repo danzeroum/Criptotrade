@@ -40,7 +40,7 @@ def client(tmp_path):
     app.dependency_overrides[deps.get_alert_store] = lambda: store
     app.dependency_overrides[deps.get_alert_bus] = lambda: bus
     app.dependency_overrides[deps.get_order_store] = lambda: order_store
-    agent_registry = AgentRegistry(ledger)  # single instance: in-memory counters persist
+    agent_registry = AgentRegistry()  # single instance: in-memory counters persist
     app.dependency_overrides[deps.get_agent_registry] = lambda: agent_registry
 
     test_client = TestClient(app)
