@@ -40,13 +40,15 @@ def client(tmp_path):
     app.dependency_overrides[deps.get_alert_store] = lambda: store
     app.dependency_overrides[deps.get_alert_bus] = lambda: bus
     app.dependency_overrides[deps.get_order_store] = lambda: order_store
-    app.dependency_overrides[deps.get_agent_registry] = lambda: AgentRegistry(ledger)
+    agent_registry = AgentRegistry(ledger)  # single instance: in-memory counters persist
+    app.dependency_overrides[deps.get_agent_registry] = lambda: agent_registry
 
     test_client = TestClient(app)
     test_client.ledger = ledger  # type: ignore[attr-defined]
     test_client.alert_store = store  # type: ignore[attr-defined]
     test_client.order_store = order_store  # type: ignore[attr-defined]
     test_client.hitl = hitl  # type: ignore[attr-defined]
+    test_client.agent_registry = agent_registry  # type: ignore[attr-defined]
     return test_client
 
 
@@ -326,11 +328,14 @@ def test_agent_unknown_returns_404(client):
     assert r.json()["error"] == "agent_not_found"
 
 
-def test_agent_cycles_reflect_ledger(client):
-    client.ledger.log_signal(agent="strategy", signal={"action": "BUY"})
-    client.ledger.log_signal(agent="strategy", signal={"action": "SELL"})
+def test_agent_cycles_in_memory(client):
+    # 4b-ii: cycles come from the in-memory counter, not a ledger scan.
+    client.agent_registry.record_cycle("strategy")
+    client.agent_registry.record_cycle("strategy")
     r = client.get("/v1/agents/strategy")
-    assert r.json()["data"]["cycles"] == 2
+    body = r.json()["data"]
+    assert body["cycles"] == 2
+    assert body["last_action_at"] is not None
 
 
 # ----------------------------------------------------------------- process log (Phase 3b)

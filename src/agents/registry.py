@@ -4,19 +4,21 @@ Honest by design (addresses Nielsen heuristic #1, system visibility):
 * ``implemented`` is ``False`` for the agents that are still thin stubs
   (``recovery``, ``exploration`` are security tool-wrappers, not wired into
   trading). The API returns 501 for those instead of pretending they work.
-* For the trading agents, ``cycles`` and ``last_action_at`` are derived from
-  *real* ledger events, not fabricated.
+* ``cycles_today`` is an **in-memory O(1) counter** incremented by the
+  orchestrator loop via :meth:`record_cycle`, NOT a scan of the JSONL ledger on
+  every request. With a continuous loop emitting ~17k events/day and a dashboard
+  refreshing every 5s, scanning the file per request would be millions of line
+  reads/day (see ADR-001). The counter resets lazily at the first access of a new
+  UTC day, so it always reflects "today".
 
-There is no continuous agent loop yet, so a live ``active`` status is not
-claimed: implemented agents report ``idle`` until the orchestrator runs
-continuously (Phase 4). This is deliberately truthful.
+There is no live ``active`` status until the loop runs; implemented agents report
+``idle`` until then. This is deliberately truthful.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
-
-from src.core.ledger import TradingLedger
 
 
 @dataclass(frozen=True)
@@ -47,21 +49,40 @@ AGENT_REGISTRY: Dict[str, AgentInfo] = {
     ]
 }
 
-# Maps trading ledger event types to the agent that produces them, so we can
-# count real cycles per agent from the audit trail.
-_LEDGER_ACTIVITY_BY_AGENT = {
-    "strategy": "signal_generated",
-    "risk": "risk_validation",
-    "execution": "order_executed",
-}
-
 
 class AgentRegistry:
-    """Reports agent status, enriched with real counters from the ledger."""
+    """Reports agent status with O(1) in-memory cycle counters.
 
-    def __init__(self, ledger: TradingLedger) -> None:
-        self._ledger = ledger
+    The ``ledger`` argument is accepted for wiring compatibility but is no longer
+    read on the hot path: cycle counts come from memory (see module docstring).
+    """
 
+    def __init__(self, ledger: Any = None) -> None:
+        self._ledger = ledger  # reserved; not scanned per request
+        self._cycles: Dict[str, int] = {}
+        self._last_action: Dict[str, str] = {}
+        self._cycles_date: date = datetime.now(timezone.utc).date()
+
+    # ------------------------------------------------------------- aggregation
+    def record_cycle(self, agent_id: str, when: Optional[datetime] = None) -> None:
+        """Increment an agent's cycle counter (called on ``agent_cycle_completed``)."""
+        when = when or datetime.now(timezone.utc)
+        self._maybe_reset(when.date())
+        self._cycles[agent_id] = self._cycles.get(agent_id, 0) + 1
+        self._last_action[agent_id] = when.isoformat()
+
+    def _maybe_reset(self, today: date) -> None:
+        """Lazy daily reset: a new UTC day zeroes the per-agent counters.
+
+        Only resets moving *forward* (``>``): wall-clock time never goes back, and
+        this keeps reads consistent regardless of access order.
+        """
+        if today > self._cycles_date:
+            self._cycles.clear()
+            self._last_action.clear()
+            self._cycles_date = today
+
+    # ----------------------------------------------------------------- queries
     def list_ids(self) -> List[str]:
         return list(AGENT_REGISTRY.keys())
 
@@ -72,29 +93,19 @@ class AgentRegistry:
         info = AGENT_REGISTRY.get(agent_id)
         if info is None:
             return None
-        cycles, last_action = self._ledger_stats(agent_id)
+        self._maybe_reset(datetime.now(timezone.utc).date())
         return {
             "id": info.id,
             "domain": info.domain,
             "implemented": info.implemented,
             "description": info.description,
             "status": "idle" if info.implemented else "not_implemented",
-            "cycles": cycles,
-            "last_action_at": last_action,
+            "cycles": self._cycles.get(agent_id, 0),
+            "last_action_at": self._last_action.get(agent_id),
         }
 
     def all_statuses(self) -> List[Dict[str, Any]]:
         return [self.status(a) for a in self.list_ids()]
-
-    def _ledger_stats(self, agent_id: str) -> tuple[int, Optional[str]]:
-        """Real cycle count + last action time from the trading ledger."""
-        activity = _LEDGER_ACTIVITY_BY_AGENT.get(agent_id)
-        if activity is None:
-            return 0, None
-        events = self._ledger.get_events(activity)
-        if not events:
-            return 0, None
-        return len(events), events[-1].get("timestamp")
 
 
 __all__ = ["AgentInfo", "AGENT_REGISTRY", "AgentRegistry"]
