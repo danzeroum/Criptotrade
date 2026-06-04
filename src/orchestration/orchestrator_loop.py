@@ -144,17 +144,45 @@ class OrchestratorLoop:
         symbols: Optional[Sequence[str]] = None,
         approval_handler: Any = None,
     ) -> "OrchestratorLoop":
-        """Real wiring: instantiate the ExchangeClient (mode = EXCHANGE_DRY_RUN)."""
+        """Real wiring: ExchangeClient (mode = EXCHANGE_DRY_RUN) + the live HITL
+        bridge.
+
+        The default ``approval_handler`` is now :func:`make_approval_handler` over
+        an ``OrderStore`` on the **shared** SQLite db (the same file the API
+        reads/writes), so the HITL cycle runs cross-process: the loop submits a
+        pending order, the API approves it, the loop polls and proceeds. Orders
+        within the env autonomy threshold auto-approve (Model B → filled).
+
+        NOTE (follow-up): for the *manual* path, the order reaches ``approved`` and
+        the loop executes, but the OrderStore order is not yet transitioned to
+        ``filled`` post-execution — the handler returns a bool, so the orchestrator
+        lacks the order id to call ``mark_filled``. Linking them is the next step.
+        """
         from src.core.db import get_db_path
         from src.core.exchange_client import ExchangeClient
+        from src.hitl.config import level_from_env, level_info
+        from src.hitl.orders import OrderStore, make_approval_handler
         from src.orchestration.squad_orchestrator import SquadOrchestrator
 
         exchange = ExchangeClient()  # requires EXCHANGE_DRY_RUN; offline in dry-run
         ledger = TradingLedger()
-        registry = AgentRegistry(db_path=str(get_db_path()))  # loop writes cycle_events
-        orchestrator = SquadOrchestrator(exchange, approval_handler=approval_handler)
+        db_path = str(get_db_path())
+        registry = AgentRegistry(db_path=db_path)  # loop writes cycle_events
+
+        # HITL bridge on the shared db. No guardrails here: the RiskAgent already
+        # runs them in the pipeline, so the OrderStore is purely the approval gate.
+        order_store = OrderStore(
+            ledger,
+            threshold_provider=lambda: level_info(level_from_env()).threshold_usdt,
+            db_path=db_path,
+        )
+        handler = approval_handler or make_approval_handler(order_store)
+
+        orchestrator = SquadOrchestrator(exchange, approval_handler=handler)
         orchestrator.ledger = ledger  # share one ledger between pipeline and loop
-        return cls(orchestrator, registry, ledger, symbols=symbols)
+        loop = cls(orchestrator, registry, ledger, symbols=symbols)
+        loop.order_store = order_store  # exposed for inspection / future mark_filled
+        return loop
 
 
 __all__ = ["OrchestratorLoop", "AgentExecutionError", "validated_interval"]

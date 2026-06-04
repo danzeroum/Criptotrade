@@ -118,6 +118,38 @@ async def test_no_execution_when_no_order_id(ledger):
     assert registry.status("execution")["cycles"] == 0  # never executed
 
 
+# --------------------------------------------------------------- real wiring (Candidate A)
+@pytest.mark.asyncio
+async def test_from_env_wires_real_handler_and_executes(tmp_path, monkeypatch):
+    monkeypatch.setenv("EXCHANGE_DRY_RUN", "true")
+    monkeypatch.setenv("LEDGER_DIR", str(tmp_path / "ledger"))
+    monkeypatch.setenv("AUTONOMY_LEVEL", "3")  # threshold $5000 -> small order auto-approves
+
+    loop = OrchestratorLoop.from_env(symbols=["BTC/USDT"])
+    assert loop.orchestrator.approval_handler is not None  # real handler wired
+
+    result = await loop.run_cycle()
+    # Full pipeline ran end-to-end: strategy -> risk -> HITL(auto) -> execution.
+    assert "strategy" in result["ran"]
+    assert "risk" in result["ran"]
+    assert "execution" in result["ran"]
+
+
+@pytest.mark.asyncio
+async def test_from_env_level_zero_keeps_order_pending(tmp_path, monkeypatch):
+    monkeypatch.setenv("EXCHANGE_DRY_RUN", "true")
+    monkeypatch.setenv("LEDGER_DIR", str(tmp_path / "ledger0"))
+    monkeypatch.setenv("AUTONOMY_LEVEL", "0")  # manual: nothing auto-approves
+
+    loop = OrchestratorLoop.from_env(symbols=["BTC/USDT"])
+    loop.order_store._poll_interval = 0.02
+    loop.order_store._decision_timeout = 0.05  # fail-closed fast for the test
+
+    result = await loop.run_cycle()
+    # No human approved -> order times out (cancelled), execution never runs.
+    assert "execution" not in result["ran"]
+
+
 # --------------------------------------------------------------- clean shutdown
 @pytest.mark.asyncio
 async def test_run_forever_stops_cleanly(ledger):
