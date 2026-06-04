@@ -163,7 +163,7 @@ Veja `.env.example` para a lista completa.
 
 ### Persistência & auditoria
 - **JSONL** (`LEDGER_DIR`): ledger append-only + event log XES (process mining).
-- **SQLite WAL** (`LEDGER_DIR/criptotrade.db`): `orders` e `cycle_events` (estado cross-process). Decisão registrada em [ADR-001](docs/adr/001-persistence.md).
+- **SQLite WAL** (`LEDGER_DIR/criptotrade.db`): `orders` e `cycle_events` (estado cross-process). Decisão registrada em [ADR-003](docs/adr/003-persistence-sqlite-wal.md).
 
 ---
 

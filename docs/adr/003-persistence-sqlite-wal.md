@@ -1,4 +1,4 @@
-# ADR-001: Estratégia de Persistência do Criptotrade
+# ADR-003: Estratégia de Persistência do Criptotrade (JSONL → SQLite WAL)
 
 ## Status
 
