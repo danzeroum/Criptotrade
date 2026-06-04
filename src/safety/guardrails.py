@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 import logging
 
 logger = logging.getLogger(__name__)
 
 Guardrail = Callable[[Dict[str, Any]], Tuple[bool, str]]
+# Sink called once per violation message. Kept as a plain str callback so this
+# module stays decoupled from the alert types (the wiring builds the Alert).
+AlertSink = Callable[[str], None]
 
 
 @dataclass
@@ -15,6 +18,9 @@ class GuardrailSystem:
     """Collection of guardrails for trade validation."""
 
     rules: List[Guardrail] = field(default_factory=list)
+    # Optional in-process sink: every violation is published (e.g. persisted to
+    # the AlertStore so it shows in /v1/alerts). None = log only (current default).
+    alert_sink: Optional[AlertSink] = None
 
     def __post_init__(self) -> None:
         if not self.rules:
@@ -34,6 +40,11 @@ class GuardrailSystem:
             if not passed and message:
                 violations.append(message)
                 logger.warning("Guardrail violation: %s", message)
+                if self.alert_sink is not None:
+                    try:
+                        self.alert_sink(message)
+                    except Exception:  # pragma: no cover - sink must never break validation
+                        logger.exception("alert_sink failed for: %s", message)
 
         return len(violations) == 0, violations
 

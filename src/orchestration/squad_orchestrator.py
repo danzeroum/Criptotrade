@@ -7,6 +7,7 @@ import logging
 from src.agents.execution_agent import ExecutionAgent
 from src.agents.risk_agent import RiskAgent
 from src.agents.strategy_agent import StrategyAgent
+from src.core.alerts import Alert, AlertBus, AlertStore
 from src.core.ledger import TradingLedger
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,9 @@ class SquadOrchestrator:
         self,
         exchange_client: Any,
         approval_handler: Optional[Callable[[Dict[str, Any]], Awaitable[bool]]] = None,
+        initial_capital: float = 10_000.0,
+        alert_store: Optional[AlertStore] = None,
+        alert_bus: Optional[AlertBus] = None,
     ) -> None:
         self.strategy_agent = StrategyAgent()
         self.risk_agent = RiskAgent()
@@ -26,6 +30,11 @@ class SquadOrchestrator:
         self.ledger = TradingLedger()
         # Real HITL hook. When None, approvals are denied (fail-closed).
         self.approval_handler = approval_handler
+        # Used to size paper fills (qty = capital * position_size_pct / price).
+        self.initial_capital = initial_capital
+        # Optional alert sink. When provided, risk rejections emit guardrail alerts.
+        self.alert_store = alert_store
+        self.alert_bus = alert_bus
 
     async def _request_human_approval(self, order: Dict[str, Any]) -> bool:
         """Request real human approval. Fail-closed: deny when no handler is configured."""
@@ -61,11 +70,13 @@ class SquadOrchestrator:
         self.ledger.log_validation(agent="risk", validation=risk_result["validation"])
 
         if not risk_result["approved"]:
-            logger.warning("Signal rejected by Risk Agent", extra={"issues": risk_result["validation"]["issues"]})
+            issues = risk_result["validation"]["issues"]
+            logger.warning("Signal rejected by Risk Agent", extra={"issues": issues})
+            await self._emit_alert(symbol, issues)
             return {
                 "success": False,
                 "reason": "Risk validation failed",
-                "issues": risk_result["validation"]["issues"],
+                "issues": issues,
             }
 
         logger.info("⏸️  HITL approval required")
@@ -86,9 +97,52 @@ class SquadOrchestrator:
 
         self.ledger.log_execution(agent="execution", execution=execution_result)
 
+        if execution_result.get("success"):
+            self._log_fill(symbol, strategy_result["signal"], execution_result)
+
         return {
             "success": execution_result["success"],
             "order_id": execution_result.get("order_id"),
             "signal": strategy_result["signal"],
             "confidence": strategy_result["confidence"],
         }
+
+    def _log_fill(self, symbol: str, signal: Dict[str, Any], execution: Dict[str, Any]) -> None:
+        """Record the economic facts of a fill so metrics can value the position.
+
+        Quantity is derived from the signal's ``position_size_pct`` and the
+        configured capital. Best-effort: a malformed signal must not break the
+        trade that already executed.
+        """
+        try:
+            price = float(signal.get("entry_price") or 0.0)
+            size_pct = float(signal.get("position_size_pct") or 0.0)
+            if price <= 0 or size_pct <= 0:
+                return
+            quantity = (self.initial_capital * size_pct / 100.0) / price
+            self.ledger.log_fill(
+                order_id=execution.get("order_id", "UNKNOWN"),
+                symbol=signal.get("symbol", symbol),
+                side=signal.get("action", "buy"),
+                price=price,
+                quantity=quantity,
+            )
+        except (TypeError, ValueError):  # pragma: no cover - defensive
+            logger.warning("Could not record fill for %s", symbol, exc_info=True)
+
+    async def _emit_alert(self, symbol: str, issues: Any) -> None:
+        """Emit a guardrail alert when risk rejects a signal (no-op without a sink)."""
+        if self.alert_store is None and self.alert_bus is None:
+            return
+        detail = "; ".join(str(i) for i in issues) if issues else "Risk validation failed"
+        alert = Alert(
+            severity="high",
+            type="risk_rejection",
+            message=f"Sinal rejeitado pelo Risk Agent ({symbol}): {detail}",
+            agent_id="risk_agent",
+            pair=symbol,
+        )
+        if self.alert_store is not None:
+            self.alert_store.append(alert)
+        if self.alert_bus is not None:
+            await self.alert_bus.publish(alert)

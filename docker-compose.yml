@@ -8,6 +8,10 @@ services:
       - "8501:8501"
     env_file:
       - .env
+    environment:
+      # Persist the append-only ledger/alerts on the mounted ./data volume so
+      # portfolio metrics survive container restarts.
+      - LEDGER_DIR=/app/data/ledger
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs

@@ -23,6 +23,11 @@ venv/
 data/
 logs/
 
+# Runtime ledger & logs (append-only artifacts mutated by agents/tests)
+*.jsonl
+.buildtovalue/ledger/
+.buildtovalue/logs/
+
 # Tooling
 .coverage
 htmlcov/
