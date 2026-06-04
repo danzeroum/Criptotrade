@@ -23,6 +23,7 @@ class SquadOrchestrator:
         initial_capital: float = 10_000.0,
         alert_store: Optional[AlertStore] = None,
         alert_bus: Optional[AlertBus] = None,
+        fill_callback: Optional[Callable[[str], Any]] = None,
     ) -> None:
         self.strategy_agent = StrategyAgent()
         self.risk_agent = RiskAgent()
@@ -35,6 +36,10 @@ class SquadOrchestrator:
         # Optional alert sink. When provided, risk rejections emit guardrail alerts.
         self.alert_store = alert_store
         self.alert_bus = alert_bus
+        # Called with the approved order id after a successful execution, so the
+        # OrderStore order completes approved -> filled (the manual HITL path).
+        self.fill_callback = fill_callback
+        self._last_order_ref: Optional[str] = None
         # Wire the RiskAgent's guardrails to publish each violation as an alert.
         if alert_store is not None:
             from src.core.alerts import make_guardrail_sink
@@ -44,9 +49,14 @@ class SquadOrchestrator:
     async def _request_human_approval(self, order: Dict[str, Any]) -> bool:
         """Request real human approval. Fail-closed: deny when no handler is configured."""
         if self.approval_handler is None:
+            self._last_order_ref = None
             logger.warning("No HITL approval handler configured; denying trade (fail-closed)")
             return False
-        return bool(await self.approval_handler(order))
+        result = await self.approval_handler(order)
+        # The OrderStore bridge returns the order id (str) on approval; other
+        # handlers return a bool. Keep the id to mark_filled post-execution.
+        self._last_order_ref = result if isinstance(result, str) else None
+        return bool(result)
 
     async def analyze_and_trade(self, symbol: str, timeframe: str = "1h") -> Dict[str, Any]:
         """Full trading pipeline with agent collaboration."""
@@ -56,6 +66,10 @@ class SquadOrchestrator:
             "symbol": symbol,
             "timeframe": timeframe,
         })
+
+        # Ensure the signal carries the symbol so the order records the real pair
+        # (the demo strategy stub omits it) — fixes orders showing pair="UNKNOWN".
+        strategy_result["signal"].setdefault("symbol", symbol)
 
         self.ledger.log_signal(agent="strategy", signal=strategy_result["signal"])
 
@@ -104,6 +118,13 @@ class SquadOrchestrator:
 
         if execution_result.get("success"):
             self._log_fill(symbol, strategy_result["signal"], execution_result)
+            # Complete the manual HITL path: approved -> filled in the OrderStore.
+            # No-op for auto-filled orders (mark_filled guards on status='approved').
+            if self.fill_callback is not None and self._last_order_ref is not None:
+                try:
+                    self.fill_callback(self._last_order_ref)
+                except Exception:  # pragma: no cover - never break a completed trade
+                    logger.warning("fill_callback failed for %s", self._last_order_ref, exc_info=True)
 
         return {
             "success": execution_result["success"],

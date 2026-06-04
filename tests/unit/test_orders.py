@@ -188,7 +188,8 @@ async def test_bridge_handler_blocks_until_resolved(ledger):
     assert len(pending) == 1
 
     store.resolve(pending[0].id, approved=True, operator="daniel")
-    assert await asyncio.wait_for(task, timeout=2.0) is True
+    # Handler returns the order id (truthy) on approval, None on rejection.
+    assert await asyncio.wait_for(task, timeout=2.0) == pending[0].id
 
 
 @pytest.mark.asyncio
@@ -197,7 +198,8 @@ async def test_bridge_handler_auto_approves(ledger):
     handler = make_approval_handler(store)
     signal = {"symbol": "BTC/USDT", "action": "buy", "entry_price": 100.0,
               "quantity": 1.0, "confidence": 0.8, "reason": "x" * 12}
-    assert await asyncio.wait_for(handler(signal), timeout=1.0) is True
+    # Truthy order id on auto-approval.
+    assert await asyncio.wait_for(handler(signal), timeout=1.0)
 
 
 @pytest.mark.asyncio
