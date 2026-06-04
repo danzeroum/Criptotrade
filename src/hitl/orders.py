@@ -1,37 +1,40 @@
-"""HITL order bridge — pending-order store + lifecycle.
-
-This is the bridge the validation doc called for: a place where an order can sit
-in ``pending`` until a human resolves it, while the autonomy level decides what
-gets auto-approved.
+"""HITL order bridge — SQLite-backed, cross-process (Phase 5a-ii).
 
 Lifecycle::
 
-    pending ──approve──► filled        (logs a fill to the ledger)
+    pending ──auto (≤ threshold, not critical)──► filled        (local ledger fill)
        │
-       └────reject───►  rejected       (requires operator_note)
+       ├──approve (human, API)──► approved ──loop executes──► filled
+       │
+       └──reject──► rejected            cancelled (timeout)
 
-Auto-approval rule (mirrors the operator-facing autonomy levels):
-    notional <= level threshold (USD) AND not critical  → auto-approve & fill
-    otherwise                                            → pending (await human)
+Cross-process model: the **API decides** (writes ``approved``/``rejected`` to the
+shared SQLite ``orders`` table) and the **loop executes** (sees ``approved`` via
+``wait_for_decision`` polling, runs the execution agent, then calls
+:meth:`OrderStore.mark_filled`). Auto-approval (Model B) fills locally on submit —
+it is a system-trusted small order recorded straight to the ledger.
 
-So level 0 (threshold 0) makes every order pending; level 3 auto-approves up to
-$5,000 but still routes ``critical`` orders to a human.
+State lives in SQLite (WAL) so the two processes share it; the audit trail (XES
+process events, fills, HITL approvals) still goes to the JSONL ledger in 5a.
 """
 from __future__ import annotations
 
 import asyncio
+import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
+from src.core.db import connection, init_db
 from src.core.ledger import TradingLedger
 from src.safety.guardrails import GuardrailSystem
 
 
 class OrderStatus(str, Enum):
     pending = "pending"
+    approved = "approved"  # human-approved, awaiting loop execution (cross-process)
     filled = "filled"
     rejected = "rejected"
     cancelled = "cancelled"
@@ -93,12 +96,29 @@ class OrderConflictError(Exception):
         super().__init__(f"Order {order.id} is '{order.status.value}', not pending")
 
 
-class OrderStore:
-    """In-memory order store with a ledger-backed fill side effect.
+_COLUMNS = (
+    "id", "pair", "side", "quantity", "price", "strategy", "agent_id", "confidence",
+    "reason", "critical", "position_size_pct", "stop_loss", "take_profit", "status",
+    "operator_note", "operator_id", "auto_approved", "created_at", "resolved_at", "filled_at",
+)
 
-    ``threshold_provider`` returns the current autonomy USD threshold (typically
-    ``HITLConfigStore`` level threshold), so auto-approval tracks the live level.
-    """
+
+def _row_to_order(row: Any) -> Order:
+    return Order(
+        pair=row["pair"], side=row["side"], quantity=row["quantity"], price=row["price"],
+        strategy=row["strategy"], agent_id=row["agent_id"], confidence=row["confidence"],
+        reason=row["reason"], critical=bool(row["critical"]),
+        position_size_pct=row["position_size_pct"] or 0.0,
+        stop_loss=row["stop_loss"], take_profit=row["take_profit"],
+        status=OrderStatus(row["status"]), operator_note=row["operator_note"],
+        operator_id=row["operator_id"], auto_approved=bool(row["auto_approved"]),
+        id=row["id"], created_at=row["created_at"], resolved_at=row["resolved_at"],
+        filled_at=row["filled_at"],
+    )
+
+
+class OrderStore:
+    """SQLite-backed order store shared across the API and the loop processes."""
 
     def __init__(
         self,
@@ -106,38 +126,38 @@ class OrderStore:
         threshold_provider: Callable[[], float],
         decision_timeout: float = 300.0,
         guardrails: Optional[GuardrailSystem] = None,
+        db_path: Optional[str] = None,
+        poll_interval: float = 2.0,
     ) -> None:
         self._ledger = ledger
         self._threshold_provider = threshold_provider
-        # Pending orders with no human response within this window are auto-
-        # cancelled (fail-closed): a stuck approval must never block forever.
+        # Pending orders with no decision within this window are auto-cancelled.
         self._decision_timeout = decision_timeout
         # When set, every order is risk-validated BEFORE any approval decision.
         self._guardrails = guardrails
-        self._orders: Dict[str, Order] = {}
-        self._events: Dict[str, asyncio.Event] = {}
+        self._db_path = db_path
+        self._poll_interval = poll_interval
+        init_db(db_path)  # idempotent: ensure the schema exists
 
     # ------------------------------------------------------------------ submit
     def submit(self, order: Order) -> Order:
-        """Register an order; risk-validate, then auto-approve+fill or leave pending."""
-        self._orders[order.id] = order
-        self._events[order.id] = asyncio.Event()
+        """Persist an order; risk-validate, then auto-fill or leave pending."""
+        self._insert(order)
         self._ledger.log_process_event(
             order.id, "order_submitted", order.agent_id,
             {"pair": order.pair, "side": order.side, "notional": order.notional},
         )
 
-        # Risk gate FIRST: autonomy thresholds are value-based; guardrails are the
-        # risk-based gate. A violation rejects the order with the guardrail reason
-        # and never raises (business rule).
+        # Risk gate FIRST: thresholds are value-based; guardrails are risk-based.
         if self._guardrails is not None and not self._risk_ok(order):
             return order
 
         threshold = self._threshold_provider()
         auto = (threshold > 0) and (order.notional <= threshold) and not order.critical
         if auto:
+            # Model B: auto-approval fills locally (system-trusted small order).
             order.auto_approved = True
-            self._fill(order, operator="auto")
+            self._do_fill(order, operator="auto")
         return order
 
     def _risk_ok(self, order: Order) -> bool:
@@ -148,15 +168,12 @@ class OrderStore:
             passed, violations = False, [f"risk validation error: {exc}"]
         if passed:
             return True
-        reason = "; ".join(violations) or "risk validation failed"
         order.status = OrderStatus.rejected
         order.resolved_at = _now()
-        order.operator_note = reason
+        order.operator_note = "; ".join(violations) or "risk validation failed"
+        self._update(order)
         self._ledger.log_hitl_approval(approved=False, order=order.to_dict(), user="guardrails")
-        self._ledger.log_process_event(
-            order.id, "order_rejected", "guardrails", {"violations": violations},
-        )
-        self._signal(order.id)
+        self._ledger.log_process_event(order.id, "order_rejected", "guardrails", {"violations": violations})
         return False
 
     # ------------------------------------------------------------------ resolve
@@ -167,7 +184,8 @@ class OrderStore:
         operator: str = "operator",
         operator_note: Optional[str] = None,
     ) -> Order:
-        """Human decision on a pending order. Raises if it is not pending."""
+        """Human decision on a pending order. Approve -> ``approved`` (the loop
+        fills); reject -> ``rejected``. Raises if it is not pending."""
         order = self.get(order_id)
         if order is None:
             raise KeyError(order_id)
@@ -176,16 +194,36 @@ class OrderStore:
 
         order.operator_id = operator
         order.operator_note = operator_note
+        order.resolved_at = _now()
         if approved:
-            self._fill(order, operator=operator)
+            order.status = OrderStatus.approved
+            self._update(order)
+            self._ledger.log_hitl_approval(approved=True, order=order.to_dict(), user=operator)
+            self._ledger.log_process_event(order.id, "order_approved", operator, {})
         else:
             order.status = OrderStatus.rejected
-            order.resolved_at = _now()
+            self._update(order)
             self._ledger.log_hitl_approval(approved=False, order=order.to_dict(), user=operator)
-            self._ledger.log_process_event(
-                order.id, "order_rejected", operator, {"note": operator_note},
+            self._ledger.log_process_event(order.id, "order_rejected", operator, {"note": operator_note})
+        return order
+
+    def mark_filled(self, order_id: str, operator: str = "loop") -> Optional[Order]:
+        """Transition ``approved`` -> ``filled`` (loop calls this post-execution).
+
+        The ``WHERE status='approved'`` guard makes it atomic and idempotent: it
+        never fills an order that wasn't approved (no silent double-fill).
+        """
+        now = _now()
+        with connection(self._db_path) as conn:
+            cur = conn.execute(
+                "UPDATE orders SET status='filled', filled_at=?, "
+                "resolved_at=COALESCE(resolved_at, ?) WHERE id=? AND status='approved'",
+                (now, now, order_id),
             )
-        self._signal(order_id)
+            affected = cur.rowcount
+        order = self.get(order_id)
+        if affected and order is not None:
+            self._log_fill_events(order, operator)
         return order
 
     def cancel(self, order_id: str, reason: str = "timeout") -> Optional[Order]:
@@ -196,79 +234,113 @@ class OrderStore:
         order.status = OrderStatus.cancelled
         order.resolved_at = _now()
         order.operator_note = reason
+        self._update(order)
         self._ledger.log_process_event(order.id, "order_cancelled", "system", {"reason": reason})
-        self._signal(order_id)
         return order
 
     # ------------------------------------------------------------------ queries
     def get(self, order_id: str) -> Optional[Order]:
-        return self._orders.get(order_id)
+        with connection(self._db_path) as conn:
+            row = conn.execute("SELECT * FROM orders WHERE id=?", (order_id,)).fetchone()
+        return _row_to_order(row) if row else None
 
     def list(
         self, status: Optional[OrderStatus] = None, pair: Optional[str] = None
     ) -> List[Order]:
-        orders = list(self._orders.values())
+        query = "SELECT * FROM orders"
+        clauses: List[str] = []
+        params: List[Any] = []
         if status is not None:
-            orders = [o for o in orders if o.status == status]
+            clauses.append("status=?")
+            params.append(status.value)
         if pair is not None:
-            orders = [o for o in orders if o.pair == pair]
-        orders.sort(key=lambda o: o.created_at, reverse=True)
-        return orders
+            clauses.append("pair=?")
+            params.append(pair)
+        if clauses:
+            query += " WHERE " + " AND ".join(clauses)
+        query += " ORDER BY created_at DESC"
+        with connection(self._db_path) as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [_row_to_order(r) for r in rows]
 
     def pending_count(self) -> int:
-        return sum(1 for o in self._orders.values() if o.status == OrderStatus.pending)
+        with connection(self._db_path) as conn:
+            return conn.execute(
+                "SELECT COUNT(*) FROM orders WHERE status='pending'"
+            ).fetchone()[0]
 
     # ------------------------------------------------------------------ bridge
-    async def wait_for_decision(self, order_id: str) -> bool:
-        """Await a human decision; returns ``True`` if the order was filled.
+    async def wait_for_decision(self, order_id: str, timeout: Optional[float] = None) -> bool:
+        """Poll the shared ``status`` until decided (cross-process).
 
-        Used by an orchestrator ``approval_handler`` so a running pipeline can
-        block on the same store the PATCH endpoint resolves. Fail-closed: if no
-        decision arrives within ``decision_timeout`` seconds the order is
-        auto-cancelled and ``False`` is returned — a stuck approval never blocks
-        the pipeline forever.
+        Returns ``True`` if ``approved``/``filled``, ``False`` if
+        ``rejected``/``cancelled`` or on timeout (fail-closed: a stuck approval is
+        auto-cancelled and never blocks the loop forever).
         """
-        event = self._events.get(order_id)
-        if event is None:
-            return False
-        try:
-            await asyncio.wait_for(event.wait(), timeout=self._decision_timeout)
-        except asyncio.TimeoutError:
-            self.cancel(order_id, reason="decision_timeout")
-            return False
-        order = self._orders[order_id]
-        return order.status == OrderStatus.filled
+        timeout = self._decision_timeout if timeout is None else timeout
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            with connection(self._db_path) as conn:
+                row = conn.execute(
+                    "SELECT status FROM orders WHERE id=?", (order_id,)
+                ).fetchone()
+            if row is not None:
+                status = row["status"]
+                if status in ("approved", "filled"):
+                    return True
+                if status in ("rejected", "cancelled"):
+                    return False
+            await asyncio.sleep(self._poll_interval)
+        self.cancel(order_id, reason="decision_timeout")
+        return False
 
     # ------------------------------------------------------------------ helpers
-    def _fill(self, order: Order, operator: str) -> None:
+    def _insert(self, order: Order) -> None:
+        placeholders = ",".join("?" for _ in _COLUMNS)
+        values = (
+            order.id, order.pair, order.side, order.quantity, order.price, order.strategy,
+            order.agent_id, order.confidence, order.reason, int(order.critical),
+            order.position_size_pct, order.stop_loss, order.take_profit, order.status.value,
+            order.operator_note, order.operator_id, int(order.auto_approved),
+            order.created_at, order.resolved_at, order.filled_at,
+        )
+        with connection(self._db_path) as conn:
+            conn.execute(f"INSERT INTO orders ({','.join(_COLUMNS)}) VALUES ({placeholders})", values)
+
+    def _update(self, order: Order) -> None:
+        with connection(self._db_path) as conn:
+            conn.execute(
+                "UPDATE orders SET status=?, operator_note=?, operator_id=?, auto_approved=?, "
+                "resolved_at=?, filled_at=? WHERE id=?",
+                (order.status.value, order.operator_note, order.operator_id,
+                 int(order.auto_approved), order.resolved_at, order.filled_at, order.id),
+            )
+
+    def _do_fill(self, order: Order, operator: str) -> None:
+        """Fill straight from the in-memory object (auto-approval path)."""
         order.status = OrderStatus.filled
         order.resolved_at = _now()
         order.filled_at = order.resolved_at
+        self._update(order)
+        self._log_fill_events(order, operator)
+
+    def _log_fill_events(self, order: Order, operator: str) -> None:
         self._ledger.log_hitl_approval(approved=True, order=order.to_dict(), user=operator)
         self._ledger.log_fill(
-            order_id=order.id,
-            symbol=order.pair,
-            side=order.side,
-            price=order.price,
-            quantity=order.quantity,
-            strategy=order.strategy,
+            order_id=order.id, symbol=order.pair, side=order.side,
+            price=order.price, quantity=order.quantity, strategy=order.strategy,
         )
         self._ledger.log_process_event(
             order.id, "order_filled", operator,
             {"price": order.price, "quantity": order.quantity, "auto": order.auto_approved},
         )
 
-    def _signal(self, order_id: str) -> None:
-        event = self._events.get(order_id)
-        if event is not None:
-            event.set()
-
 
 def make_approval_handler(store: OrderStore) -> Callable[[Dict[str, Any]], Any]:
     """Build an orchestrator ``approval_handler`` backed by ``store``.
 
     The orchestrator passes its signal dict; we register a pending order and
-    block until a human resolves it via the API.
+    block (polling the shared DB) until a human resolves it via the API.
     """
 
     async def handler(signal: Dict[str, Any]) -> bool:
@@ -286,6 +358,8 @@ def make_approval_handler(store: OrderStore) -> Callable[[Dict[str, Any]], Any]:
         store.submit(order)
         if order.status == OrderStatus.filled:  # auto-approved
             return True
+        if order.status in (OrderStatus.rejected, OrderStatus.cancelled):
+            return False
         return await store.wait_for_decision(order.id)
 
     return handler

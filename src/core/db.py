@@ -59,6 +59,13 @@ def init_db(
 
     Returns the list of migration versions applied on this call (empty if the DB
     was already up to date). Safe to call from both processes on startup.
+
+    WARNING (tech debt): ``executescript()`` issues an implicit COMMIT before
+    running, so a migration that fails halfway is NOT rolled back by the context
+    manager's transaction. It's safe here because migration 001 is idempotent
+    (``CREATE TABLE IF NOT EXISTS``). For future migrations with multiple
+    statements, run them via ``conn.execute()`` statement-by-statement inside the
+    context manager's transaction instead of ``executescript()``.
     """
     mdir = Path(migrations_dir) if migrations_dir else MIGRATIONS_DIR
     applied: List[str] = []
