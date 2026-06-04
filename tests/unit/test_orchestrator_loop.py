@@ -116,3 +116,19 @@ async def test_no_execution_when_no_order_id(ledger):
     await loop.run_cycle()
     assert registry.status("strategy")["cycles"] == 1
     assert registry.status("execution")["cycles"] == 0  # never executed
+
+
+# --------------------------------------------------------------- clean shutdown
+@pytest.mark.asyncio
+async def test_run_forever_stops_cleanly(ledger):
+    import asyncio
+
+    orch = _StubOrch()
+    loop = OrchestratorLoop(orch, AgentRegistry(), ledger, interval_seconds=10)
+
+    task = asyncio.create_task(loop.run_forever())
+    await asyncio.sleep(0.05)  # let at least one cycle run
+    loop.stop()  # must wake the interval wait immediately (asyncio.Event)
+    await asyncio.wait_for(task, timeout=2.0)  # would time out if stop() blocked
+
+    assert orch.calls >= 1
