@@ -28,6 +28,7 @@ def client(tmp_path):
         ledger,
         threshold_provider=lambda: level_info(hitl.level).threshold_usdt,
         guardrails=GuardrailSystem(alert_sink=make_guardrail_sink(store)),
+        db_path=str(tmp_path / "orders.db"),
     )
     hitl.pending_orders_provider = order_store.pending_count
 
@@ -202,14 +203,16 @@ def test_create_order_short_reason_returns_422(client):
     assert r.json()["field"] == "reason"
 
 
-def test_patch_approve_pending_order_fills(client):
+def test_patch_approve_pending_order_approves(client):
+    # Model B / cross-process: manual approve -> 'approved' (the loop fills later).
     order = client.post("/v1/orders", json={**_VALID_ORDER, "quantity": 2.0}).json()["data"]
     r = client.patch(
         f"/v1/orders/{order['id']}/status",
         json={"decision": "approve", "operator": "daniel"},
     )
     assert r.status_code == 200
-    assert r.json()["data"]["status"] == "filled"
+    assert r.json()["data"]["status"] == "approved"
+    assert r.json()["data"]["operator_id"] == "daniel"
 
 
 def test_patch_reject_without_note_returns_422(client):
