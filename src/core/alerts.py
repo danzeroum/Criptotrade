@@ -16,11 +16,12 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,9 @@ class AlertStore:
     """Append-only JSONL persistence for alerts."""
 
     def __init__(self, path: Path | None = None) -> None:
-        self.path = path or Path(".buildtovalue/ledger/alerts.jsonl")
+        # Mirror the ledger's LEDGER_DIR so alerts persist on the same volume.
+        default = Path(os.getenv("LEDGER_DIR", ".buildtovalue/ledger")) / "alerts.jsonl"
+        self.path = path or default
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def append(self, alert: Alert) -> None:
@@ -138,4 +141,31 @@ async def publish_alert(alert: Alert, store: AlertStore, bus: AlertBus) -> Alert
     return alert
 
 
-__all__ = ["Alert", "AlertStore", "AlertBus", "publish_alert", "SEVERITIES"]
+def make_guardrail_sink(
+    store: AlertStore,
+    severity: str = "high",
+    alert_type: str = "guardrail_violation",
+    agent_id: Optional[str] = "risk_agent",
+) -> "Callable[[str], None]":
+    """Build a sync sink (str -> None) that persists each guardrail violation.
+
+    In-process by decision: persists to the durable AlertStore so violations show
+    up in ``/v1/alerts/history``. Live SSE fan-out from a synchronous context is
+    intentionally out of scope here (handled where an event loop is available,
+    e.g. the orchestrator); swapping in a Redis transport later keeps this seam.
+    """
+
+    def _sink(message: str) -> None:
+        store.append(Alert(severity=severity, type=alert_type, message=message, agent_id=agent_id))
+
+    return _sink
+
+
+__all__ = [
+    "Alert",
+    "AlertStore",
+    "AlertBus",
+    "publish_alert",
+    "make_guardrail_sink",
+    "SEVERITIES",
+]

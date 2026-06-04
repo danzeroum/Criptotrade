@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
@@ -10,11 +11,21 @@ from typing import Any, Dict, List
 logger = logging.getLogger(__name__)
 
 
+def _ledger_dir() -> Path:
+    """Base dir for runtime ledger files.
+
+    Honours ``LEDGER_DIR`` so deployments can point it at a mounted volume
+    (e.g. ``/app/data/ledger`` in docker-compose) and survive container restarts.
+    Defaults to the repo-local path for development.
+    """
+    return Path(os.getenv("LEDGER_DIR", ".buildtovalue/ledger"))
+
+
 class TradingLedger:
     """Append-only ledger for audit trail."""
 
     def __init__(self, ledger_path: Path | None = None) -> None:
-        self.ledger_path = ledger_path or Path(".buildtovalue/ledger/trades.jsonl")
+        self.ledger_path = ledger_path or _ledger_dir() / "trades.jsonl"
         self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
 
     def log_decision(self, event_type: str, data: Dict[str, Any]) -> None:

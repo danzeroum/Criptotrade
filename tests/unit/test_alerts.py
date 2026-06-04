@@ -5,7 +5,8 @@ import asyncio
 
 import pytest
 
-from src.core.alerts import Alert, AlertBus, AlertStore, publish_alert
+from src.core.alerts import Alert, AlertBus, AlertStore, make_guardrail_sink, publish_alert
+from src.safety.guardrails import GuardrailSystem
 
 
 @pytest.fixture
@@ -64,3 +65,24 @@ async def test_publish_alert_persists_and_broadcasts(store):
     # ...and broadcast.
     payload = await asyncio.wait_for(queue.get(), timeout=1.0)
     assert payload["type"] == "vol"
+
+
+def test_guardrail_sink_publishes_violation(store):
+    sink = make_guardrail_sink(store)
+    # Missing stop_loss -> a violation that should reach the sink.
+    gs = GuardrailSystem(alert_sink=sink)
+    ok, violations = gs.validate_order({"position_size_pct": 2.0, "action": "BUY"})
+    assert ok is False and violations
+    rows, total = store.history(severity="high")
+    assert total >= 1
+    assert rows[0]["type"] == "guardrail_violation"
+
+
+def test_guardrail_sink_failure_does_not_break_validation(store):
+    def _boom(_msg: str) -> None:
+        raise RuntimeError("sink down")
+
+    gs = GuardrailSystem(alert_sink=_boom)
+    # Validation must still return its verdict even if the sink raises.
+    ok, violations = gs.validate_order({"position_size_pct": 99.0})
+    assert ok is False and violations
