@@ -76,7 +76,9 @@ class OrchestratorLoop:
         self.registry = registry
         self.ledger = ledger
         self.symbols: List[str] = list(symbols) if symbols else ["BTC/USDT"]
-        self._running = False
+        # asyncio.Event gives a clean, race-free shutdown: stop() wakes the
+        # interval wait immediately instead of waiting out the full sleep.
+        self._stop_event = asyncio.Event()
 
     # ------------------------------------------------------------------- cycle
     async def run_cycle(self) -> Dict[str, Any]:
@@ -117,17 +119,23 @@ class OrchestratorLoop:
 
     # -------------------------------------------------------------------- loop
     async def run_forever(self) -> None:
-        """Run cycles until :meth:`stop` is called, sleeping ``interval`` between."""
-        self._running = True
+        """Run cycles until :meth:`stop` is called, sleeping ``interval`` between.
+
+        The interval wait is interruptible: ``stop()`` returns immediately rather
+        than blocking for the remainder of the current sleep.
+        """
+        self._stop_event.clear()
         logger.info("Orchestrator loop starting (interval=%ss)", self.interval)
-        while self._running:
+        while not self._stop_event.is_set():
             await self.run_cycle()
-            if not self._running:
-                break
-            await asyncio.sleep(self.interval)
+            try:
+                await asyncio.wait_for(self._stop_event.wait(), timeout=self.interval)
+            except asyncio.TimeoutError:
+                pass  # interval elapsed → run the next cycle
+        logger.info("Orchestrator loop stopped")
 
     def stop(self) -> None:
-        self._running = False
+        self._stop_event.set()
 
     # ------------------------------------------------------------------ wiring
     @classmethod

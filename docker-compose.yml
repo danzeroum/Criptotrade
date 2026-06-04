@@ -22,6 +22,25 @@ services:
       - prometheus
     restart: unless-stopped
 
+  # Continuous orchestrator loop — a SEPARATE process from the API (Option A).
+  # Shares the ./data volume so the loop's XES events/ledger are the same files
+  # the API reads. NOTE (ADR-001): this makes two processes append to the JSONL
+  # ledger — the documented trigger toward SQLite/PostgreSQL. Tolerable for
+  # dry-run dev (POSIX appends are atomic under PIPE_BUF); revisit before live.
+  orchestrator:
+    build: .
+    env_file:
+      - .env
+    environment:
+      - LEDGER_DIR=/app/data/ledger
+      - EXCHANGE_DRY_RUN=true
+      - ORCHESTRATOR_INTERVAL_SECONDS=60
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    command: ["python", "-m", "src.orchestration.main_loop"]
+    restart: unless-stopped
+
   prometheus:
     image: prom/prometheus:latest
     ports:
