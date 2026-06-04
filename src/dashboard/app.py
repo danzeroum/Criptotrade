@@ -163,15 +163,80 @@ elif pending and pending["data"]:
                 if ok:
                     st.rerun()
             if cr.button("❌ Rejeitar", key=f"rj_{o['id']}"):
-                ok, msg = _send(
-                    "PATCH", f"/v1/orders/{o['id']}/status",
-                    {"decision": "reject", "operator_note": note, "operator": "dashboard"},
-                )
-                (st.error if not ok else st.success)(msg if not ok else "Rejeitada")
-                if ok:
-                    st.rerun()
+                if not note.strip():
+                    st.warning("Informe a nota antes de rejeitar.")
+                else:
+                    ok, msg = _send(
+                        "PATCH", f"/v1/orders/{o['id']}/status",
+                        {"decision": "reject", "operator_note": note, "operator": "dashboard"},
+                    )
+                    (st.error if not ok else st.success)(msg if not ok else "Rejeitada")
+                    if ok:
+                        st.rerun()
 else:
     st.caption("Nenhuma ordem pendente de aprovação.")
+
+st.divider()
+
+# ── Agents panel (real cycles from the running loop) ──────────────────────────
+st.subheader("🤖 Agentes")
+agents, agents_err = _get("/v1/agents")
+_AGENT_ICON = {"idle": "🟢", "active": "🟢", "error": "🔴", "not_implemented": "⚪"}
+if agents_err:
+    st.warning(f"Não foi possível carregar agentes ({agents_err}).")
+elif agents and agents["data"]:
+    st.dataframe(
+        [
+            {
+                "Agente": a["id"],
+                "Domínio": a["domain"],
+                "Status": f"{_AGENT_ICON.get(a['status'], '⬜')} {a['status']}",
+                "Ciclos (hoje)": a["cycles"],
+                "Última ação": a["last_action_at"] or "—",
+            }
+            for a in agents["data"]
+        ],
+        hide_index=True,
+        use_container_width=True,
+    )
+    total_cycles = sum(a["cycles"] for a in agents["data"])
+    st.caption(
+        f"Ciclos hoje (total): {total_cycles} · "
+        "0 em todos = o loop (orchestrator) não está rodando."
+    )
+else:
+    st.caption("Sem dados de agentes.")
+
+st.divider()
+
+# ── Recent orders (full lifecycle) ────────────────────────────────────────────
+st.subheader("📋 Ordens recentes")
+orders, orders_err = _get("/v1/orders")
+_ORDER_ICON = {
+    "pending": "⏳", "approved": "✅", "filled": "💰", "rejected": "❌", "cancelled": "🚫",
+}
+if orders_err:
+    st.warning(f"Não foi possível carregar ordens ({orders_err}).")
+elif orders and orders["data"]:
+    st.dataframe(
+        [
+            {
+                "ID": o["id"],
+                "Par": o["pair"],
+                "Lado": o["side"].upper(),
+                "Qtd": o["quantity"],
+                "Notional": f"${o['notional']:,.2f}",
+                "Status": f"{_ORDER_ICON.get(o['status'], '⬜')} {o['status']}",
+                "Operador": o["operator_id"] or "—",
+                "Criada": o["created_at"],
+            }
+            for o in orders["data"][:20]
+        ],
+        hide_index=True,
+        use_container_width=True,
+    )
+else:
+    st.caption("Nenhuma ordem registrada ainda.")
 
 st.divider()
 

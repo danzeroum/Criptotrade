@@ -126,6 +126,9 @@ class SquadOrchestrator:
                 except Exception:  # pragma: no cover - never break a completed trade
                     logger.warning("fill_callback failed for %s", self._last_order_ref, exc_info=True)
 
+        # TODO(5b): reset self._last_order_ref = None here so a stale id from this
+        # cycle can never leak into the next. Risk is low today (fill_callback only
+        # fires on execution success), but resetting is the hygienic close.
         return {
             "success": execution_result["success"],
             "order_id": execution_result.get("order_id"),
