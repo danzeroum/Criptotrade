@@ -8,6 +8,9 @@ PyYAML==6.0.1
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
 streamlit==1.31.0
+httpx==0.26.0  # dashboard -> API client (and FastAPI TestClient)
+sse-starlette==1.8.2  # Server-Sent Events for /v1/alerts
+streamlit-autorefresh==1.0.1  # dashboard auto-refresh (optional fallback in app.py)
 
 # AI & Agents (versões compatíveis)
 langchain==0.1.6
