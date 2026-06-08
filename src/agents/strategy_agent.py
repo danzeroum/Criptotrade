@@ -184,6 +184,7 @@ class StrategyAgent(BaseAgent):
         # Unwrap nested signal dict (DCA wraps its signal) or use result directly
         signal_data = result.get("signal") or result
 
+        ind = analysis.get("indicators")
         signal = {
             "action": action,
             "entry_price": analysis.get("current_price", 0.0),
@@ -195,6 +196,12 @@ class StrategyAgent(BaseAgent):
             else 2.0,
             "strategy": strategy_key,
             "regime": regime,
+            # Market context forwarded to guardrails for condition checks.
+            "market_context": {
+                "atr": ind.atr if ind else None,
+                "bb_middle": ind.bb_middle if ind else None,
+                "volume_ratio": ind.volume_ratio if ind else None,
+            } if ind else None,
         }
         return signal, strategy_confidence
 

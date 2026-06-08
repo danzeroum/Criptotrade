@@ -1,6 +1,7 @@
 """Orchestrator for multi-agent trading operations."""
 from __future__ import annotations
 
+import time
 from typing import Any, Awaitable, Callable, Dict, Optional
 import logging
 
@@ -11,6 +12,85 @@ from src.core.alerts import Alert, AlertBus, AlertStore
 from src.core.ledger import TradingLedger
 
 logger = logging.getLogger(__name__)
+
+
+class CircuitBreaker:
+    """Pause trading when daily loss or consecutive losses exceed limits.
+
+    Thresholds from risk_params.yaml:
+      trigger_daily_loss_pct: 4.0
+      trigger_consecutive_losses: 3
+      cooldown_period_hours: 24
+    """
+
+    DAILY_LOSS_LIMIT_PCT: float = 4.0
+    CONSECUTIVE_LOSS_LIMIT: int = 3
+    COOLDOWN_SECONDS: float = 24 * 3600
+
+    def __init__(self, ledger: Optional[TradingLedger] = None) -> None:
+        self._ledger = ledger
+        self._tripped_at: Optional[float] = None
+        self._consecutive_losses: int = 0
+        self._daily_loss_pct: float = 0.0
+
+    @property
+    def is_open(self) -> bool:
+        """True = circuit is OPEN (trading blocked)."""
+        if self._tripped_at is None:
+            return False
+        elapsed = time.time() - self._tripped_at
+        if elapsed >= self.COOLDOWN_SECONDS:
+            self._reset("cooldown expired")
+            return False
+        return True
+
+    def record_trade_result(self, pnl_pct: float) -> None:
+        """Update internal counters after a trade completes."""
+        self._daily_loss_pct += pnl_pct
+
+        if pnl_pct < 0:
+            self._consecutive_losses += 1
+        else:
+            self._consecutive_losses = 0
+
+        if self._daily_loss_pct <= -self.DAILY_LOSS_LIMIT_PCT:
+            self._trip(
+                f"daily loss {self._daily_loss_pct:.2f}% reached -{self.DAILY_LOSS_LIMIT_PCT}%"
+            )
+        elif self._consecutive_losses >= self.CONSECUTIVE_LOSS_LIMIT:
+            self._trip(
+                f"{self._consecutive_losses} consecutive losses reached limit {self.CONSECUTIVE_LOSS_LIMIT}"
+            )
+
+    def reset_daily(self) -> None:
+        """Call once per trading day to reset the daily loss counter."""
+        self._daily_loss_pct = 0.0
+        if self._tripped_at is not None:
+            elapsed = time.time() - self._tripped_at
+            if elapsed >= self.COOLDOWN_SECONDS:
+                self._reset("daily reset")
+
+    def _trip(self, reason: str) -> None:
+        if self._tripped_at is not None:
+            return  # already tripped
+        self._tripped_at = time.time()
+        msg = f"Circuit breaker TRIPPED: {reason}. Cooldown {self.COOLDOWN_SECONDS/3600:.0f}h."
+        logger.critical(msg)
+        if self._ledger is not None:
+            try:
+                self._ledger.log_event("circuit_breaker_tripped", {"reason": reason})
+            except Exception:
+                pass
+
+    def _reset(self, reason: str) -> None:
+        self._tripped_at = None
+        self._consecutive_losses = 0
+        logger.info("Circuit breaker RESET: %s.", reason)
+        if self._ledger is not None:
+            try:
+                self._ledger.log_event("circuit_breaker_reset", {"reason": reason})
+            except Exception:
+                pass
 
 
 class SquadOrchestrator:
@@ -29,6 +109,7 @@ class SquadOrchestrator:
         self.risk_agent = RiskAgent()
         self.execution_agent = ExecutionAgent(exchange_client)
         self.ledger = TradingLedger()
+        self.circuit_breaker = CircuitBreaker(ledger=self.ledger)
         # Real HITL hook. When None, approvals are denied (fail-closed).
         self.approval_handler = approval_handler
         # Used to size paper fills (qty = capital * position_size_pct / price).
@@ -60,6 +141,13 @@ class SquadOrchestrator:
 
     async def analyze_and_trade(self, symbol: str, timeframe: str = "1h") -> Dict[str, Any]:
         """Full trading pipeline with agent collaboration."""
+        if self.circuit_breaker.is_open:
+            logger.warning("Circuit breaker is OPEN — skipping trade cycle for %s", symbol)
+            return {
+                "success": False,
+                "reason": "Circuit breaker active — trading paused",
+            }
+
         logger.info("Starting analysis", extra={"symbol": symbol, "timeframe": timeframe})
 
         strategy_result = await self.strategy_agent.execute({

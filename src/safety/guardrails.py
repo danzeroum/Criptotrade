@@ -98,6 +98,34 @@ class GuardrailSystem:
         return True, ""
 
     def check_market_conditions(self, order: Dict[str, Any]) -> Tuple[bool, str]:
-        """Check if market conditions are suitable."""
-        # TODO: Implement market condition checks
+        """Reject orders when market conditions make trading unsafe.
+
+        Reads optional ``market_context`` dict attached to the order by the
+        StrategyAgent. When absent the check is a no-op (fail-open for backward
+        compatibility with callers that don't supply context).
+
+        Rejects when:
+          - atr / bb_middle > 0.10  (extreme intrabar volatility)
+          - volume_ratio < 0.3      (dangerously thin liquidity)
+        """
+        ctx = order.get("market_context")
+        if not ctx:
+            return True, ""
+
+        atr = ctx.get("atr")
+        bb_middle = ctx.get("bb_middle")
+        volume_ratio = ctx.get("volume_ratio")
+
+        if atr is not None and bb_middle is not None and bb_middle > 0:
+            volatility_pct = atr / bb_middle
+            if volatility_pct > 0.10:
+                return False, (
+                    f"Extreme volatility (ATR/BB_mid={volatility_pct:.2%}) exceeds 10% threshold"
+                )
+
+        if volume_ratio is not None and volume_ratio < 0.3:
+            return False, (
+                f"Insufficient liquidity (volume_ratio={volume_ratio:.2f} < 0.3)"
+            )
+
         return True, ""

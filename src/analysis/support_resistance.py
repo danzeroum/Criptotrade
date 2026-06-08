@@ -86,6 +86,14 @@ class SupportResistanceDetector:
         nearest_support = max(supports_below, key=lambda z: z.price).price if supports_below else None
         nearest_resistance = min(resistances_above, key=lambda z: z.price).price if resistances_above else None
 
+        # Fallback when no pivot-based levels are found: use the N-candle price range.
+        # This happens in very flat / low-volatility markets where no strict pivot
+        # extremes exist.  The range low/high still serve as meaningful S/R proxies.
+        if nearest_support is None:
+            nearest_support = round(float(lows.min()), 2)
+        if nearest_resistance is None:
+            nearest_resistance = round(float(highs.max()), 2)
+
         return SRLevels(
             support=nearest_support,
             resistance=nearest_resistance,
