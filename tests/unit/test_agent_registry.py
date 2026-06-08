@@ -42,7 +42,10 @@ def test_no_ledger_does_not_warn(recwarn):
 
 def test_cycles_reset_on_new_utc_day():
     reg = AgentRegistry()
-    day1 = datetime(2026, 6, 4, 23, 59, tzinfo=timezone.utc)
+    # Use today's 23:59 UTC so day1.date() == _cycles_date (today) and
+    # day2 = day1 + 1h falls on the next UTC day, triggering the reset.
+    now = datetime.now(timezone.utc)
+    day1 = now.replace(hour=23, minute=59, second=0, microsecond=0)
     reg.record_cycle("strategy", when=day1)
     reg.record_cycle("strategy", when=day1)
     assert reg.status("strategy")["cycles"] == 2
