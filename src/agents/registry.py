@@ -68,6 +68,7 @@ AGENT_PARAMS: Dict[str, Dict[str, Any]] = {
         "max_position_size_pct": 5.0,
         "stop_loss_pct": 3.0,
         "max_daily_loss_pct": 5.0,
+        "min_risk_reward_ratio": 2.5,
         "reasoning_pattern": "reflection",
         "autonomy_level": 3,
     },
@@ -92,6 +93,8 @@ AGENT_PARAMS: Dict[str, Dict[str, Any]] = {
     "auditor": {
         "confidence_threshold": 0.6,
         "tools": ["security_scan", "quality_check"],
+        "complexity_threshold": 10,
+        "min_coverage_pct": 80,
         "reasoning_pattern": "reflection",
         "autonomy_level": 2,
     },

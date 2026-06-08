@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from src.agents.registry import AgentRegistry
+from src.agents.registry import AGENT_PARAMS, AGENT_REGISTRY, AgentRegistry
 
 
 def test_record_cycle_increments_in_memory():
@@ -101,3 +101,32 @@ def test_cycles_today_counts_only_current_utc_day(tmp_path):
     reg.record_cycle("strategy", when=now)
     reg.record_cycle("strategy", when=now - timedelta(days=2))  # previous day
     assert reg.cycles_today("strategy") == 1
+
+
+# ----------------------------------------------------------- AGENT_PARAMS integrity
+def test_agent_params_covers_all_registered_agents():
+    """Every agent in AGENT_REGISTRY must have an entry in AGENT_PARAMS."""
+    registry_ids = set(AGENT_REGISTRY.keys())
+    params_ids = set(AGENT_PARAMS.keys())
+    assert registry_ids == params_ids, (
+        f"AGENT_PARAMS mismatch — only in registry: {registry_ids - params_ids}, "
+        f"only in params: {params_ids - registry_ids}"
+    )
+
+
+def test_implemented_agents_have_autonomy_level():
+    """Every implemented agent must declare autonomy_level in AGENT_PARAMS."""
+    for agent_id, info in AGENT_REGISTRY.items():
+        if info.implemented:
+            assert "autonomy_level" in AGENT_PARAMS[agent_id], (
+                f"Agent '{agent_id}' is implemented but missing 'autonomy_level' in AGENT_PARAMS"
+            )
+
+
+def test_stub_agents_have_empty_params():
+    """Stub agents (not implemented) must have empty AGENT_PARAMS (no false data)."""
+    for agent_id, info in AGENT_REGISTRY.items():
+        if not info.implemented:
+            assert AGENT_PARAMS[agent_id] == {}, (
+                f"Stub agent '{agent_id}' should have empty params, got: {AGENT_PARAMS[agent_id]}"
+            )
