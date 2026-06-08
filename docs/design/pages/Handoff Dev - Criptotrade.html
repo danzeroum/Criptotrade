@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Handoff Dev — Criptotrade Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#F4F6F8;--surface:#fff;--surface-2:#F6F8FA;--surface-3:#EEF1F4;--border:#E4E8EC;--border-2:#D5DAE0;
+    --ink:#14181C;--ink-2:#5B636C;--ink-3:#8A929B;--ink-4:#AEB5BD;
+    --ready:#0E9D6E;--ready-bg:#E7F6EF;--ready-line:#B7E6D2;
+    --partial:#C77F08;--partial-bg:#FBF1DD;--partial-line:#EEDBAC;
+    --new:#2563EB;--new-bg:#E7EEFD;--new-line:#C9D8FA;
+    --violet:#7C5CFC;
+    --sans:'IBM Plex Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+    --sh-sm:0 1px 2px rgba(20,24,28,.05);--sh:0 1px 2px rgba(20,24,28,.04),0 2px 6px rgba(20,24,28,.05);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+  code{font-family:var(--mono);font-size:.86em;background:var(--surface-3);padding:1.5px 6px;border-radius:5px;color:var(--ink);white-space:nowrap;}
+  a{color:var(--new);text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-.01em;}
+
+  .wrap{display:grid;grid-template-columns:248px 1fr;max-width:1320px;margin:0 auto;}
+  /* side nav */
+  .side{position:sticky;top:0;height:100vh;overflow-y:auto;padding:26px 16px;border-right:1px solid var(--border);background:var(--surface);}
+  .side .mk{width:30px;height:30px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-family:var(--mono);font-weight:600;}
+  .side-brand{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .side-brand b{font-size:15px;}
+  .side-sub{font-size:11px;color:var(--ink-3);font-family:var(--mono);margin-bottom:22px;}
+  .side-lbl{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-4);padding:14px 8px 5px;}
+  .side a{display:block;padding:6px 9px;border-radius:6px;color:var(--ink-2);font-size:13px;font-weight:500;}
+  .side a:hover{background:var(--surface-2);color:var(--ink);text-decoration:none;}
+
+  .main{padding:40px 44px 100px;min-width:0;}
+  .doc-title{font-size:30px;font-weight:600;letter-spacing:-.025em;}
+  .doc-sub{color:var(--ink-2);font-size:15px;margin-top:8px;max-width:620px;}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;}
+  .meta{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-family:var(--mono);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:5px 10px;color:var(--ink-2);}
+
+  section{margin-top:46px;scroll-margin-top:20px;}
+  .sec-head{display:flex;align-items:baseline;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:6px;}
+  .sec-num{font-family:var(--mono);font-size:13px;color:var(--ink-3);font-weight:600;}
+  .sec-title{font-size:21px;font-weight:600;letter-spacing:-.02em;}
+  .sec-desc{color:var(--ink-2);font-size:14px;margin:14px 0 18px;max-width:760px;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--sh-sm);overflow:hidden;margin-bottom:18px;}
+  .card-h{display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid var(--border);}
+  .card-h b{font-size:14px;}
+  .card-b{padding:18px;}
+
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid transparent;white-space:nowrap;}
+  .pill .d{width:6px;height:6px;border-radius:99px;background:currentColor;}
+  .p-ready{background:var(--ready-bg);color:var(--ready);border-color:var(--ready-line);}
+  .p-partial{background:var(--partial-bg);color:var(--partial);border-color:var(--partial-line);}
+  .p-new{background:var(--new-bg);color:var(--new);border-color:var(--new-line);}
+  .p-get{background:var(--surface-3);color:var(--ink-2);border-color:var(--border-2);}
+
+  .method{font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 6px;border-radius:5px;color:#fff;}
+  .m-get{background:#0E9D6E;}.m-post{background:#2563EB;}.m-patch{background:#C77F08;}.m-sse{background:#7C5CFC;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);padding:9px 14px;border-bottom:1px solid var(--border);background:var(--surface-2);}
+  td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  td.el{font-weight:500;width:26%;}
+  td.fld code{white-space:normal;}
+  .src{font-size:12px;color:var(--ink-2);}
+  .src .mono{font-size:11.5px;}
+
+  .ep{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--border);}
+  .ep:last-child{border-bottom:none;}
+  .ep .path{font-family:var(--mono);font-size:12.5px;font-weight:500;}
+  .ep .desc{font-size:12px;color:var(--ink-3);margin-left:auto;text-align:right;}
+
+  .legend{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .legend .it{border:1px solid var(--border);border-radius:9px;padding:13px 15px;background:var(--surface);}
+  .legend .it .t{font-weight:600;font-size:13px;margin:8px 0 3px;}
+  .legend .it .d{font-size:12px;color:var(--ink-2);}
+
+  .note{display:flex;gap:9px;background:var(--partial-bg);border:1px solid var(--partial-line);border-radius:9px;padding:12px 14px;font-size:12.5px;color:#7a5304;margin:14px 0;}
+  .note.blue{background:var(--new-bg);border-color:var(--new-line);color:#1d4ed8;}
+  .note b{font-weight:600;}
+
+  .kv{display:grid;grid-template-columns:160px 1fr;gap:6px 16px;font-size:13px;}
+  .kv .k{color:var(--ink-3);font-size:12px;}
+  .kv .v{font-family:var(--mono);font-size:12.5px;}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  ul.clean{margin:6px 0;padding-left:18px;}
+  ul.clean li{margin:5px 0;font-size:13px;color:var(--ink-2);}
+  .tag{font-family:var(--mono);font-size:11px;background:var(--surface-3);padding:2px 7px;border-radius:5px;color:var(--ink-2);}
+
+  @media print{.side{display:none;}.wrap{display:block;}.main{padding:0;}section{break-inside:avoid;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="side">
+    <div class="side-brand"><div class="mk">C</div><b>Criptotrade</b></div>
+    <div class="side-sub">Handoff de Desenvolvimento</div>
+    <div id="nav"></div>
+  </nav>
+  <main class="main">
+    <div class="doc-title">Handoff Dev — Criptotrade Console</div>
+    <div class="doc-sub">Mapa de ligação do layout ao frontend e backend. Para cada elemento da interface: qual campo o alimenta, de qual endpoint vem, e o que ainda precisa ser construído no backend.</div>
+    <div class="meta-row">
+      <span class="meta">repo · danzeroum/Criptotrade</span>
+      <span class="meta">API base · /v1</span>
+      <span class="meta">envelope · APIResponse&lt;T&gt;</span>
+      <span class="meta">8 telas · 6 routers ativos</span>
+    </div>
+    <div id="doc"></div>
+  </main>
+</div>
+
+<script>
+/* ============ status helpers ============ */
+const P = {
+  ready:   '<span class="pill p-ready"><span class="d"></span>Pronto</span>',
+  partial: '<span class="pill p-partial"><span class="d"></span>Expor rota</span>',
+  new:     '<span class="pill p-new"><span class="d"></span>Backend novo</span>',
+};
+const M = {
+  GET:'<span class="method m-get">GET</span>', POST:'<span class="method m-post">POST</span>',
+  PATCH:'<span class="method m-patch">PATCH</span>', SSE:'<span class="method m-sse">SSE</span>',
+};
+
+/* ============ content model ============ */
+const SECTIONS = [
+{ id:'como-ler', num:'00', title:'Como ler este documento', custom:'legend' },
+{ id:'arquitetura', num:'01', title:'Arquitetura & convenções', custom:'arch' },
+
+{ id:'risco', num:'02', title:'Risco & Capital', file:'screen_risk.jsx',
+  desc:'Tela principal (hero). KPIs de portfólio vêm de /v1/metrics; proteções, circuit breaker e Kelly ainda não têm rota — a lógica vive em src/safety e nos parâmetros de risco.',
+  endpoints:[ ['GET','/v1/metrics?period=7d','ready','KPIs de portfólio (Sharpe, win rate, DD, P&L, exposição)'] ],
+  rows:[
+    ['KPI · Valor do portfólio','portfolio_value_usdt','ready','GET /v1/metrics'],
+    ['KPI · P&L total','pnl_period_pct · pnl_period_usdt','ready','GET /v1/metrics'],
+    ['KPI · Exposição','exposure_pct · open_positions','ready','GET /v1/metrics'],
+    ['KPI · Risco de ruína','risk_of_ruin (calc)','new','novo: GET /v1/risk/kelly · backend a partir do win-rate do ledger'],
+    ['Proteções drawdown (diário/semanal/mensal)','value · limit · status · action','partial','novo: GET /v1/risk/protections · limites em config/strategies/risk_params.yaml; lógica no RiskAgent'],
+    ['Circuit breaker · status/gatilhos/cooldown','status · triggers[] · cooldown','partial','novo: GET /v1/risk/circuit-breaker · lógica no RiskAgent (src/agents/risk_agent.py)'],
+    ['Curva de capital & drawdown (90d)','equity[] · dd[]','new','novo: GET /v1/metrics/equity?period= · série derivada do ledger (src/core/ledger.py)'],
+    ['Kelly · win rate / médias / f* / fracionado','win_rate · avg_win · avg_loss · full_kelly · fractional','partial','novo: GET /v1/risk/kelly · win_rate já existe em /v1/metrics'],
+    ['Form · fração Kelly, min/max posição, limites DD','PATCH payload','new','novo: PATCH /v1/risk/config → grava em risk_params.yaml'],
+  ]},
+
+{ id:'mercado', num:'03', title:'Dashboard de Mercado', file:'screen_market.jsx',
+  desc:'Nenhum endpoint de mercado existe hoje. Toda a lógica de cálculo já está implementada em src/analysis/* — falta apenas expor via rotas REST (sugestão: namespace /v1/market/{pair}).',
+  endpoints:[],
+  rows:[
+    ['Gráfico de candles (OHLCV)','candles[] {o,h,l,c,v}','partial','novo: GET /v1/market/{pair}/candles?tf=1h · feed em src/core/exchange_client.py (dry-run sintético)'],
+    ['Bollinger Bands','bb {up,mid,low,pctB}','partial','GET /v1/market/{pair}/indicators · src/analysis/indicators.py'],
+    ['RSI · MACD · Estocástico · ATR','rsi · macd · stoch · atr','partial','GET /v1/market/{pair}/indicators · src/analysis/indicators.py'],
+    ['EMA/SMA · OBV · Volume ratio','ema9/21 · sma20/50/200 · obv · vol_ratio','partial','GET /v1/market/{pair}/indicators · src/analysis/indicators.py'],
+    ['Regime + confiança + extremos','regime · confidence · euforia/panico','partial','GET /v1/market/{pair}/regime · src/analysis/regime_detector.py'],
+    ['Suporte/Resistência + Fibonacci','support[] · resistance[] · fib[]','partial','GET /v1/market/{pair}/levels · src/analysis/support_resistance.py'],
+    ['Volume Profile (POC/VAH/VAL/LVN)','poc · vah · val · lvn[] · bins[]','partial','GET /v1/market/{pair}/volume-profile · src/analysis/volume_profile.py'],
+    ['Padrões gráficos detectados','patterns[] {name,dir,confidence,target}','partial','GET /v1/market/{pair}/patterns · src/analysis/pattern_scanner.py'],
+    ['Sinal atual (entrada/stop/TP/tamanho/RR)','signal {action,entry,stop,tp,size,rr}','partial','GET /v1/market/{pair}/signal · src/agents/strategy_agent.py'],
+  ]},
+
+{ id:'hitl', num:'04', title:'Console HITL', file:'screen_hitl.jsx',
+  desc:'O núcleo do produto e a área mais pronta. Níveis de autonomia, fila de pendentes e decisões já têm endpoints completos. Faltam apenas alguns campos por ordem (stop/TP/RR/breakdown).',
+  endpoints:[
+    ['GET','/v1/hitl/config','ready','Nível atual, threshold, contadores e lista de níveis 0–3'],
+    ['PATCH','/v1/hitl/config','ready','Altera o nível {level, reason, operator}'],
+    ['GET','/v1/orders?status=pending','ready','Fila de ordens aguardando aprovação'],
+    ['PATCH','/v1/orders/{id}/status','ready','Aprova/rejeita {decision, operator_note?, operator}'],
+  ],
+  rows:[
+    ['Cards de nível 0–3 + ativo','levels[] · current_level · threshold_usdt · level_description','ready','GET /v1/hitl/config'],
+    ['Contadores aprovadas/rejeitadas hoje','human_approved_today · human_rejected_today','ready','GET /v1/hitl/config'],
+    ['Trocar nível de autonomia','PATCH {level, reason, operator}','ready','PATCH /v1/hitl/config'],
+    ['Ordem · lado/par/qtd/preço/notional/confiança/motivo','side · pair · quantity · price · notional · confidence · reason','ready','OrderOut (GET /v1/orders)'],
+    ['Ordem · stop / take profit / tamanho / R:R','stop_loss · take_profit · position_size_pct · rr','partial','existem em OrderCreate/Order, mas NÃO em OrderOut — adicionar à serialização (src/api/schemas.py)'],
+    ['Badge auto-elegível vs exige humano','notional ≤ threshold && !critical','ready','derivado no cliente (regra do HITL)'],
+    ['Botão Aprovar','PATCH {decision:"approve", operator}','ready','PATCH /v1/orders/{id}/status'],
+    ['Botão Rejeitar (+ nota obrigatória)','PATCH {decision:"reject", operator_note, operator}','ready','nota validada no servidor (422 se ausente)'],
+    ['Breakdown de confiança (5 fatores)','confidence_factors[] {key,weight,score}','new','novo: incluir em OrderOut ou GET /v1/orders/{id}/confidence · StrategyAgent já calcula'],
+    ['Checklist de guardrails por ordem','guardrails[] {key,limit,value,ok}','partial','novo: GET /v1/orders/{id}/guardrails · src/safety/guardrails.py'],
+  ]},
+
+{ id:'ordens', num:'05', title:'Ordens (lifecycle)', file:'screen_orders.jsx',
+  desc:'Tabela e drawer de detalhe com stepper de lifecycle. Tudo vem de /v1/orders; o stepper usa os timestamps de cada transição.',
+  endpoints:[
+    ['GET','/v1/orders','ready','Lista completa — filtros ?status= e ?pair='],
+    ['GET','/v1/orders?status=filled','ready','Filtro por status (pending/approved/filled/rejected/cancelled)'],
+  ],
+  rows:[
+    ['Linhas da tabela','OrderOut[]','ready','GET /v1/orders'],
+    ['Contadores por status (tiles)','count por status','partial','derivar no cliente OU novo GET /v1/orders/summary'],
+    ['Filtro por status','?status=','ready','query param'],
+    ['Stepper pending → approved/rejected → filled','status · created_at · resolved_at · filled_at','ready','OrderOut (timestamps de transição)'],
+    ['Detalhe · stop/TP/tamanho/RR','stop_loss · take_profit · position_size_pct · rr','partial','adicionar à OrderOut (mesmo gap do HITL)'],
+    ['Justificativa do agente','reason','ready','OrderOut'],
+    ['Nota do operador (rejeições)','operator_note · operator_id','ready','OrderOut'],
+  ]},
+
+{ id:'agentes', num:'06', title:'Agentes & Estratégias', file:'screen_agents.jsx',
+  desc:'Cards de status vêm de /v1/agents. Os painéis detalhados (Strategy/Risk/Behavioral) e a edição de parâmetros de estratégia cruzam com Mercado e Risco.',
+  endpoints:[
+    ['GET','/v1/agents','ready','Status de todos os agentes (inclui stubs)'],
+    ['GET','/v1/agents/{id}/config','ready','Parâmetros configuráveis do agente'],
+    ['GET','/v1/agents/{id}','ready','Detalhe (501 se for stub não implementado)'],
+  ],
+  rows:[
+    ['Cards · nome/descrição/domínio/status','id · description · domain · status · implemented','ready','GET /v1/agents'],
+    ['Ciclos hoje · última ação','cycles · last_action_at','ready','GET /v1/agents'],
+    ['Strategy Agent · regime + estratégia ativa','regime · active_strategy','partial','GET /v1/market/{pair}/regime + /signal'],
+    ['Strategy Agent · breakdown 5 fatores','confidence_factors[]','new','mesmo gap do HITL (StrategyAgent calcula)'],
+    ['Risk Agent · circuit breaker + proteções','status · protections','partial','GET /v1/risk/* (ver tela Risco)'],
+    ['Risk Agent · guardrails ativos','guardrails[]','partial','src/safety/guardrails.py'],
+    ['Behavioral Guard · revenge/euforia/overconfidence','flags[] {key,status,detail,action}','partial','novo: GET /v1/agents/behavioral OU via alertas · src/agents/behavioral_guard.py'],
+    ['Config Grid/DCA/Mean Reversion (ler)','params','ready','GET /v1/agents/{id}/config'],
+    ['Config Grid/DCA/Mean Reversion (salvar)','PATCH params','new','novo: PATCH /v1/agents/{id}/config → config/strategies/*.yaml'],
+  ]},
+
+{ id:'diario', num:'07', title:'Diário Comportamental', file:'screen_journal.jsx',
+  desc:'Área 100% nova no backend — não há módulo de diário no repositório. Requer uma tabela de registros e endpoints de CRUD + métricas. O win-rate real daqui alimenta o Kelly e o overconfidence guard.',
+  endpoints:[],
+  rows:[
+    ['Registros (tabela)','entries[] {setup,emotion_before,emotion_after,stop_defined,plan_followed,pnl,note}','new','novo: GET /v1/journal · nova tabela (migrations)'],
+    ['Novo registro','POST payload','new','novo: POST /v1/journal'],
+    ['Win rate por estado emocional (barras)','by_emotion[] {band,win_rate,trades}','new','novo: GET /v1/journal/metrics'],
+    ['P&L plano seguido vs desviou','plan_followed_pnl · plan_deviated_pnl','new','novo: GET /v1/journal/metrics'],
+    ['Correlação disciplina × resultado','discipline_correlation','new','novo: GET /v1/journal/metrics'],
+    ['Win rate real (calibra Kelly)','real_win_rate','new','novo: GET /v1/journal/metrics → consumido por /v1/risk/kelly'],
+    ['Scatter emoção × P&L · Heatmap dia×hora','derivados de entries[]','new','calculados no cliente a partir de GET /v1/journal'],
+  ]},
+
+{ id:'validacao', num:'08', title:'Validação de Estratégias', file:'screen_backtest.jsx',
+  desc:'Engine de backtest, Monte Carlo e walk-forward já implementados em src/backtest/*. Falta expor via rotas (operações potencialmente longas — considerar job assíncrono + polling).',
+  endpoints:[],
+  rows:[
+    ['Rodar backtest (botão)','POST {config}','partial','novo: POST /v1/backtest/run · src/backtest/engine.py'],
+    ['Métricas (trades/winrate/P&L/DD/Sharpe/PF/expectância)','result {...}','partial','retorno de POST /v1/backtest/run · engine.py'],
+    ['Curva de capital do backtest','equity[]','partial','retorno de engine.py'],
+    ['Monte Carlo (p5/p50/p95/%lucrativas/histograma)','mc {p5,p50,p95,profitable_pct,hist[]}','partial','novo: POST /v1/backtest/montecarlo · src/backtest/monte_carlo.py'],
+    ['Walk-forward (válido/janelas/desvio Sharpe/folds)','wf {valid,windows,sharpe_dev,folds[]}','partial','novo: POST /v1/backtest/walkforward · src/backtest/validator.py'],
+    ['Config (capital/comissão/slippage/janela/sims)','request body','partial','parâmetros do POST'],
+  ]},
+
+{ id:'config', num:'09', title:'Configurações', file:'screen_settings.jsx',
+  desc:'Agrega parâmetros de todo o sistema. Autonomia já liga ao HITL; os demais são variáveis de ambiente ou YAML que precisam de um endpoint de configuração unificado.',
+  endpoints:[
+    ['PATCH','/v1/hitl/config','ready','Nível de autonomia (seção Geral)'],
+  ],
+  rows:[
+    ['Geral · nível de autonomia','PATCH {level,reason,operator}','ready','PATCH /v1/hitl/config'],
+    ['Geral · dry-run / intervalo / exchange / capital','EXCHANGE_DRY_RUN · ORCHESTRATOR_INTERVAL_SECONDS · EXCHANGE · INITIAL_CAPITAL','new','hoje são env vars (.env) — novo: GET/PATCH /v1/config'],
+    ['Risco · Kelly / posição / drawdown','risk_params','new','novo: PATCH /v1/risk/config → risk_params.yaml'],
+    ['Estratégias · defaults por regime','strategy params','new','novo: PATCH /v1/agents/{id}/config'],
+    ['Diário · escala emocional / campos','journal_settings','new','novo: junto do módulo de Diário'],
+    ['Backtest · custos / janelas / sims','backtest_defaults','partial','defaults do POST /v1/backtest/run'],
+    ['Alertas · thresholds (revenge/euforia/overconf/RoR)','behavioral_thresholds','partial','novo: PATCH /v1/alerts/config · src/agents/behavioral_guard.py'],
+  ]},
+
+{ id:'global', num:'10', title:'Header & Alertas (global)', file:'shell.jsx · app.jsx',
+  desc:'Elementos persistentes no topo e o drawer de alertas (sininho).',
+  endpoints:[
+    ['GET','/health','ready','Status do sistema (badge online)'],
+    ['SSE','/v1/alerts','ready','Feed de alertas em tempo real (replay + heartbeat)'],
+    ['GET','/v1/alerts/history?limit=','ready','Histórico paginado de alertas'],
+    ['GET','/v1/process/events','ready','Event log XES (process mining) — disponível, não usado na UI ainda'],
+  ],
+  rows:[
+    ['Preço/variação do símbolo','price · change24h','partial','GET /v1/market/{pair}/candles (ver Mercado)'],
+    ['Badge de regime','regime','partial','GET /v1/market/{pair}/regime'],
+    ['Badge circuit breaker','status','partial','GET /v1/risk/circuit-breaker'],
+    ['Badge nível de autonomia','current_level','ready','GET /v1/hitl/config'],
+    ['Badge sistema online','status','ready','GET /health'],
+    ['Drawer de alertas','AlertOut[]','ready','GET /v1/alerts/history + SSE /v1/alerts'],
+  ]},
+
+{ id:'rotas', num:'11', title:'Resumo das rotas a criar', custom:'gaps' },
+{ id:'arquivos', num:'12', title:'Índice de arquivos do protótipo', custom:'files' },
+];
+
+/* ============ render ============ */
+function epRow(m, path, status, desc){
+  return `<div class="ep">${M[m]}<span class="path">${path}</span>${P[status]}<span class="desc">${desc}</span></div>`;
+}
+function dataTable(rows){
+  return `<table><thead><tr><th>Elemento da UI</th><th>Campo / payload</th><th>Status</th><th>Fonte de dados</th></tr></thead><tbody>`
+    + rows.map(r=>`<tr><td class="el">${r[0]}</td><td class="fld"><code>${r[1]}</code></td><td>${P[r[2]]}</td><td class="src">${r[3]}</td></tr>`).join('')
+    + `</tbody></table>`;
+}
+
+function renderCustom(id){
+  if(id==='legend') return `
+    <div class="sec-desc">Cada elemento da interface recebe um status de prontidão do backend. Use-o para priorizar: o que está <b>Pronto</b> pode ser ligado já; o resto é trabalho de backend (estimado por proximidade do que já existe).</div>
+    <div class="legend">
+      <div class="it">${P.ready}<div class="t">Endpoint pronto</div><div class="d">A rota existe e retorna o dado. É só consumir no frontend.</div></div>
+      <div class="it">${P.partial}<div class="t">Expor rota</div><div class="d">A lógica já está implementada no backend (módulo indicado), mas falta criar a rota REST ou serializar o campo.</div></div>
+      <div class="it">${P.new}<div class="t">Backend novo</div><div class="d">Precisa ser implementado do zero (tabela, cálculo e rota).</div></div>
+    </div>
+    <div class="note blue"><span>ℹ️</span><div><b>Resumo:</b> HITL, Ordens, Agentes e Alertas estão majoritariamente prontos. Mercado e Validação têm a lógica pronta (só expor). Risco (Kelly/drawdown/circuit breaker) e Diário exigem backend novo.</div></div>`;
+
+  if(id==='arch') return `
+    <div class="sec-desc">Dois processos independentes compartilham estado via SQLite (WAL): a <b>API</b> (FastAPI, gateway <code>/v1</code>) e o <b>loop</b> do orquestrador. O frontend conversa apenas com a API.</div>
+    <div class="grid2">
+      <div class="card"><div class="card-h"><b>Envelope de resposta</b></div><div class="card-b">
+        <div class="src" style="margin-bottom:10px">Toda resposta de sucesso é embrulhada em <code>APIResponse&lt;T&gt;</code>. Nunca um objeto solto.</div>
+        <div class="kv">
+          <span class="k">data</span><span class="v">T (payload)</span>
+          <span class="k">meta</span><span class="v">{total, page, per_page, timestamp}</span>
+          <span class="k">_links</span><span class="v">{self, related} (HATEOAS)</span>
+        </div>
+      </div></div>
+      <div class="card"><div class="card-h"><b>Autenticação & erros</b></div><div class="card-b">
+        <div class="src" style="margin-bottom:10px">Header <code>X-API-Key</code> exigido só quando <code>API_KEYS</code> está setado (aberto em dev). Erros seguem forma única:</div>
+        <div class="kv">
+          <span class="k">error</span><span class="v">slug (ex: validation_error)</span>
+          <span class="k">message</span><span class="v">texto PT-BR</span>
+          <span class="k">field</span><span class="v">campo inválido (422)</span>
+          <span class="k">docs</span><span class="v">/v1/docs</span>
+        </div>
+      </div></div>
+    </div>
+    <div class="card"><div class="card-h"><b>Status codes — ordens (HITL)</b></div><div class="card-b">
+      <ul class="clean">
+        <li><span class="tag">201</span> ordem auto-aprovada e executada na hora (<code>filled</code>)</li>
+        <li><span class="tag">202</span> ordem aguardando aprovação humana (<code>pending</code>)</li>
+        <li><span class="tag">422</span> rejeitada pelos guardrails de risco · ou input inválido</li>
+        <li><span class="tag">404</span> ordem inexistente · <span class="tag">409</span> ordem não está mais pendente</li>
+        <li><span class="tag">501</span> agente é stub (não implementado) — em <code>GET /v1/agents/{id}</code></li>
+      </ul>
+      <div class="note"><span>⚠️</span><div>Timeout de decisão <b>fail-closed</b>: sem resposta do operador em <code>decision_timeout</code> (300s), a ordem vira <code>cancelled</code> automaticamente. O frontend deve refletir essa expiração (ex: contagem regressiva na fila).</div></div>
+    </div>`;
+
+  if(id==='gaps') return `
+    <div class="sec-desc">Lista consolidada do que o backend precisa entregar para o protótipo funcionar 100%. Ordenado por esforço.</div>
+    <div class="card"><div class="card-h">${P.partial}<b>Expor rota (lógica já existe)</b></div><div class="card-b"><table><tbody>
+      ${[
+        ['GET','/v1/market/{pair}/candles','feed OHLCV (exchange_client / dry-run)'],
+        ['GET','/v1/market/{pair}/indicators','src/analysis/indicators.py'],
+        ['GET','/v1/market/{pair}/regime','src/analysis/regime_detector.py'],
+        ['GET','/v1/market/{pair}/levels','src/analysis/support_resistance.py'],
+        ['GET','/v1/market/{pair}/volume-profile','src/analysis/volume_profile.py'],
+        ['GET','/v1/market/{pair}/patterns','src/analysis/pattern_scanner.py'],
+        ['GET','/v1/market/{pair}/signal','src/agents/strategy_agent.py'],
+        ['POST','/v1/backtest/run','src/backtest/engine.py'],
+        ['POST','/v1/backtest/montecarlo','src/backtest/monte_carlo.py'],
+        ['POST','/v1/backtest/walkforward','src/backtest/validator.py'],
+        ['GET','/v1/risk/protections','RiskAgent + risk_params.yaml'],
+        ['GET','/v1/risk/circuit-breaker','src/agents/risk_agent.py'],
+        ['GET','/v1/agents/behavioral','src/agents/behavioral_guard.py'],
+        ['—','+ campos stop/TP/size/RR em OrderOut','src/api/schemas.py'],
+      ].map(r=>`<tr><td style="width:60px">${r[0]==='—'?'':M[r[0]]}</td><td class="el mono" style="width:38%;font-size:12.5px">${r[1]}</td><td class="src">${r[2]}</td></tr>`).join('')}
+    </tbody></table></div></div>
+    <div class="card"><div class="card-h">${P.new}<b>Backend novo (implementar do zero)</b></div><div class="card-b"><table><tbody>
+      ${[
+        ['GET/POST','/v1/journal','nova tabela + migração — registros do diário'],
+        ['GET','/v1/journal/metrics','win-rate por emoção, correlação disciplina, win-rate real'],
+        ['GET','/v1/risk/kelly','f*, fracionado, risco de ruína (usa win-rate do diário/ledger)'],
+        ['PATCH','/v1/risk/config','persistir parâmetros de risco'],
+        ['GET','/v1/metrics/equity','série temporal de capital/drawdown'],
+        ['GET/PATCH','/v1/config','env/settings unificados (dry-run, intervalo, exchange, capital)'],
+        ['PATCH','/v1/alerts/config','thresholds do behavioral guard'],
+        ['—','breakdown de confiança em OrderOut','5 fatores que o StrategyAgent já pondera'],
+      ].map(r=>`<tr><td style="width:70px">${r[0]==='—'?'':r[0].split('/').map(x=>M[x]||x).join(' ')}</td><td class="el mono" style="width:34%;font-size:12.5px">${r[1]}</td><td class="src">${r[2]}</td></tr>`).join('')}
+    </tbody></table></div></div>`;
+
+  if(id==='files') return `
+    <div class="sec-desc">Onde cada parte da interface mora no protótipo. Tudo é React via Babel in-browser; cada arquivo expõe seus componentes em <code>window</code>.</div>
+    <div class="card"><div class="card-b" style="padding:6px 0"><table><tbody>
+      ${[
+        ['Criptotrade Console.html','Documento raiz — carrega React/Babel, fontes e todos os scripts'],
+        ['styles.css','Tokens de design, shell, componentes, densidade'],
+        ['data.js','Mock determinístico (window.CT) — substituir pelas respostas da API'],
+        ['components.jsx','UI base: Icon, Card, Badge, Btn, KPI, Meter, Seg, Tabs, NumField, SliderField'],
+        ['charts.jsx','SVG: Candle, Equity, KellyCurve, Gauge, Donut, MACD, BarChart, Scatter, Heatmap, MonteCarlo'],
+        ['shell.jsx','Sidebar (NAV) + Header'],
+        ['app.jsx','Roteamento de telas, toasts, drawer de alertas, Tweaks'],
+        ['screen_risk.jsx','Tela Risco & Capital'],
+        ['screen_market.jsx','Tela Dashboard de Mercado'],
+        ['screen_hitl.jsx','Tela Console HITL (+ ConfidenceBreakdown reusado por Agentes)'],
+        ['screen_orders.jsx','Tela Ordens + OrderDrawer'],
+        ['screen_agents.jsx','Tela Agentes & Estratégias'],
+        ['screen_journal.jsx','Tela Diário Comportamental'],
+        ['screen_backtest.jsx','Tela Validação'],
+        ['screen_settings.jsx','Tela Configurações'],
+        ['tweaks-panel.jsx','Painel de ajustes (acento, densidade, cores buy/sell)'],
+      ].map(r=>`<tr><td class="el mono" style="width:34%;font-size:12.5px">${r[0]}</td><td class="src">${r[1]}</td></tr>`).join('')}
+    </tbody></table></div></div>
+    <div class="note blue"><span>🔌</span><div><b>Para ligar dados reais:</b> o ponto único de troca é <code>data.js</code> (<code>window.CT</code>). Cada chave (CT.metrics, CT.orders, CT.indicators…) corresponde a um endpoint deste documento — troque o objeto estático por um fetch que desembrulha <code>resposta.data</code>.</div></div>`;
+  return '';
+}
+
+const docEl = document.getElementById('doc');
+const navEl = document.getElementById('nav');
+let navHtml = '<div class="side-lbl">Fundamentos</div>';
+SECTIONS.forEach((s,i)=>{
+  if(s.id==='risco') navHtml += '<div class="side-lbl">Telas</div>';
+  if(s.id==='rotas') navHtml += '<div class="side-lbl">Referência</div>';
+  navHtml += `<a href="#${s.id}">${s.num} · ${s.title}</a>`;
+
+  let body = `<section id="${s.id}"><div class="sec-head"><span class="sec-num">${s.num}</span><span class="sec-title">${s.title}</span>`
+    + (s.file?`<span class="tag" style="margin-left:auto">${s.file}</span>`:'') + `</div>`;
+  if(s.custom){ body += renderCustom(s.custom); }
+  else {
+    if(s.desc) body += `<div class="sec-desc">${s.desc}</div>`;
+    if(s.endpoints && s.endpoints.length){
+      body += `<div class="card"><div class="card-h"><b>Endpoints consumidos</b></div><div class="card-b" style="padding:6px 18px">`
+        + s.endpoints.map(e=>epRow(e[0],e[1],e[2],e[3])).join('') + `</div></div>`;
+    }
+    if(s.rows) body += `<div class="card"><div class="card-b" style="padding:0">${dataTable(s.rows)}</div></div>`;
+  }
+  body += `</section>`;
+  docEl.insertAdjacentHTML('beforeend', body);
+});
+navEl.innerHTML = navHtml;
+</script>
+</body>
+</html>
