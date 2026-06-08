@@ -25,7 +25,7 @@ class SquadOrchestrator:
         alert_bus: Optional[AlertBus] = None,
         fill_callback: Optional[Callable[[str], Any]] = None,
     ) -> None:
-        self.strategy_agent = StrategyAgent()
+        self.strategy_agent = StrategyAgent(exchange_client=exchange_client)
         self.risk_agent = RiskAgent()
         self.execution_agent = ExecutionAgent(exchange_client)
         self.ledger = TradingLedger()

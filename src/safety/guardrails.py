@@ -63,7 +63,7 @@ class GuardrailSystem:
         if "stop_loss" not in order or order["stop_loss"] is None:
             return False, "Stop loss is mandatory"
 
-        entry = order.get("entry_price", 0)
+        entry = order.get("entry_price") or 0
         stop = order["stop_loss"]
 
         if entry > 0:
@@ -76,10 +76,14 @@ class GuardrailSystem:
         return True, ""
 
     def check_risk_reward(self, order: Dict[str, Any]) -> Tuple[bool, str]:
-        """Validate risk-reward ratio."""
-        entry = order.get("entry_price", 0)
-        stop = order.get("stop_loss", 0)
-        target = order.get("take_profit", 0)
+        """Validate risk-reward ratio.
+
+        Grid and other strategies may omit take_profit (None) when exits are managed
+        level-by-level. In those cases the RR check is skipped.
+        """
+        entry = order.get("entry_price") or 0
+        stop = order.get("stop_loss") or 0
+        target = order.get("take_profit") or 0
 
         if entry > 0 and stop > 0 and target > 0:
             risk = abs(entry - stop)
