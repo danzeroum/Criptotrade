@@ -309,9 +309,9 @@ def test_list_agents(client):
     r = client.get("/v1/agents")
     assert r.status_code == 200
     data = r.json()["data"]
-    assert len(data) == 11
+    assert len(data) == 5
     ids = {a["id"] for a in data}
-    assert {"strategy", "risk", "execution", "recovery"} <= ids
+    assert {"strategy", "risk", "execution", "recovery", "exploration"} == ids
 
 
 def test_agent_detail_implemented(client):
