@@ -2,6 +2,7 @@
 from .indicators import TechnicalAnalyzer, TechnicalIndicators, DivergenceDetector
 from .support_resistance import SupportResistanceDetector, SRLevels, SRLevel
 from .volume_profile import VolumeProfile, VolumeProfileResult
+from .pattern_scanner import PatternScanner, PatternResult
 
 __all__ = [
     "TechnicalAnalyzer",
@@ -12,4 +13,6 @@ __all__ = [
     "SRLevel",
     "VolumeProfile",
     "VolumeProfileResult",
+    "PatternScanner",
+    "PatternResult",
 ]
