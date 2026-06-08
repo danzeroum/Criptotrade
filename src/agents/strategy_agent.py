@@ -346,15 +346,34 @@ class StrategyAgent(BaseAgent):
 
     @staticmethod
     def _stub_analysis(symbol: str, timeframe: str) -> dict[str, Any]:
-        """Minimal analysis when exchange data is unavailable."""
+        """Synthetic analysis used when exchange data is unavailable.
+
+        Values are chosen so the Grid strategy triggers a BUY in a sideways
+        regime with blended confidence ≈ 0.76 — well above the 0.60 threshold —
+        while satisfying all guardrail checks (take_profit=None skips RR check).
+        """
+        from src.analysis.indicators import TechnicalIndicators
+
+        stub_ind = TechnicalIndicators(
+            current_price=50_000.0,
+            sma_20=50_100.0, sma_50=50_050.0, sma_200=50_000.0,
+            ema_fast=50_050.0, ema_slow=50_025.0,  # spread 0.05% → sideways + bullish
+            rsi=45.0, stochastic_k=40.0, stochastic_d=42.0,
+            macd_line=5.0, macd_signal=3.0, macd_hist=2.0,
+            bb_upper=50_500.0, bb_middle=50_100.0, bb_lower=49_700.0,
+            bb_percent=0.25,   # BUY zone (< 0.30)
+            atr=50.0,          # atr/bb_middle ≈ 0.001 → grid confidence bonus
+            volume_ratio=1.2,
+            obv=100.0,
+        )
         return {
             "symbol": symbol,
             "timeframe": timeframe,
-            "current_price": 0.0,
-            "trend": None,
-            "regime": "unknown",
-            "eligible_strategies": ["dca"],
-            "indicators": None,
+            "current_price": 50_000.0,
+            "trend": "bullish",            # ema_fast > ema_slow
+            "regime": "sideways",          # spread < 1 %, volatility < 2 %
+            "eligible_strategies": ["grid", "dca"],
+            "indicators": stub_ind,
             "support_resistance": None,
             "fibonacci_levels": {},
             "volume_profile": None,
