@@ -343,6 +343,59 @@ def test_agent_cycles_served_from_db(client):
     assert body["last_action_at"] is not None
 
 
+# ----------------------------------------------------------------- agents /config
+def test_agent_config_implemented(client):
+    r = client.get("/v1/agents/risk/config")
+    assert r.status_code == 200
+    data = r.json()["data"]
+    assert data["implemented"] is True
+    params = data["params"]
+    assert params["max_position_size_pct"] == 5.0
+    assert params["stop_loss_pct"] == 3.0
+    assert params["max_daily_loss_pct"] == 5.0
+    assert params["reasoning_pattern"] == "reflection"
+    assert params["autonomy_level"] == 3
+
+
+def test_agent_config_strategy_params(client):
+    r = client.get("/v1/agents/strategy/config")
+    assert r.status_code == 200
+    params = r.json()["data"]["params"]
+    assert params["confidence_threshold"] == 0.6
+    assert "market_data" in params["tools"]
+    assert params["reasoning_pattern"] == "chain_of_thought"
+
+
+def test_agent_config_stub_returns_200_not_501(client):
+    # /config always returns 200; stubs have empty params but are visible.
+    for stub in ("recovery", "exploration"):
+        r = client.get(f"/v1/agents/{stub}/config")
+        assert r.status_code == 200
+        data = r.json()["data"]
+        assert data["implemented"] is False
+        assert data["params"] == {}
+
+
+def test_agent_config_unknown_returns_404(client):
+    r = client.get("/v1/agents/does_not_exist/config")
+    assert r.status_code == 404
+    assert r.json()["error"] == "agent_not_found"
+
+
+def test_agent_config_all_implemented_have_params(client):
+    # Every implemented agent must expose at least one parameter.
+    r = client.get("/v1/agents")
+    assert r.status_code == 200
+    for agent in r.json()["data"]:
+        if not agent["implemented"]:
+            continue
+        cfg = client.get(f"/v1/agents/{agent['id']}/config")
+        assert cfg.status_code == 200
+        assert len(cfg.json()["data"]["params"]) > 0, (
+            f"Agent '{agent['id']}' is implemented but has no params exposed"
+        )
+
+
 # ----------------------------------------------------------------- process log (Phase 3b)
 def test_process_events_after_order(client):
     order = client.post("/v1/orders", json=_VALID_ORDER).json()["data"]  # auto-filled
