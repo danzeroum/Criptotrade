@@ -31,21 +31,16 @@ class AgentInfo:
     description: str
 
 
-# Curated from the actual modules in src/agents/. The trading trio drives
-# SquadOrchestrator; the engineering squad drives UnifiedOrchestrator; the two
-# security agents are stubs awaiting real tooling.
+# Apenas os agentes do domínio de trading e segurança.
+# Os agentes de engineering (architect, auditor, designer, developer, ops)
+# e orchestration (supervisor) foram removidos por não pertencerem ao
+# domínio de negócio da plataforma de crypto trading.
 AGENT_REGISTRY: Dict[str, AgentInfo] = {
     a.id: a
     for a in [
         AgentInfo("strategy", "trading", True, "Gera sinais de trading (CoT)."),
         AgentInfo("risk", "trading", True, "Valida ordens contra guardrails (reflexão)."),
         AgentInfo("execution", "trading", True, "Executa ordens aprovadas (paper)."),
-        AgentInfo("supervisor", "orchestration", True, "Coordena agentes especialistas."),
-        AgentInfo("architect", "engineering", True, "Análise de arquitetura (CoT)."),
-        AgentInfo("auditor", "engineering", True, "Auditoria de segurança/qualidade."),
-        AgentInfo("designer", "engineering", True, "Artefatos de design/UX."),
-        AgentInfo("developer", "engineering", True, "Implementação (ReAct)."),
-        AgentInfo("ops", "engineering", True, "Runbooks de deploy/monitoramento."),
         AgentInfo("recovery", "security", False, "Stub: remediação pós-incidente."),
         AgentInfo("exploration", "security", False, "Stub: varredura de vulnerabilidades."),
     ]
@@ -78,46 +73,6 @@ AGENT_PARAMS: Dict[str, Dict[str, Any]] = {
         "paper_trading": True,
         "reasoning_pattern": "react",
         "autonomy_level": 1,
-    },
-    "supervisor": {
-        "tools": [],
-        "reasoning_pattern": "multi_agent",
-        "autonomy_level": 2,
-    },
-    "architect": {
-        "confidence_threshold": 0.6,
-        "tools": ["analyze_architecture", "generate_adr"],
-        "reasoning_pattern": "chain_of_thought",
-        "autonomy_level": 2,
-    },
-    "auditor": {
-        "confidence_threshold": 0.6,
-        "tools": ["security_scan", "quality_check"],
-        "complexity_threshold": 10,
-        "min_coverage_pct": 80,
-        "reasoning_pattern": "reflection",
-        "autonomy_level": 2,
-    },
-    "designer": {
-        "confidence_threshold": 0.6,
-        "tools": ["design_mock", "accessibility_review"],
-        "design_patterns": ["material", "fluent", "carbon"],
-        "reasoning_pattern": "pattern_synthesis",
-        "autonomy_level": 2,
-    },
-    "developer": {
-        "confidence_threshold": 0.6,
-        "tools": ["write_code", "generate_tests", "refactor", "debug", "analyze_requirements"],
-        "max_iterations": 5,
-        "reasoning_pattern": "react",
-        "autonomy_level": 2,
-    },
-    "ops": {
-        "confidence_threshold": 0.6,
-        "tools": ["deploy_service", "configure_monitoring"],
-        "deployment_strategies": ["blue-green", "canary", "rolling"],
-        "reasoning_pattern": "pragmatic_planning",
-        "autonomy_level": 2,
     },
     "recovery": {},
     "exploration": {},

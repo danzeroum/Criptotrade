@@ -62,7 +62,7 @@ def test_unknown_agent_status_is_none():
 
 def test_unrecorded_agent_has_zero_cycles():
     reg = AgentRegistry()
-    s = reg.status("architect")
+    s = reg.status("execution")
     assert s["cycles"] == 0
     assert s["last_action_at"] is None
 
