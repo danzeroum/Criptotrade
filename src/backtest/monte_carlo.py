@@ -10,7 +10,6 @@ from __future__ import annotations
 import logging
 import random
 from dataclasses import dataclass
-from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +34,11 @@ class MonteCarloSimulator:
         random_seed: Optional seed for reproducibility in tests.
     """
 
-    def __init__(self, n_simulations: int = 1000, random_seed: Optional[int] = None) -> None:
+    def __init__(self, n_simulations: int = 1000, random_seed: int | None = None) -> None:
         self.n_simulations = n_simulations
         self._rng = random.Random(random_seed)
 
-    def simulate(self, trades_pnl_pct: List[float]) -> MonteCarloResult:
+    def simulate(self, trades_pnl_pct: list[float]) -> MonteCarloResult:
         """Run Monte Carlo on a list of per-trade P&L percentages.
 
         Args:
@@ -60,7 +59,7 @@ class MonteCarloSimulator:
                 rejected=True,
             )
 
-        final_returns: List[float] = []
+        final_returns: list[float] = []
         max_drawdown_all: float = 0.0
 
         for _ in range(self.n_simulations):

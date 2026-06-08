@@ -11,7 +11,6 @@ Regimes:
 """
 from __future__ import annotations
 
-from typing import List, Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -26,10 +25,10 @@ _REGIME_STRATEGY_MAP = {
 
 
 def detect_regime(
-    ema_fast: Optional[float],
-    ema_slow: Optional[float],
-    atr: Optional[float],
-    current_price: Optional[float],
+    ema_fast: float | None,
+    ema_slow: float | None,
+    atr: float | None,
+    current_price: float | None,
 ) -> str:
     """Classify market regime from pre-computed indicator values.
 
@@ -56,15 +55,15 @@ def detect_regime(
     return "strong_uptrend" if ema_fast > ema_slow else "strong_downtrend"
 
 
-def strategies_for_regime(regime: str) -> List[str]:
+def strategies_for_regime(regime: str) -> list[str]:
     """Return the list of strategy keys appropriate for a given regime."""
     return list(_REGIME_STRATEGY_MAP.get(regime, ["dca"]))
 
 
 def detect_market_extreme(
-    rsi: Optional[float],
-    volume_ratio: Optional[float],
-) -> Optional[str]:
+    rsi: float | None,
+    volume_ratio: float | None,
+) -> str | None:
     """Detect euphoria or panic based on RSI and volume.
 
     Murphy: "Euphoria and panic create the most predictable opportunities."

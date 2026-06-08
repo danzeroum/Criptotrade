@@ -13,8 +13,7 @@ Patterns detected:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import List, Optional
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -32,7 +31,7 @@ class PatternResult:
     pattern: str         # e.g. "head_and_shoulders", "double_top"
     confidence: float    # 0.0 – 1.0
     direction: str       # "bearish" | "bullish" | "neutral"
-    target_price: Optional[float]  # measured-move target, None when unavailable
+    target_price: float | None  # measured-move target, None when unavailable
     candle_index: int    # index of the pattern's completion candle
     description: str = ""
 
@@ -52,7 +51,7 @@ class PatternScanner:
     def __init__(self, pivot_lookback: int = 5) -> None:
         self.pivot_lookback = pivot_lookback
 
-    def scan(self, ohlcv: list) -> List[PatternResult]:
+    def scan(self, ohlcv: list) -> list[PatternResult]:
         """Scan all candles and return detected patterns (newest first).
 
         Only patterns with confidence > 0 are returned. Results are sorted
@@ -68,7 +67,7 @@ class PatternScanner:
         pivot_highs = self._find_pivot_highs(highs)
         pivot_lows = self._find_pivot_lows(lows)
 
-        results: List[PatternResult] = []
+        results: list[PatternResult] = []
         results.extend(self._check_double_top(highs, closes, pivot_highs))
         results.extend(self._check_double_bottom(lows, closes, pivot_lows))
         results.extend(self._check_head_and_shoulders(highs, lows, closes, pivot_highs))
@@ -82,8 +81,8 @@ class PatternScanner:
     # ---------------------------------------------------------------- patterns
 
     def _check_double_top(
-        self, highs: np.ndarray, closes: np.ndarray, pivot_highs: List[int]
-    ) -> List[PatternResult]:
+        self, highs: np.ndarray, closes: np.ndarray, pivot_highs: list[int]
+    ) -> list[PatternResult]:
         """Two consecutive highs at approximately the same price level."""
         results = []
         for i in range(1, len(pivot_highs)):
@@ -107,8 +106,8 @@ class PatternScanner:
         return results
 
     def _check_double_bottom(
-        self, lows: np.ndarray, closes: np.ndarray, pivot_lows: List[int]
-    ) -> List[PatternResult]:
+        self, lows: np.ndarray, closes: np.ndarray, pivot_lows: list[int]
+    ) -> list[PatternResult]:
         """Two consecutive lows at approximately the same price level."""
         results = []
         for i in range(1, len(pivot_lows)):
@@ -133,8 +132,8 @@ class PatternScanner:
         highs: np.ndarray,
         lows: np.ndarray,
         closes: np.ndarray,
-        pivot_highs: List[int],
-    ) -> List[PatternResult]:
+        pivot_highs: list[int],
+    ) -> list[PatternResult]:
         """Head (middle) is higher than left and right shoulders."""
         results = []
         if len(pivot_highs) < 3:
@@ -171,9 +170,9 @@ class PatternScanner:
         self,
         highs: np.ndarray,
         lows: np.ndarray,
-        pivot_highs: List[int],
-        pivot_lows: List[int],
-    ) -> List[PatternResult]:
+        pivot_highs: list[int],
+        pivot_lows: list[int],
+    ) -> list[PatternResult]:
         """Flat resistance top, rising support lows."""
         if len(pivot_highs) < 2 or len(pivot_lows) < 2:
             return []
@@ -202,9 +201,9 @@ class PatternScanner:
         self,
         highs: np.ndarray,
         lows: np.ndarray,
-        pivot_highs: List[int],
-        pivot_lows: List[int],
-    ) -> List[PatternResult]:
+        pivot_highs: list[int],
+        pivot_lows: list[int],
+    ) -> list[PatternResult]:
         """Flat support bottom, descending resistance highs."""
         if len(pivot_highs) < 2 or len(pivot_lows) < 2:
             return []
@@ -234,9 +233,9 @@ class PatternScanner:
         highs: np.ndarray,
         lows: np.ndarray,
         closes: np.ndarray,
-        pivot_highs: List[int],
-        pivot_lows: List[int],
-    ) -> List[PatternResult]:
+        pivot_highs: list[int],
+        pivot_lows: list[int],
+    ) -> list[PatternResult]:
         """Price bouncing between two roughly parallel horizontal levels."""
         if len(pivot_highs) < 2 or len(pivot_lows) < 2:
             return []
@@ -275,7 +274,7 @@ class PatternScanner:
 
     # ----------------------------------------------------------------- helpers
 
-    def _find_pivot_highs(self, highs: np.ndarray) -> List[int]:
+    def _find_pivot_highs(self, highs: np.ndarray) -> list[int]:
         lb = self.pivot_lookback
         n = len(highs)
         return [
@@ -284,7 +283,7 @@ class PatternScanner:
             and np.sum(highs[i - lb: i + lb + 1] == highs[i]) == 1
         ]
 
-    def _find_pivot_lows(self, lows: np.ndarray) -> List[int]:
+    def _find_pivot_lows(self, lows: np.ndarray) -> list[int]:
         lb = self.pivot_lookback
         n = len(lows)
         return [

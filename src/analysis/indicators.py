@@ -5,12 +5,12 @@ Each row: [timestamp_ms, open, high, low, close, volume]
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -20,39 +20,39 @@ class TechnicalIndicators:
     """Snapshot of all computed technical indicators for the latest candle."""
 
     # Trend — Murphy: SMAs/EMAs for regime classification
-    sma_20: Optional[float] = None
-    sma_50: Optional[float] = None
-    sma_200: Optional[float] = None
-    ema_fast: Optional[float] = None   # EMA(9)
-    ema_slow: Optional[float] = None   # EMA(21)
+    sma_20: float | None = None
+    sma_50: float | None = None
+    sma_200: float | None = None
+    ema_fast: float | None = None   # EMA(9)
+    ema_slow: float | None = None   # EMA(21)
 
     # Momentum
-    rsi: Optional[float] = None               # RSI(14)
-    stochastic_k: Optional[float] = None      # Stochastic %K (14,3,3)
-    stochastic_d: Optional[float] = None      # Stochastic %D
+    rsi: float | None = None               # RSI(14)
+    stochastic_k: float | None = None      # Stochastic %K (14,3,3)
+    stochastic_d: float | None = None      # Stochastic %D
 
     # Trend + Momentum
-    macd_line: Optional[float] = None         # MACD(12,26,9)
-    macd_signal: Optional[float] = None
-    macd_hist: Optional[float] = None
+    macd_line: float | None = None         # MACD(12,26,9)
+    macd_signal: float | None = None
+    macd_hist: float | None = None
 
     # Volatility
-    bb_upper: Optional[float] = None          # Bollinger Bands (20, 2σ)
-    bb_middle: Optional[float] = None
-    bb_lower: Optional[float] = None
-    bb_percent: Optional[float] = None        # %B oscillator
+    bb_upper: float | None = None          # Bollinger Bands (20, 2σ)
+    bb_middle: float | None = None
+    bb_lower: float | None = None
+    bb_percent: float | None = None        # %B oscillator
 
-    atr: Optional[float] = None               # ATR(14)
+    atr: float | None = None               # ATR(14)
 
     # Volume
-    volume_ratio: Optional[float] = None      # current / ma_volume_20
-    obv: Optional[float] = None               # On-Balance Volume
+    volume_ratio: float | None = None      # current / ma_volume_20
+    obv: float | None = None               # On-Balance Volume
 
     # Raw price (convenience)
-    current_price: Optional[float] = None
+    current_price: float | None = None
 
 
-def _safe_float(series: pd.Series, idx: int = -1) -> Optional[float]:
+def _safe_float(series: pd.Series, idx: int = -1) -> float | None:
     """Return the float at index or None if NaN/out-of-bounds."""
     try:
         val = float(series.iloc[idx])
@@ -70,7 +70,7 @@ class TechnicalAnalyzer:
 
     MIN_CANDLES = 50
 
-    def __init__(self, ohlcv: List[List[float]]) -> None:
+    def __init__(self, ohlcv: list[list[float]]) -> None:
         if len(ohlcv) < self.MIN_CANDLES:
             raise ValueError(
                 f"Need at least {self.MIN_CANDLES} candles, got {len(ohlcv)}"
@@ -79,7 +79,7 @@ class TechnicalAnalyzer:
         self._compute()
 
     @staticmethod
-    def _build_df(ohlcv: List[List[float]]) -> pd.DataFrame:
+    def _build_df(ohlcv: list[list[float]]) -> pd.DataFrame:
         df = pd.DataFrame(
             ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"]
         )
@@ -183,7 +183,7 @@ class TechnicalAnalyzer:
 class DivergenceResult:
     """Result of a divergence check."""
     detected: bool
-    kind: Optional[str]   # "bullish_divergence" | "bearish_divergence"
+    kind: str | None   # "bullish_divergence" | "bearish_divergence"
     description: str
 
 
@@ -198,7 +198,7 @@ class DivergenceDetector:
         self.lookback = lookback
 
     def check_rsi_price(
-        self, ohlcv: List[List[float]], rsi_series: pd.Series
+        self, ohlcv: list[list[float]], rsi_series: pd.Series
     ) -> DivergenceResult:
         """Check for RSI / price divergence over the last ``lookback`` candles."""
         closes = [c[4] for c in ohlcv[-self.lookback:]]
@@ -232,7 +232,7 @@ class DivergenceDetector:
         return DivergenceResult(False, None, "no divergence")
 
     def check_macd_price(
-        self, ohlcv: List[List[float]], macd_hist: pd.Series
+        self, ohlcv: list[list[float]], macd_hist: pd.Series
     ) -> DivergenceResult:
         """Check for MACD histogram / price divergence."""
         closes = [c[4] for c in ohlcv[-self.lookback:]]
@@ -274,7 +274,7 @@ class TrendAlignment:
     secondary: str     # daily
     minor: str         # hourly
     aligned: bool      # True if all three agree
-    direction: Optional[str]  # "bullish" | "bearish" | None (mixed)
+    direction: str | None  # "bullish" | "bearish" | None (mixed)
 
 
 class MultiTimeframeTrend:
@@ -292,7 +292,7 @@ class MultiTimeframeTrend:
 
     async def classify(self, symbol: str, exchange_client: Any) -> TrendAlignment:
         """Fetch OHLCV for each timeframe and classify the trend."""
-        results: Dict[str, str] = {}
+        results: dict[str, str] = {}
         for label, tf in self.TIMEFRAMES.items():
             try:
                 ohlcv = await exchange_client.fetch_ohlcv(symbol, tf, limit=50)

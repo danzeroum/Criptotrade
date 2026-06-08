@@ -10,10 +10,9 @@ References:
 """
 from __future__ import annotations
 
-import asyncio
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +32,8 @@ class BacktestTrade:
     position_size_pct: float
     pnl_usdt: float
     pnl_pct: float
-    stop_loss: Optional[float] = None
-    take_profit: Optional[float] = None
+    stop_loss: float | None = None
+    take_profit: float | None = None
     exit_reason: str = ""  # "take_profit" | "stop_loss" | "signal"
 
 
@@ -46,11 +45,11 @@ class BacktestResult:
     total_pnl_usdt: float
     total_pnl_pct: float
     max_drawdown_pct: float
-    sharpe_ratio: Optional[float]
-    profit_factor: Optional[float]
+    sharpe_ratio: float | None
+    profit_factor: float | None
     avg_win_pct: float
     avg_loss_pct: float
-    trades: List[BacktestTrade] = field(default_factory=list)
+    trades: list[BacktestTrade] = field(default_factory=list)
 
     @property
     def expectancy(self) -> float:
@@ -85,7 +84,7 @@ class BacktestEngine:
     async def run(
         self,
         strategy: Any,
-        ohlcv: List[List[float]],
+        ohlcv: list[list[float]],
     ) -> BacktestResult:
         """Replay ``ohlcv`` through ``strategy`` and return results.
 
@@ -102,9 +101,9 @@ class BacktestEngine:
             return _empty_result()
 
         capital = self.initial_capital
-        trades: List[BacktestTrade] = []
-        open_trade: Optional[Dict[str, Any]] = None
-        equity_curve: List[float] = [capital]
+        trades: list[BacktestTrade] = []
+        open_trade: dict[str, Any] | None = None
+        equity_curve: list[float] = [capital]
 
         for i in range(WARMUP_CANDLES, len(ohlcv)):
             candle = ohlcv[i]
@@ -154,9 +153,9 @@ class BacktestEngine:
         candle_index: int,
         action: str,
         close: float,
-        result: Dict[str, Any],
+        result: dict[str, Any],
         capital: float,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         slipped = close * (1 + self.slippage_pct if action == "BUY" else 1 - self.slippage_pct)
         size_pct = float(result.get("position_size_pct", 2.0))
         return {
@@ -171,11 +170,11 @@ class BacktestEngine:
 
     def _check_exits(
         self,
-        trade: Dict[str, Any],
+        trade: dict[str, Any],
         high: float,
         low: float,
         close: float,
-    ) -> tuple[Optional[float], str]:
+    ) -> tuple[float | None, str]:
         action = trade["action"]
         sl = trade.get("stop_loss")
         tp = trade.get("take_profit")
@@ -195,7 +194,7 @@ class BacktestEngine:
 
     def _close_trade(
         self,
-        trade: Dict[str, Any],
+        trade: dict[str, Any],
         exit_price: float,
         exit_reason: str,
         capital: float,
@@ -233,7 +232,7 @@ class BacktestEngine:
         )
 
     @staticmethod
-    def _build_market_data(window: List[List[float]], close: float) -> Dict[str, Any]:
+    def _build_market_data(window: list[list[float]], close: float) -> dict[str, Any]:
         return {
             "current_price": close,
             "rsi": 50,
@@ -248,8 +247,8 @@ class BacktestEngine:
 
     def _compute_result(
         self,
-        trades: List[BacktestTrade],
-        equity_curve: List[float],
+        trades: list[BacktestTrade],
+        equity_curve: list[float],
         final_capital: float,
     ) -> BacktestResult:
         n = len(trades)
@@ -306,7 +305,7 @@ def _empty_result() -> BacktestResult:
     )
 
 
-def _max_drawdown(equity: List[float]) -> float:
+def _max_drawdown(equity: list[float]) -> float:
     if len(equity) < 2:
         return 0.0
     peak = equity[0]
@@ -319,7 +318,7 @@ def _max_drawdown(equity: List[float]) -> float:
     return max_dd
 
 
-def _sharpe(trades: List[BacktestTrade], initial_capital: float) -> Optional[float]:
+def _sharpe(trades: list[BacktestTrade], initial_capital: float) -> float | None:
     if len(trades) < 2:
         return None
     returns = [t.pnl_usdt / initial_capital for t in trades]

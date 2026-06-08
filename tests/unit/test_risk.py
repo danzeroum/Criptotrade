@@ -1,13 +1,10 @@
 """Unit tests for risk management modules."""
 from __future__ import annotations
 
-import pytest
-
-from src.risk.position_sizing import KellyCriterion, PositionSizer, risk_of_ruin
-from src.risk.capital_protections import CapitalProtections, DrawdownStatus
 from src.orchestration.squad_orchestrator import CircuitBreaker
+from src.risk.capital_protections import CapitalProtections, DrawdownStatus
+from src.risk.position_sizing import KellyCriterion, PositionSizer, risk_of_ruin
 from src.safety.guardrails import GuardrailSystem
-
 
 # ---------------------------------------------------------------------------
 # KellyCriterion

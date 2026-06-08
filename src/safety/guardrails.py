@@ -1,13 +1,14 @@
 """Guardrail system for order validation."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
 import logging
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
-Guardrail = Callable[[Dict[str, Any]], Tuple[bool, str]]
+Guardrail = Callable[[dict[str, Any]], tuple[bool, str]]
 # Sink called once per violation message. Kept as a plain str callback so this
 # module stays decoupled from the alert types (the wiring builds the Alert).
 AlertSink = Callable[[str], None]
@@ -17,10 +18,10 @@ AlertSink = Callable[[str], None]
 class GuardrailSystem:
     """Collection of guardrails for trade validation."""
 
-    rules: List[Guardrail] = field(default_factory=list)
+    rules: list[Guardrail] = field(default_factory=list)
     # Optional in-process sink: every violation is published (e.g. persisted to
     # the AlertStore so it shows in /v1/alerts). None = log only (current default).
-    alert_sink: Optional[AlertSink] = None
+    alert_sink: AlertSink | None = None
 
     def __post_init__(self) -> None:
         if not self.rules:
@@ -31,9 +32,9 @@ class GuardrailSystem:
                 self.check_market_conditions,
             ]
 
-    def validate_order(self, order: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    def validate_order(self, order: dict[str, Any]) -> tuple[bool, list[str]]:
         """Validate order against all guardrails."""
-        violations: List[str] = []
+        violations: list[str] = []
 
         for rule in self.rules:
             passed, message = rule(order)
@@ -48,7 +49,7 @@ class GuardrailSystem:
 
         return len(violations) == 0, violations
 
-    def check_position_size(self, order: Dict[str, Any]) -> Tuple[bool, str]:
+    def check_position_size(self, order: dict[str, Any]) -> tuple[bool, str]:
         """Validate position size."""
         max_size = 5.0
         position_size = order.get("position_size_pct", 0)
@@ -58,7 +59,7 @@ class GuardrailSystem:
 
         return True, ""
 
-    def check_stop_loss(self, order: Dict[str, Any]) -> Tuple[bool, str]:
+    def check_stop_loss(self, order: dict[str, Any]) -> tuple[bool, str]:
         """Validate stop loss is present."""
         if "stop_loss" not in order or order["stop_loss"] is None:
             return False, "Stop loss is mandatory"
@@ -75,7 +76,7 @@ class GuardrailSystem:
 
         return True, ""
 
-    def check_risk_reward(self, order: Dict[str, Any]) -> Tuple[bool, str]:
+    def check_risk_reward(self, order: dict[str, Any]) -> tuple[bool, str]:
         """Validate risk-reward ratio.
 
         Grid and other strategies may omit take_profit (None) when exits are managed
@@ -97,7 +98,7 @@ class GuardrailSystem:
 
         return True, ""
 
-    def check_market_conditions(self, order: Dict[str, Any]) -> Tuple[bool, str]:
+    def check_market_conditions(self, order: dict[str, Any]) -> tuple[bool, str]:
         """Reject orders when market conditions make trading unsafe.
 
         Reads optional ``market_context`` dict attached to the order by the

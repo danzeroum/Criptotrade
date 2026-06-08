@@ -11,8 +11,8 @@ fades the extreme, not the trend."
 """
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
 import logging
+from typing import Any
 
 from .base_strategy import BaseStrategy
 
@@ -34,7 +34,7 @@ class MeanReversionStrategy(BaseStrategy):
         self.risk_reward = risk_reward_ratio
         self.atr_mult = atr_stop_multiplier
 
-    async def analyze(self, market_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def analyze(self, market_data: dict[str, Any]) -> dict[str, Any]:
         """Check for mean reversion entry conditions."""
         indicators = market_data.get("indicators")
         current_price = float(market_data.get("current_price", 0.0))
@@ -60,7 +60,10 @@ class MeanReversionStrategy(BaseStrategy):
         ):
             stop_loss = round(current_price - self.atr_mult * atr, 2)
             risk = current_price - stop_loss
-            take_profit = round(bb_middle, 2) if bb_middle else round(current_price + self.risk_reward * risk, 2)
+            take_profit = (
+                round(bb_middle, 2) if bb_middle
+                else round(current_price + self.risk_reward * risk, 2)
+            )
             confidence = self._confidence(rsi, "long", indicators)
             return {
                 "action": "buy",
@@ -83,7 +86,10 @@ class MeanReversionStrategy(BaseStrategy):
         ):
             stop_loss = round(current_price + self.atr_mult * atr, 2)
             risk = stop_loss - current_price
-            take_profit = round(bb_middle, 2) if bb_middle else round(current_price - self.risk_reward * risk, 2)
+            take_profit = (
+                round(bb_middle, 2) if bb_middle
+                else round(current_price - self.risk_reward * risk, 2)
+            )
             confidence = self._confidence(rsi, "short", indicators)
             return {
                 "action": "sell",
@@ -105,7 +111,7 @@ class MeanReversionStrategy(BaseStrategy):
         )
 
     def _confidence(
-        self, rsi: Optional[float], direction: str, indicators: Any
+        self, rsi: float | None, direction: str, indicators: Any
     ) -> float:
         score = 0.60   # base: two conditions already confirmed (RSI + BB)
 
@@ -134,10 +140,10 @@ class MeanReversionStrategy(BaseStrategy):
         return min(round(score, 4), 0.92)
 
     @staticmethod
-    def _hold(reason: str) -> Dict[str, Any]:
+    def _hold(reason: str) -> dict[str, Any]:
         return {"action": "hold", "confidence": 0.05, "reason": reason}
 
-    def get_parameters(self) -> Dict[str, Any]:
+    def get_parameters(self) -> dict[str, Any]:
         return {
             "name": "Mean Reversion",
             "risk_profile": "medium",

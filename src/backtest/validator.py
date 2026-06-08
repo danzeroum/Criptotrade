@@ -10,10 +10,9 @@ in-sample Sharpe across windows, the in-sample results are suspect."
 """
 from __future__ import annotations
 
-import asyncio
 import logging
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import Any
 
 from .engine import BacktestEngine, BacktestResult
 
@@ -38,12 +37,12 @@ class WindowResult:
 class WalkForwardResult:
     n_windows: int
     valid: bool           # False when Sharpe deviation is too high
-    sharpe_deviation: Optional[float]
-    avg_out_of_sample_sharpe: Optional[float]
-    avg_in_sample_sharpe: Optional[float]
+    sharpe_deviation: float | None
+    avg_out_of_sample_sharpe: float | None
+    avg_in_sample_sharpe: float | None
     total_out_of_sample_trades: int
     out_of_sample_win_rate: float
-    window_results: List[WindowResult] = field(default_factory=list)
+    window_results: list[WindowResult] = field(default_factory=list)
     rejection_reason: str = ""
 
 

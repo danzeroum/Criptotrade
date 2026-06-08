@@ -1,14 +1,14 @@
 """Strategy agent for generating trading signals."""
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
 import logging
+from typing import Any
 
 from src.agents.base_agent import BaseAgent
-from src.analysis.indicators import TechnicalAnalyzer, DivergenceDetector
+from src.analysis.indicators import DivergenceDetector, TechnicalAnalyzer
+from src.analysis.regime_detector import detect_market_extreme, detect_regime, strategies_for_regime
 from src.analysis.support_resistance import SupportResistanceDetector
 from src.analysis.volume_profile import VolumeProfile
-from src.analysis.regime_detector import detect_regime, strategies_for_regime, detect_market_extreme
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +28,11 @@ class StrategyAgent(BaseAgent):
         self._sr_detector = SupportResistanceDetector()
         self._div_detector = DivergenceDetector()
         # Strategy instances loaded lazily to avoid circular imports
-        self._strategy_cache: Dict[str, Any] = {}
+        self._strategy_cache: dict[str, Any] = {}
 
     # ---------------------------------------------------------------------- public
 
-    async def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(self, task: dict[str, Any]) -> dict[str, Any]:
         """Analyze market and generate a trading signal."""
         if not self.validate_input(task):
             raise ValueError("Invalid strategy task")
@@ -70,7 +70,7 @@ class StrategyAgent(BaseAgent):
 
     # ------------------------------------------------------------------- analysis
 
-    async def _analyze_market(self, symbol: str, timeframe: str) -> Dict[str, Any]:
+    async def _analyze_market(self, symbol: str, timeframe: str) -> dict[str, Any]:
         """Fetch OHLCV and compute full technical analysis."""
         # Fallback if no exchange client is attached (unit tests)
         if self.exchange_client is None:
@@ -94,7 +94,7 @@ class StrategyAgent(BaseAgent):
         # 2. Support / Resistance + Fibonacci
         sr_levels = self._sr_detector.detect(ohlcv)
         current_price = indicators.current_price or float(ohlcv[-1][4])
-        fib_levels: Dict[str, float] = {}
+        fib_levels: dict[str, float] = {}
         if sr_levels.support and sr_levels.resistance:
             fib_levels = SupportResistanceDetector.fibonacci_levels(
                 sr_levels.support, sr_levels.resistance
@@ -148,8 +148,8 @@ class StrategyAgent(BaseAgent):
     # ------------------------------------------------------------------- signal
 
     async def _generate_signal(
-        self, analysis: Dict[str, Any]
-    ) -> tuple[Dict[str, Any], Optional[float]]:
+        self, analysis: dict[str, Any]
+    ) -> tuple[dict[str, Any], float | None]:
         """Delegate signal generation to the appropriate strategy.
 
         Returns (signal_dict, strategy_raw_confidence).
@@ -189,7 +189,9 @@ class StrategyAgent(BaseAgent):
             "action": action,
             "entry_price": analysis.get("current_price", 0.0),
             "stop_loss": signal_data.get("stop_loss") if isinstance(signal_data, dict) else None,
-            "take_profit": signal_data.get("take_profit") if isinstance(signal_data, dict) else None,
+            "take_profit": (
+                signal_data.get("take_profit") if isinstance(signal_data, dict) else None
+            ),
             # Use per-order position size (not total across all DCA entries)
             "position_size_pct": signal_data.get("position_size_pct", 2.0)
             if isinstance(signal_data, dict)
@@ -208,7 +210,7 @@ class StrategyAgent(BaseAgent):
     # ---------------------------------------------------------------- confidence
 
     def _calculate_confidence(
-        self, analysis: Dict[str, Any], signal: Dict[str, Any]
+        self, analysis: dict[str, Any], signal: dict[str, Any]
     ) -> float:
         """Multi-factor confidence score.
 
@@ -296,7 +298,7 @@ class StrategyAgent(BaseAgent):
 
     # ------------------------------------------------------------------ helpers
 
-    def _build_market_data(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
+    def _build_market_data(self, analysis: dict[str, Any]) -> dict[str, Any]:
         """Build the market_data dict that strategies expect."""
         ind = analysis.get("indicators")
         ohlcv = analysis.get("_ohlcv", [])
@@ -325,7 +327,7 @@ class StrategyAgent(BaseAgent):
             "_raw_ohlcv": ohlcv,
         }
 
-    def _get_strategy(self, key: str) -> Optional[Any]:
+    def _get_strategy(self, key: str) -> Any | None:
         """Lazily load and cache a strategy instance."""
         if key in self._strategy_cache:
             return self._strategy_cache[key]
@@ -343,7 +345,7 @@ class StrategyAgent(BaseAgent):
             return None
 
     @staticmethod
-    def _stub_analysis(symbol: str, timeframe: str) -> Dict[str, Any]:
+    def _stub_analysis(symbol: str, timeframe: str) -> dict[str, Any]:
         """Minimal analysis when exchange data is unavailable."""
         return {
             "symbol": symbol,
@@ -363,7 +365,7 @@ class StrategyAgent(BaseAgent):
         }
 
     @staticmethod
-    def _sanitize_for_log(analysis: Dict[str, Any]) -> Dict[str, Any]:
+    def _sanitize_for_log(analysis: dict[str, Any]) -> dict[str, Any]:
         """Remove large objects before logging."""
         sanitized = dict(analysis)
         sanitized.pop("_ohlcv", None)
@@ -377,7 +379,7 @@ class StrategyAgent(BaseAgent):
         return sanitized
 
     def _explain_reasoning(
-        self, analysis: Dict[str, Any], signal: Dict[str, Any]
+        self, analysis: dict[str, Any], signal: dict[str, Any]
     ) -> str:
         ind = analysis.get("indicators")
         regime = analysis.get("regime", "unknown")

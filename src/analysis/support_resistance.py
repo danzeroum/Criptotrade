@@ -5,9 +5,8 @@ Also computes Fibonacci retracement levels for price targets.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import List, Optional
 import logging
+from dataclasses import dataclass, field
 
 import numpy as np
 
@@ -26,9 +25,9 @@ class SRLevel:
 @dataclass
 class SRLevels:
     """Result of support/resistance detection."""
-    support: Optional[float]
-    resistance: Optional[float]
-    zones: List[SRLevel] = field(default_factory=list)
+    support: float | None
+    resistance: float | None
+    zones: list[SRLevel] = field(default_factory=list)
 
 
 class SupportResistanceDetector:
@@ -83,8 +82,12 @@ class SupportResistanceDetector:
         supports_below = [z for z in support_zones if z.price < current_price]
         resistances_above = [z for z in resistance_zones if z.price > current_price]
 
-        nearest_support = max(supports_below, key=lambda z: z.price).price if supports_below else None
-        nearest_resistance = min(resistances_above, key=lambda z: z.price).price if resistances_above else None
+        nearest_support = (
+            max(supports_below, key=lambda z: z.price).price if supports_below else None
+        )
+        nearest_resistance = (
+            min(resistances_above, key=lambda z: z.price).price if resistances_above else None
+        )
 
         # Fallback when no pivot-based levels are found: use the N-candle price range.
         # This happens in very flat / low-volatility markets where no strict pivot
@@ -100,7 +103,7 @@ class SupportResistanceDetector:
             zones=all_zones[:6],   # top 6 by strength
         )
 
-    def _find_pivots(self, values: np.ndarray, higher: bool) -> List[int]:
+    def _find_pivots(self, values: np.ndarray, higher: bool) -> list[int]:
         """Return indices of pivot highs (higher=True) or pivot lows (higher=False)."""
         n = len(values)
         pivots = []
@@ -114,13 +117,13 @@ class SupportResistanceDetector:
         return pivots
 
     def _cluster(
-        self, levels: List[float], kind: str, ref_price: float
-    ) -> List[SRLevel]:
+        self, levels: list[float], kind: str, ref_price: float
+    ) -> list[SRLevel]:
         """Group nearby levels into zones."""
         if not levels:
             return []
         levels_sorted = sorted(levels)
-        clusters: List[List[float]] = [[levels_sorted[0]]]
+        clusters: list[list[float]] = [[levels_sorted[0]]]
         for price in levels_sorted[1:]:
             tol = clusters[-1][-1] * self.tolerance_pct
             if price - clusters[-1][-1] <= tol:

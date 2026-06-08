@@ -1,9 +1,10 @@
 """Orchestrator for multi-agent trading operations."""
 from __future__ import annotations
 
-import time
-from typing import Any, Awaitable, Callable, Dict, Optional
 import logging
+import time
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from src.agents.execution_agent import ExecutionAgent
 from src.agents.risk_agent import RiskAgent
@@ -27,9 +28,9 @@ class CircuitBreaker:
     CONSECUTIVE_LOSS_LIMIT: int = 3
     COOLDOWN_SECONDS: float = 24 * 3600
 
-    def __init__(self, ledger: Optional[TradingLedger] = None) -> None:
+    def __init__(self, ledger: TradingLedger | None = None) -> None:
         self._ledger = ledger
-        self._tripped_at: Optional[float] = None
+        self._tripped_at: float | None = None
         self._consecutive_losses: int = 0
         self._daily_loss_pct: float = 0.0
 
@@ -59,7 +60,8 @@ class CircuitBreaker:
             )
         elif self._consecutive_losses >= self.CONSECUTIVE_LOSS_LIMIT:
             self._trip(
-                f"{self._consecutive_losses} consecutive losses reached limit {self.CONSECUTIVE_LOSS_LIMIT}"
+                f"{self._consecutive_losses} consecutive losses"
+                f" reached limit {self.CONSECUTIVE_LOSS_LIMIT}"
             )
 
     def reset_daily(self) -> None:
@@ -99,11 +101,11 @@ class SquadOrchestrator:
     def __init__(
         self,
         exchange_client: Any,
-        approval_handler: Optional[Callable[[Dict[str, Any]], Awaitable[bool]]] = None,
+        approval_handler: Callable[[dict[str, Any]], Awaitable[bool]] | None = None,
         initial_capital: float = 10_000.0,
-        alert_store: Optional[AlertStore] = None,
-        alert_bus: Optional[AlertBus] = None,
-        fill_callback: Optional[Callable[[str], Any]] = None,
+        alert_store: AlertStore | None = None,
+        alert_bus: AlertBus | None = None,
+        fill_callback: Callable[[str], Any] | None = None,
     ) -> None:
         self.strategy_agent = StrategyAgent(exchange_client=exchange_client)
         self.risk_agent = RiskAgent()
@@ -120,14 +122,14 @@ class SquadOrchestrator:
         # Called with the approved order id after a successful execution, so the
         # OrderStore order completes approved -> filled (the manual HITL path).
         self.fill_callback = fill_callback
-        self._last_order_ref: Optional[str] = None
+        self._last_order_ref: str | None = None
         # Wire the RiskAgent's guardrails to publish each violation as an alert.
         if alert_store is not None:
             from src.core.alerts import make_guardrail_sink
 
             self.risk_agent.guardrails.alert_sink = make_guardrail_sink(alert_store)
 
-    async def _request_human_approval(self, order: Dict[str, Any]) -> bool:
+    async def _request_human_approval(self, order: dict[str, Any]) -> bool:
         """Request real human approval. Fail-closed: deny when no handler is configured."""
         if self.approval_handler is None:
             self._last_order_ref = None
@@ -139,7 +141,7 @@ class SquadOrchestrator:
         self._last_order_ref = result if isinstance(result, str) else None
         return bool(result)
 
-    async def analyze_and_trade(self, symbol: str, timeframe: str = "1h") -> Dict[str, Any]:
+    async def analyze_and_trade(self, symbol: str, timeframe: str = "1h") -> dict[str, Any]:
         """Full trading pipeline with agent collaboration."""
         if self.circuit_breaker.is_open:
             logger.warning("Circuit breaker is OPEN — skipping trade cycle for %s", symbol)
@@ -212,7 +214,9 @@ class SquadOrchestrator:
                 try:
                     self.fill_callback(self._last_order_ref)
                 except Exception:  # pragma: no cover - never break a completed trade
-                    logger.warning("fill_callback failed for %s", self._last_order_ref, exc_info=True)
+                    logger.warning(
+                        "fill_callback failed for %s", self._last_order_ref, exc_info=True
+                    )
 
         # TODO(5b): reset self._last_order_ref = None here so a stale id from this
         # cycle can never leak into the next. Risk is low today (fill_callback only
@@ -224,7 +228,7 @@ class SquadOrchestrator:
             "confidence": strategy_result["confidence"],
         }
 
-    def _log_fill(self, symbol: str, signal: Dict[str, Any], execution: Dict[str, Any]) -> None:
+    def _log_fill(self, symbol: str, signal: dict[str, Any], execution: dict[str, Any]) -> None:
         """Record the economic facts of a fill so metrics can value the position.
 
         Quantity is derived from the signal's ``position_size_pct`` and the

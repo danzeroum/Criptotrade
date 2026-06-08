@@ -10,8 +10,8 @@ Murphy: "Markets spend 70-80% of their time in trading ranges."
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
 import logging
+from typing import Any
 
 from .base_strategy import BaseStrategy
 
@@ -38,7 +38,7 @@ class GridTradingStrategy(BaseStrategy):
         self.total_size_pct = total_size_pct / 100.0
         self.size_per_level = self.total_size_pct / (grid_levels * 2)
 
-    async def analyze(self, market_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def analyze(self, market_data: dict[str, Any]) -> dict[str, Any]:
         """Generate a grid setup signal if market conditions are suitable."""
         indicators = market_data.get("indicators")
         current_price = float(market_data.get("current_price", 0.0))
@@ -62,7 +62,7 @@ class GridTradingStrategy(BaseStrategy):
 
         # Determine directional bias from Volume Profile POC
         vp = market_data.get("volume_profile")
-        direction: Optional[str] = None
+        direction: str | None = None
         if vp and vp.poc:
             direction = "long" if current_price < vp.poc else "short"
         else:
@@ -101,7 +101,7 @@ class GridTradingStrategy(BaseStrategy):
             ),
         }
 
-    def _build_grid(self, center: float) -> tuple[List[float], List[float]]:
+    def _build_grid(self, center: float) -> tuple[list[float], list[float]]:
         """Return sorted lists of buy and sell grid prices around center."""
         buy_levels = [
             round(center * (1 - (i + 1) * self.grid_spacing_pct), 2)
@@ -130,10 +130,10 @@ class GridTradingStrategy(BaseStrategy):
         return min(score, 0.85)
 
     @staticmethod
-    def _hold(reason: str) -> Dict[str, Any]:
+    def _hold(reason: str) -> dict[str, Any]:
         return {"action": "hold", "confidence": 0.05, "reason": reason}
 
-    def get_parameters(self) -> Dict[str, Any]:
+    def get_parameters(self) -> dict[str, Any]:
         return {
             "name": "Grid Trading",
             "risk_profile": "medium",

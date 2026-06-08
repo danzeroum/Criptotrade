@@ -6,9 +6,8 @@ LVN (Low Volume Nodes): price levels with unusually low volume (gaps).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import List
 import logging
+from dataclasses import dataclass, field
 
 import numpy as np
 
@@ -21,7 +20,7 @@ class VolumeProfileResult:
     poc: float                          # Point of Control price
     value_area_high: float             # Top of 70% value area
     value_area_low: float              # Bottom of 70% value area
-    low_volume_nodes: List[float] = field(default_factory=list)   # LVN prices
+    low_volume_nodes: list[float] = field(default_factory=list)   # LVN prices
 
 
 class VolumeProfile:
@@ -48,7 +47,6 @@ class VolumeProfile:
             return VolumeProfileResult(poc=price, value_area_high=price, value_area_low=price)
 
         closes = np.array([c[4] for c in self._ohlcv], dtype=float)
-        volumes = np.array([c[5] for c in self._ohlcv], dtype=float)
         highs = np.array([c[2] for c in self._ohlcv], dtype=float)
         lows = np.array([c[3] for c in self._ohlcv], dtype=float)
 
@@ -77,7 +75,9 @@ class VolumeProfile:
         # Value Area: accumulate 70% of total volume starting from POC outward
         total_vol = float(bin_volume.sum())
         if total_vol == 0:
-            return VolumeProfileResult(poc=poc_price, value_area_high=poc_price, value_area_low=poc_price)
+            return VolumeProfileResult(
+                poc=poc_price, value_area_high=poc_price, value_area_low=poc_price
+            )
 
         target = 0.70 * total_vol
         accumulated = float(bin_volume[poc_bin])

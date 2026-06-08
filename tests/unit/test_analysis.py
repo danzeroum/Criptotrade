@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import math
+
 import pytest
 
-from src.analysis.indicators import TechnicalAnalyzer, TechnicalIndicators, DivergenceDetector
+from src.analysis.indicators import DivergenceDetector, TechnicalAnalyzer, TechnicalIndicators
+from src.analysis.regime_detector import detect_market_extreme, detect_regime, strategies_for_regime
 from src.analysis.support_resistance import SupportResistanceDetector
 from src.analysis.volume_profile import VolumeProfile
-from src.analysis.regime_detector import detect_regime, detect_market_extreme, strategies_for_regime
-
 
 # ---------------------------------------------------------------------------
 # Helpers

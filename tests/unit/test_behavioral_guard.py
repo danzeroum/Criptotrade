@@ -2,11 +2,9 @@
 from __future__ import annotations
 
 import math
-import pytest
 
 from src.agents.behavioral_guard import BehavioralGuard
 from src.analysis.pattern_scanner import PatternScanner
-
 
 # ---------------------------------------------------------------------------
 # Helpers

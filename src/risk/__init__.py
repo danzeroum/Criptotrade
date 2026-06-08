@@ -1,6 +1,6 @@
 """Risk management package."""
-from .position_sizing import KellyCriterion, PositionSizer, risk_of_ruin
 from .capital_protections import CapitalProtections, DrawdownStatus
+from .position_sizing import KellyCriterion, PositionSizer, risk_of_ruin
 
 __all__ = [
     "KellyCriterion",

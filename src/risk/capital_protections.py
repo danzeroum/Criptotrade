@@ -8,7 +8,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +44,9 @@ class CapitalProtections:
 
     def check(
         self,
-        daily_pnl_pct: Optional[float] = None,
-        weekly_pnl_pct: Optional[float] = None,
-        monthly_pnl_pct: Optional[float] = None,
+        daily_pnl_pct: float | None = None,
+        weekly_pnl_pct: float | None = None,
+        monthly_pnl_pct: float | None = None,
     ) -> ProtectionResult:
         """Return the most severe protection triggered.
 

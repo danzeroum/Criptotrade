@@ -8,9 +8,7 @@ References:
 from __future__ import annotations
 
 import logging
-import math
 from dataclasses import dataclass
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +66,7 @@ class KellyCriterion:
     capital: float = 10_000.0
     n_trades: int = 0
 
-    def full_kelly(self) -> Optional[float]:
+    def full_kelly(self) -> float | None:
         """Full Kelly fraction f* = (p*b - q) / b.
 
         b = avg_win / avg_loss (win-to-loss ratio)
@@ -121,7 +119,7 @@ class PositionSizer:
         self,
         capital: float = 10_000.0,
         default_risk_pct: float = 1.0,
-        kelly: Optional[KellyCriterion] = None,
+        kelly: KellyCriterion | None = None,
     ) -> None:
         self.capital = capital
         self.default_risk_pct = default_risk_pct
@@ -132,7 +130,7 @@ class PositionSizer:
         entry_price: float,
         stop_price: float,
         *,
-        capital_override: Optional[float] = None,
+        capital_override: float | None = None,
     ) -> float:
         """Return position size as a percentage of capital.
 

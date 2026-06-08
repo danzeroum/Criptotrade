@@ -12,12 +12,11 @@ measurable improvement of trading discipline.
 from __future__ import annotations
 
 import json
-import os
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Dict, List, Optional
 import logging
+import os
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +33,7 @@ class TradeEntry:
     symbol: str
     action: str          # "BUY" | "SELL"
     entry_price: float
-    entry_time: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    entry_time: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     # Setup — what did the analysis say?
     setup: str = ""           # e.g. "Grid long in sideways regime, RSI 47, near S1"
@@ -47,13 +46,13 @@ class TradeEntry:
     plan_text: str = ""               # written plan before entry
 
     # Outcome — filled on close
-    exit_price: Optional[float] = None
-    exit_time: Optional[str] = None
-    pnl_usdt: Optional[float] = None
-    pnl_pct: Optional[float] = None
-    plan_followed: Optional[bool] = None   # was the written plan executed?
+    exit_price: float | None = None
+    exit_time: str | None = None
+    pnl_usdt: float | None = None
+    pnl_pct: float | None = None
+    plan_followed: bool | None = None   # was the written plan executed?
     plan_deviation_note: str = ""          # free text when plan_followed=False
-    emotional_state_after: Optional[int] = None  # 1-10 after seeing result
+    emotional_state_after: int | None = None  # 1-10 after seeing result
 
     def is_closed(self) -> bool:
         return self.exit_price is not None
@@ -64,10 +63,10 @@ class TradeEntry:
         *,
         plan_followed: bool = True,
         deviation_note: str = "",
-        emotional_after: Optional[int] = None,
+        emotional_after: int | None = None,
     ) -> None:
         self.exit_price = exit_price
-        self.exit_time = datetime.now(timezone.utc).isoformat()
+        self.exit_time = datetime.now(UTC).isoformat()
         if self.entry_price > 0:
             if self.action == "BUY":
                 self.pnl_pct = (exit_price - self.entry_price) / self.entry_price
@@ -86,11 +85,11 @@ class JournalStats:
     win_rate: float              # 0-1
     avg_pnl_pct: float
     # Douglas metrics
-    avg_pnl_when_plan_followed: Optional[float]
-    avg_pnl_when_plan_deviated: Optional[float]
-    plan_follow_rate: Optional[float]     # fraction of trades where plan was followed
-    avg_emotional_state_before_wins: Optional[float]
-    avg_emotional_state_before_losses: Optional[float]
+    avg_pnl_when_plan_followed: float | None
+    avg_pnl_when_plan_deviated: float | None
+    plan_follow_rate: float | None     # fraction of trades where plan was followed
+    avg_emotional_state_before_wins: float | None
+    avg_emotional_state_before_losses: float | None
     # Financial
     expectancy_usdt: float       # expected $ per trade
 
@@ -103,11 +102,11 @@ class TradeJournal:
             ``./data/trade_journal.json`` or the ``JOURNAL_PATH`` env var.
     """
 
-    def __init__(self, journal_path: Optional[str] = None) -> None:
+    def __init__(self, journal_path: str | None = None) -> None:
         path_str = journal_path or os.getenv("JOURNAL_PATH", "data/trade_journal.json")
         self._path = Path(path_str)
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._entries: Dict[str, TradeEntry] = {}
+        self._entries: dict[str, TradeEntry] = {}
         self._load()
 
     # ------------------------------------------------------------------ public
@@ -116,7 +115,10 @@ class TradeJournal:
         """Record a new trade entry."""
         self._entries[entry.order_id] = entry
         self._save()
-        logger.info("Journal: recorded entry %s %s @ %.2f", entry.order_id, entry.symbol, entry.entry_price)
+        logger.info(
+            "Journal: recorded entry %s %s @ %.2f",
+            entry.order_id, entry.symbol, entry.entry_price,
+        )
 
     def close_trade(
         self,
@@ -125,8 +127,8 @@ class TradeJournal:
         *,
         plan_followed: bool = True,
         deviation_note: str = "",
-        emotional_after: Optional[int] = None,
-    ) -> Optional[TradeEntry]:
+        emotional_after: int | None = None,
+    ) -> TradeEntry | None:
         """Close an open trade and save the outcome."""
         entry = self._entries.get(order_id)
         if entry is None:
@@ -142,16 +144,16 @@ class TradeJournal:
         )
         return entry
 
-    def get_entry(self, order_id: str) -> Optional[TradeEntry]:
+    def get_entry(self, order_id: str) -> TradeEntry | None:
         return self._entries.get(order_id)
 
-    def all_entries(self) -> List[TradeEntry]:
+    def all_entries(self) -> list[TradeEntry]:
         return list(self._entries.values())
 
-    def closed_entries(self) -> List[TradeEntry]:
+    def closed_entries(self) -> list[TradeEntry]:
         return [e for e in self._entries.values() if e.is_closed()]
 
-    def open_entries(self) -> List[TradeEntry]:
+    def open_entries(self) -> list[TradeEntry]:
         return [e for e in self._entries.values() if not e.is_closed()]
 
     def stats(self) -> JournalStats:
@@ -197,7 +199,7 @@ class TradeJournal:
         if not self._path.exists():
             return
         try:
-            with open(self._path, "r", encoding="utf-8") as f:
+            with open(self._path, encoding="utf-8") as f:
                 raw = json.load(f)
             for oid, data in raw.items():
                 self._entries[oid] = TradeEntry(**data)
@@ -217,11 +219,11 @@ class TradeJournal:
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _mean_pnl(entries: List[TradeEntry]) -> float:
+def _mean_pnl(entries: list[TradeEntry]) -> float:
     vals = [e.pnl_pct or 0 for e in entries]
     return sum(vals) / len(vals) if vals else 0.0
 
 
-def _mean_emotional(entries: List[TradeEntry]) -> Optional[float]:
+def _mean_emotional(entries: list[TradeEntry]) -> float | None:
     vals = [e.emotional_state_before for e in entries if e.emotional_state_before is not None]
     return sum(vals) / len(vals) if vals else None

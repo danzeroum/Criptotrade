@@ -1,8 +1,8 @@
 """Technical analysis modules for trading signal generation."""
-from .indicators import TechnicalAnalyzer, TechnicalIndicators, DivergenceDetector
-from .support_resistance import SupportResistanceDetector, SRLevels, SRLevel
+from .indicators import DivergenceDetector, TechnicalAnalyzer, TechnicalIndicators
+from .pattern_scanner import PatternResult, PatternScanner
+from .support_resistance import SRLevel, SRLevels, SupportResistanceDetector
 from .volume_profile import VolumeProfile, VolumeProfileResult
-from .pattern_scanner import PatternScanner, PatternResult
 
 __all__ = [
     "TechnicalAnalyzer",

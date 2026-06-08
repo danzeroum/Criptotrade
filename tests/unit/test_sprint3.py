@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import math
+
 import pytest
 
-from src.journal.trade_journal import TradeJournal, TradeEntry, JournalStats
-from src.backtest.engine import BacktestEngine, BacktestResult
+from src.backtest.engine import BacktestEngine
 from src.backtest.monte_carlo import MonteCarloSimulator
 from src.backtest.validator import WalkForwardValidator
-
+from src.journal.trade_journal import TradeEntry, TradeJournal
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -189,7 +189,11 @@ class TestMonteCarlo:
         mc = MonteCarloSimulator(n_simulations=500, random_seed=7)
         trades = [0.01, -0.005, 0.02, -0.01, 0.015] * 10
         result = mc.simulate(trades)
-        assert result.percentile_5_pnl_pct <= result.median_final_pnl_pct <= result.percentile_95_pnl_pct
+        assert (
+            result.percentile_5_pnl_pct
+            <= result.median_final_pnl_pct
+            <= result.percentile_95_pnl_pct
+        )
 
     def test_pct_profitable_range(self):
         mc = MonteCarloSimulator(n_simulations=100, random_seed=1)
@@ -212,7 +216,10 @@ class TestWalkForwardValidator:
         validator = WalkForwardValidator(window_size=252, test_size=63, min_windows=3)
         result = await validator.validate(_AlwaysBuyStrategy(), _make_ohlcv(100))
         assert result.valid is False
-        assert "windows" in result.rejection_reason.lower() or "candles" in result.rejection_reason.lower()
+        assert (
+            "windows" in result.rejection_reason.lower()
+            or "candles" in result.rejection_reason.lower()
+        )
 
     @pytest.mark.asyncio
     async def test_enough_data_runs_windows(self):

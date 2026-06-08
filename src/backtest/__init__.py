@@ -1,7 +1,7 @@
 """Backtesting package."""
 from .engine import BacktestEngine, BacktestResult, BacktestTrade
-from .monte_carlo import MonteCarloSimulator, MonteCarloResult
-from .validator import WalkForwardValidator, WalkForwardResult
+from .monte_carlo import MonteCarloResult, MonteCarloSimulator
+from .validator import WalkForwardResult, WalkForwardValidator
 
 __all__ = [
     "BacktestEngine",
