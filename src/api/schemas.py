@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Generic, List, Optional, TypeVar
+from typing import Any, Dict, Generic, List, Optional, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -163,6 +163,12 @@ class AgentStatusOut(BaseModel):
     last_action_at: Optional[str] = None
 
 
+class AgentConfigOut(AgentStatusOut):
+    """Full agent detail including all static configurable parameters."""
+
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+
 # ----------------------------------------------------------------- process log
 class ProcessEventOut(BaseModel):
     case_id: str
@@ -198,6 +204,7 @@ __all__ = [
     "OrderDecisionPatch",
     "OrderOut",
     "AgentStatusOut",
+    "AgentConfigOut",
     "ProcessEventOut",
     "AlertOut",
 ]

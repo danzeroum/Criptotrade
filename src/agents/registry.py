@@ -51,6 +51,78 @@ AGENT_REGISTRY: Dict[str, AgentInfo] = {
     ]
 }
 
+# Static parameter catalog — mirrors constructor defaults from each agent module.
+# Values here are the authoritative source for API and dashboard display.
+# Edit here when a default changes in the agent source; do not add runtime mutation.
+AGENT_PARAMS: Dict[str, Dict[str, Any]] = {
+    "strategy": {
+        "confidence_threshold": 0.6,
+        "tools": ["market_data", "technical_indicators", "pattern_recognition"],
+        "active_strategies": [],
+        "reasoning_pattern": "chain_of_thought",
+        "autonomy_level": 2,
+    },
+    "risk": {
+        "confidence_threshold": 0.6,
+        "tools": ["portfolio_analyzer", "risk_calculator"],
+        "max_position_size_pct": 5.0,
+        "stop_loss_pct": 3.0,
+        "max_daily_loss_pct": 5.0,
+        "min_risk_reward_ratio": 2.5,
+        "reasoning_pattern": "reflection",
+        "autonomy_level": 3,
+    },
+    "execution": {
+        "confidence_threshold": 0.6,
+        "tools": ["place_order", "cancel_order", "get_order_status"],
+        "paper_trading": True,
+        "reasoning_pattern": "react",
+        "autonomy_level": 1,
+    },
+    "supervisor": {
+        "tools": [],
+        "reasoning_pattern": "multi_agent",
+        "autonomy_level": 2,
+    },
+    "architect": {
+        "confidence_threshold": 0.6,
+        "tools": ["analyze_architecture", "generate_adr"],
+        "reasoning_pattern": "chain_of_thought",
+        "autonomy_level": 2,
+    },
+    "auditor": {
+        "confidence_threshold": 0.6,
+        "tools": ["security_scan", "quality_check"],
+        "complexity_threshold": 10,
+        "min_coverage_pct": 80,
+        "reasoning_pattern": "reflection",
+        "autonomy_level": 2,
+    },
+    "designer": {
+        "confidence_threshold": 0.6,
+        "tools": ["design_mock", "accessibility_review"],
+        "design_patterns": ["material", "fluent", "carbon"],
+        "reasoning_pattern": "pattern_synthesis",
+        "autonomy_level": 2,
+    },
+    "developer": {
+        "confidence_threshold": 0.6,
+        "tools": ["write_code", "generate_tests", "refactor", "debug", "analyze_requirements"],
+        "max_iterations": 5,
+        "reasoning_pattern": "react",
+        "autonomy_level": 2,
+    },
+    "ops": {
+        "confidence_threshold": 0.6,
+        "tools": ["deploy_service", "configure_monitoring"],
+        "deployment_strategies": ["blue-green", "canary", "rolling"],
+        "reasoning_pattern": "pragmatic_planning",
+        "autonomy_level": 2,
+    },
+    "recovery": {},
+    "exploration": {},
+}
+
 
 def _utc_day_start() -> str:
     """ISO-8601 timestamp for 00:00:00 UTC today (lexicographically comparable)."""
@@ -149,11 +221,12 @@ class AgentRegistry:
             "status": "idle" if info.implemented else "not_implemented",
             "cycles": self.cycles_today(agent_id),
             "last_action_at": self._last_action_at(agent_id),
+            "params": AGENT_PARAMS.get(agent_id, {}),
         }
 
     def all_statuses(self) -> List[Dict[str, Any]]:
         return [self.status(a) for a in self.list_ids()]
 
 
-__all__ = ["AgentInfo", "AGENT_REGISTRY", "AgentRegistry"]
+__all__ = ["AgentInfo", "AGENT_REGISTRY", "AGENT_PARAMS", "AgentRegistry"]
 

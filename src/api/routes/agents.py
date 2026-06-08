@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 
 from src.agents.registry import AgentRegistry
 from src.api.deps import get_agent_registry
-from src.api.schemas import AgentStatusOut, APIResponse
+from src.api.schemas import AgentConfigOut, AgentStatusOut, APIResponse
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -25,6 +25,28 @@ async def list_agents(
     registry: AgentRegistry = Depends(get_agent_registry),
 ) -> APIResponse[List[AgentStatusOut]]:
     return APIResponse(data=[AgentStatusOut(**s) for s in registry.all_statuses()])
+
+
+@router.get(
+    "/{agent_id}/config",
+    response_model=APIResponse[AgentConfigOut],
+    summary="Configuração completa de um agente (parâmetros estáticos; funciona para stubs)",
+)
+async def get_agent_config(
+    agent_id: str = Path(...),
+    registry: AgentRegistry = Depends(get_agent_registry),
+) -> APIResponse[AgentConfigOut]:
+    info = registry.get(agent_id)
+    if info is None:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "agent_not_found",
+                "message": f"Agente '{agent_id}' não existe.",
+                "available_agents": registry.list_ids(),
+            },
+        )
+    return APIResponse(data=AgentConfigOut(**registry.status(agent_id)))
 
 
 @router.get(

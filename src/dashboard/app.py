@@ -182,15 +182,32 @@ st.divider()
 st.subheader("🤖 Agentes")
 agents, agents_err = _get("/v1/agents")
 _AGENT_ICON = {"idle": "🟢", "active": "🟢", "error": "🔴", "not_implemented": "⚪"}
+_DOMAIN_LABEL = {
+    "trading": "💹 trading",
+    "engineering": "🔧 engineering",
+    "orchestration": "🎯 orchestration",
+    "security": "🛡️ security",
+}
+
 if agents_err:
     st.warning(f"Não foi possível carregar agentes ({agents_err}).")
 elif agents and agents["data"]:
+    # Fetch full config (params) for each agent upfront to avoid N+1 inside expanders.
+    configs: dict = {}
+    for a in agents["data"]:
+        cfg, _ = _get(f"/v1/agents/{a['id']}/config")
+        if cfg and cfg.get("data"):
+            configs[a["id"]] = cfg["data"]
+
+    # Summary dataframe — one row per agent, all visible including stubs.
     st.dataframe(
         [
             {
                 "Agente": a["id"],
-                "Domínio": a["domain"],
+                "Descrição": a["description"],
+                "Domínio": _DOMAIN_LABEL.get(a["domain"], a["domain"]),
                 "Status": f"{_AGENT_ICON.get(a['status'], '⬜')} {a['status']}",
+                "Implementado": "✅" if a["implemented"] else "❌ stub",
                 "Ciclos (hoje)": a["cycles"],
                 "Última ação": a["last_action_at"] or "—",
             }
@@ -199,6 +216,57 @@ elif agents and agents["data"]:
         hide_index=True,
         use_container_width=True,
     )
+
+    # Per-agent detail expanders.
+    for a in agents["data"]:
+        icon = _AGENT_ICON.get(a["status"], "⬜")
+        stub_badge = " · [stub]" if not a["implemented"] else ""
+        with st.expander(f"{icon} **{a['id']}**{stub_badge} — {a['description']}"):
+            if not a["implemented"]:
+                st.warning(
+                    "Agente não implementado (stub). "
+                    "Chamadas à API retornam HTTP 501."
+                )
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("**Domínio**")
+                st.write(_DOMAIN_LABEL.get(a["domain"], a["domain"]))
+                st.markdown("**Status**")
+                st.write(f"{icon} {a['status']}")
+                st.markdown("**Ciclos hoje**")
+                st.write(a["cycles"])
+                if a["last_action_at"]:
+                    st.markdown("**Última ação**")
+                    st.write(a["last_action_at"])
+
+            cfg_data = configs.get(a["id"], {})
+            params = cfg_data.get("params", {})
+            with col2:
+                if params:
+                    st.markdown("**Parâmetros configuráveis**")
+                    for k, v in params.items():
+                        label = k.replace("_", " ").title()
+                        st.write(f"- **{label}:** `{v}`")
+                else:
+                    st.caption("Nenhum parâmetro exposto.")
+
+            st.caption(
+                "Ações: em breve — ativar/desativar, reiniciar, testar execução"
+            )
+            st.button(
+                "Reiniciar",
+                key=f"restart_{a['id']}",
+                disabled=True,
+                help="Em breve",
+            )
+            st.button(
+                "Testar",
+                key=f"test_{a['id']}",
+                disabled=True,
+                help="Em breve",
+            )
+
     total_cycles = sum(a["cycles"] for a in agents["data"])
     st.caption(
         f"Ciclos hoje (total): {total_cycles} · "
