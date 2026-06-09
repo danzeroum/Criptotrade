@@ -26,7 +26,6 @@ from src.api.schemas import (
 from src.backtest.engine import BacktestEngine, BacktestResult
 from src.backtest.monte_carlo import MonteCarloSimulator
 from src.backtest.validator import WalkForwardValidator
-from src.core.exchange_client import ExchangeClient
 from src.core.metrics import PortfolioMetricsCalculator
 
 router = APIRouter(prefix="/backtest", tags=["backtest"])
@@ -91,7 +90,7 @@ def _result_to_out(result: BacktestResult, initial_capital: float) -> BacktestRe
     )
 
 
-async def _run_job(job_id: str, config: BacktestConfigIn, client: ExchangeClient, initial_capital: float) -> None:
+async def _run_job(job_id: str, config: BacktestConfigIn, client: Any, initial_capital: float) -> None:
     try:
         ohlcv = await client.fetch_ohlcv("BTC/USDT", timeframe="1h", limit=500)
         engine = BacktestEngine(
@@ -117,7 +116,7 @@ async def _run_job(job_id: str, config: BacktestConfigIn, client: ExchangeClient
 )
 async def run_backtest(
     config: BacktestConfigIn = Body(...),
-    client: ExchangeClient = Depends(get_exchange_client),
+    client: Any = Depends(get_exchange_client),
     calc: PortfolioMetricsCalculator = Depends(get_metrics_calculator),
 ) -> APIResponse[BacktestJobOut]:
     job_id = f"job_{uuid.uuid4().hex[:8]}"
@@ -150,7 +149,7 @@ async def get_job(job_id: str) -> APIResponse[BacktestJobOut]:
 )
 async def run_montecarlo(
     config: BacktestConfigIn = Body(...),
-    client: ExchangeClient = Depends(get_exchange_client),
+    client: Any = Depends(get_exchange_client),
     calc: PortfolioMetricsCalculator = Depends(get_metrics_calculator),
 ) -> APIResponse[MonteCarloOut]:
     ohlcv = await client.fetch_ohlcv("BTC/USDT", timeframe="1h", limit=500)
@@ -185,7 +184,7 @@ async def run_montecarlo(
 )
 async def run_walkforward(
     config: BacktestConfigIn = Body(...),
-    client: ExchangeClient = Depends(get_exchange_client),
+    client: Any = Depends(get_exchange_client),
     calc: PortfolioMetricsCalculator = Depends(get_metrics_calculator),
 ) -> APIResponse[WalkForwardOut]:
     ohlcv = await client.fetch_ohlcv("BTC/USDT", timeframe="1h", limit=500)

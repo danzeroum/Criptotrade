@@ -6,7 +6,7 @@ Candles are fetched from ExchangeClient (dry-run = synthetic, live = CCXT).
 from __future__ import annotations
 
 import urllib.parse
-from typing import List
+from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -31,8 +31,6 @@ from src.api.schemas import (
     VolumeProfileBin,
     VolumeProfileOut,
 )
-from src.core.exchange_client import ExchangeClient
-
 router = APIRouter(prefix="/market", tags=["market"])
 
 _REGIME_LABELS = {
@@ -48,7 +46,7 @@ def _decode_pair(raw: str) -> str:
     return urllib.parse.unquote(raw)
 
 
-async def _fetch_candles(pair: str, tf: str, limit: int, client: ExchangeClient) -> list:
+async def _fetch_candles(pair: str, tf: str, limit: int, client: Any) -> list:
     try:
         return await client.fetch_ohlcv(pair, timeframe=tf, limit=limit)
     except Exception as exc:
@@ -67,7 +65,7 @@ async def get_candles(
     pair: str,
     tf: str = Query("1h", pattern="^(1m|5m|15m|1h|4h|1d)$"),
     limit: int = Query(100, ge=10, le=500),
-    client: ExchangeClient = Depends(get_exchange_client),
+    client: Any = Depends(get_exchange_client),
 ) -> APIResponse[List[CandleOut]]:
     symbol = _decode_pair(pair)
     ohlcv = await _fetch_candles(symbol, tf, limit, client)
@@ -84,7 +82,7 @@ async def get_indicators(
     pair: str,
     tf: str = Query("1h"),
     limit: int = Query(150, ge=50, le=500),
-    client: ExchangeClient = Depends(get_exchange_client),
+    client: Any = Depends(get_exchange_client),
 ) -> APIResponse[IndicatorsOut]:
     symbol = _decode_pair(pair)
     ohlcv = await _fetch_candles(symbol, tf, limit, client)
@@ -136,7 +134,7 @@ async def get_regime(
     pair: str,
     tf: str = Query("1h"),
     limit: int = Query(150, ge=50, le=500),
-    client: ExchangeClient = Depends(get_exchange_client),
+    client: Any = Depends(get_exchange_client),
 ) -> APIResponse[RegimeOut]:
     symbol = _decode_pair(pair)
     ohlcv = await _fetch_candles(symbol, tf, limit, client)
@@ -172,7 +170,7 @@ async def get_levels(
     pair: str,
     tf: str = Query("1h"),
     limit: int = Query(150, ge=50, le=500),
-    client: ExchangeClient = Depends(get_exchange_client),
+    client: Any = Depends(get_exchange_client),
 ) -> APIResponse[LevelsOut]:
     symbol = _decode_pair(pair)
     ohlcv = await _fetch_candles(symbol, tf, limit, client)
@@ -214,7 +212,7 @@ async def get_volume_profile(
     tf: str = Query("1h"),
     limit: int = Query(150, ge=50, le=500),
     bins: int = Query(20, ge=10, le=50),
-    client: ExchangeClient = Depends(get_exchange_client),
+    client: Any = Depends(get_exchange_client),
 ) -> APIResponse[VolumeProfileOut]:
     symbol = _decode_pair(pair)
     ohlcv = await _fetch_candles(symbol, tf, limit, client)
@@ -268,7 +266,7 @@ async def get_patterns(
     pair: str,
     tf: str = Query("1h"),
     limit: int = Query(150, ge=50, le=500),
-    client: ExchangeClient = Depends(get_exchange_client),
+    client: Any = Depends(get_exchange_client),
 ) -> APIResponse[List[PatternOut]]:
     symbol = _decode_pair(pair)
     ohlcv = await _fetch_candles(symbol, tf, limit, client)
@@ -298,7 +296,7 @@ async def get_signal(
     pair: str,
     tf: str = Query("1h"),
     limit: int = Query(150, ge=50, le=500),
-    client: ExchangeClient = Depends(get_exchange_client),
+    client: Any = Depends(get_exchange_client),
 ) -> APIResponse[SignalOut]:
     symbol = _decode_pair(pair)
     ohlcv = await _fetch_candles(symbol, tf, limit, client)
