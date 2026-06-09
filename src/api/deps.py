@@ -10,7 +10,6 @@ import os
 from functools import lru_cache
 
 from src.agents.registry import AgentRegistry
-from src.core.exchange_client import ExchangeClient
 from src.core.alerts import AlertBus, AlertStore, make_guardrail_sink
 from src.core.db import get_db_path
 from src.core.ledger import TradingLedger
@@ -79,7 +78,8 @@ def get_agent_registry() -> AgentRegistry:
 
 
 @lru_cache(maxsize=1)
-def get_exchange_client() -> ExchangeClient:
+def get_exchange_client():  # type: ignore[return]
+    from src.core.exchange_client import ExchangeClient  # lazy — ccxt optional in CI
     exchange = os.getenv("EXCHANGE", "binance")
     testnet = os.getenv("EXCHANGE_TESTNET", "true").lower() == "true"
     api_key = os.getenv("EXCHANGE_API_KEY")
