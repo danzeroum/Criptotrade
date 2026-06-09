@@ -214,7 +214,6 @@ function ScreenMarket() {
             {candles && candles.length > 0 ? (
               <CandleChart
                 candles={candles}
-                bb={mock ? CT.bb : null}
                 height={280}
               />
             ) : (
