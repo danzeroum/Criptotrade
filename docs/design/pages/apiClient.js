@@ -13,7 +13,9 @@ const CT_API = (() => {
   const getKey = () => window.API_KEY ?? '';
 
   async function req(path, opts = {}) {
-    const headers = { 'Content-Type': 'application/json' };
+    const method = (opts.method ?? 'GET').toUpperCase();
+    const headers = {};
+    if (method !== 'GET' && method !== 'HEAD') headers['Content-Type'] = 'application/json';
     const k = getKey();
     if (k) headers['X-API-Key'] = k;
     const r = await fetch(base + path, { headers, ...opts });
