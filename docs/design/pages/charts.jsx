@@ -27,8 +27,8 @@ function CandleChart({ candles = [], bb = [], width = 680, height = 260 }) {
   const w = width - PAD.l - PAD.r;
   const h = height - PAD.t - PAD.b;
 
-  const visible = candles.slice(-70);
-  const bbv = bb.slice(-70);
+  const visible = (candles ?? []).slice(-70);
+  const bbv = (bb ?? []).slice(-70);
 
   const allPrices = visible.flatMap(c => [c.h || c.high, c.lo ?? c.l ?? c.low]);
   const bbPrices = bbv.flatMap(b => [b.up, b.low].filter(Boolean));
