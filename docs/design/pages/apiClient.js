@@ -49,13 +49,13 @@ const CT_API = (() => {
 
     // ---- Phase 1: market ----
     getCandles:       (pair, tf = '1h', limit = 100) =>
-      req(`/v1/market/${encodeURIComponent(pair)}/candles?tf=${tf}&limit=${limit}`),
-    getIndicators:    (pair) => req(`/v1/market/${encodeURIComponent(pair)}/indicators`),
-    getRegime:        (pair) => req(`/v1/market/${encodeURIComponent(pair)}/regime`),
-    getLevels:        (pair) => req(`/v1/market/${encodeURIComponent(pair)}/levels`),
-    getVolumeProfile: (pair) => req(`/v1/market/${encodeURIComponent(pair)}/volume-profile`),
-    getPatterns:      (pair) => req(`/v1/market/${encodeURIComponent(pair)}/patterns`),
-    getSignal:        (pair) => req(`/v1/market/${encodeURIComponent(pair)}/signal`),
+      req(`/v1/market/${pair.replace('/', '-')}/candles?tf=${tf}&limit=${limit}`),
+    getIndicators:    (pair) => req(`/v1/market/${pair.replace('/', '-')}/indicators`),
+    getRegime:        (pair) => req(`/v1/market/${pair.replace('/', '-')}/regime`),
+    getLevels:        (pair) => req(`/v1/market/${pair.replace('/', '-')}/levels`),
+    getVolumeProfile: (pair) => req(`/v1/market/${pair.replace('/', '-')}/volume-profile`),
+    getPatterns:      (pair) => req(`/v1/market/${pair.replace('/', '-')}/patterns`),
+    getSignal:        (pair) => req(`/v1/market/${pair.replace('/', '-')}/signal`),
 
     // ---- Phase 2: risk ----
     getProtections:    ()     => req('/v1/risk/protections'),

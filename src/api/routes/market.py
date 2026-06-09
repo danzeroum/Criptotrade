@@ -38,7 +38,9 @@ _REGIME_LABELS = {
 
 
 def _decode_pair(raw: str) -> str:
-    return urllib.parse.unquote(raw)
+    decoded = urllib.parse.unquote(raw)
+    # Accept "BTC-USDT" (dash) as well as "BTC/USDT" (slash or %2F)
+    return decoded.replace("-", "/") if "/" not in decoded else decoded
 
 
 async def _fetch_candles(pair: str, tf: str, limit: int, client: Any) -> list:
