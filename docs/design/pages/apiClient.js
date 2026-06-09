@@ -81,3 +81,5 @@ const CT_API = (() => {
     patchAlertsConfig:(body)     => req('/v1/alerts/config', { method: 'PATCH', body: JSON.stringify(body) }),
   };
 })();
+
+window.CT_API = CT_API;
