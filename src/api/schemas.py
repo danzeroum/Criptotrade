@@ -147,6 +147,10 @@ class OrderOut(BaseModel):
     auto_approved: bool
     operator_note: Optional[str] = None
     operator_id: Optional[str] = None
+    position_size_pct: Optional[float] = None
+    stop_loss: Optional[float] = None
+    take_profit: Optional[float] = None
+    rr: Optional[float] = None
     created_at: str
     resolved_at: Optional[str] = None
     filled_at: Optional[str] = None
@@ -190,21 +194,290 @@ class AlertOut(BaseModel):
     occurred_at: str
 
 
+# ----------------------------------------------------------------- market
+class CandleOut(BaseModel):
+    t: int
+    o: float
+    h: float
+    lo: float
+    c: float
+    v: float
+
+
+class MacdOut(BaseModel):
+    macd: float
+    signal: float
+    hist: float
+
+
+class StochOut(BaseModel):
+    k: float
+    d: float
+
+
+class BollingerOut(BaseModel):
+    up: float
+    mid: float
+    low: float
+    pct_b: float
+
+
+class IndicatorsOut(BaseModel):
+    rsi: Optional[float]
+    macd: Optional[MacdOut]
+    stoch: Optional[StochOut]
+    bb: Optional[BollingerOut]
+    atr: Optional[float]
+    atr_pct: Optional[float]
+    ema9: Optional[float]
+    ema21: Optional[float]
+    sma20: Optional[float]
+    sma50: Optional[float]
+    sma200: Optional[float]
+    obv_trend: Optional[int]
+    volume_ratio: Optional[float]
+    current_price: Optional[float]
+
+
+class RegimeOut(BaseModel):
+    regime: str
+    confidence: float
+    label: str
+    active_strategies: List[str]
+
+
+class SRLevelOut(BaseModel):
+    price: float
+    strength: int
+
+
+class LevelsOut(BaseModel):
+    support: List[SRLevelOut]
+    resistance: List[SRLevelOut]
+    fib: List[float]
+
+
+class VolumeProfileBin(BaseModel):
+    price: float
+    volume: float
+    pct: float
+
+
+class VolumeProfileOut(BaseModel):
+    poc: float
+    vah: float
+    val: float
+    lvn: List[float]
+    bins: List[VolumeProfileBin]
+
+
+class PatternOut(BaseModel):
+    name: str
+    direction: str
+    confidence: float
+    target: Optional[float]
+    description: str = ""
+
+
+class SignalOut(BaseModel):
+    action: str
+    entry: float
+    stop: Optional[float]
+    take_profit: Optional[float]
+    position_size_pct: float
+    rr: Optional[float]
+    strategy: str
+    confidence: float
+    reason: str
+
+
+# ----------------------------------------------------------------- risk
+class ProtectionOut(BaseModel):
+    scope: str
+    value: float
+    limit: float
+    status: str
+    action: str
+
+
+class CircuitBreakerOut(BaseModel):
+    status: str
+    triggers: List[str]
+    cooldown_hours: int
+    cooldown_remaining: Optional[int]
+
+
+class KellyOut(BaseModel):
+    win_rate: float
+    avg_win_pct: float
+    avg_loss_pct: float
+    full_kelly: float
+    fraction: float
+    fractional_kelly: float
+    risk_of_ruin: float
+    trades: int
+
+
+class EquityPoint(BaseModel):
+    t: str
+    equity: float
+    drawdown: float
+
+
+class RiskConfigOut(BaseModel):
+    max_position_size_pct: float
+    min_position_size_pct: float
+    stop_loss_default_pct: float
+    stop_loss_max_pct: float
+    take_profit_default_pct: float
+    min_risk_reward_ratio: float
+    max_daily_loss_pct: float
+    max_weekly_loss_pct: float
+    max_monthly_loss_pct: float
+    circuit_breaker_enabled: bool
+    circuit_breaker_trigger_pct: float
+    circuit_breaker_consecutive_losses: int
+    cooldown_hours: int
+    kelly_fraction: float
+
+
+class RiskConfigPatch(BaseModel):
+    max_position_size_pct: Optional[float] = None
+    stop_loss_default_pct: Optional[float] = None
+    take_profit_default_pct: Optional[float] = None
+    max_daily_loss_pct: Optional[float] = None
+    max_weekly_loss_pct: Optional[float] = None
+    max_monthly_loss_pct: Optional[float] = None
+    kelly_fraction: Optional[float] = None
+
+
+# ----------------------------------------------------------------- backtest
+class BacktestConfigIn(BaseModel):
+    strategy: str = "dca"
+    initial_capital: float = Field(default=10000.0, gt=0)
+    commission_pct: float = Field(default=0.1, ge=0, le=5)
+    slippage_bps: int = Field(default=5, ge=0, le=100)
+    monte_carlo_sims: int = Field(default=1000, ge=100, le=10000)
+
+
+class BacktestResultOut(BaseModel):
+    total_trades: int
+    win_rate: float
+    pnl_pct: float
+    pnl_usdt: float
+    max_drawdown: float
+    sharpe: Optional[float]
+    profit_factor: Optional[float]
+    avg_win_pct: float
+    avg_loss_pct: float
+    expectancy: float
+    equity: List[EquityPoint]
+
+
+class MonteCarloOut(BaseModel):
+    n: int
+    p5: float
+    p50: float
+    p95: float
+    profitable_pct: float
+    rejected: bool
+    histogram: List[int]
+    max_simulated_drawdown: float
+
+
+class WalkForwardFold(BaseModel):
+    window_index: int
+    train_sharpe: Optional[float]
+    test_sharpe: Optional[float]
+    train_pnl_pct: float
+    test_pnl_pct: float
+
+
+class WalkForwardOut(BaseModel):
+    valid: bool
+    windows: int
+    sharpe_deviation: Optional[float]
+    folds: List[WalkForwardFold]
+
+
+class BacktestJobOut(BaseModel):
+    job_id: str
+    status: str
+    result: Optional[BacktestResultOut] = None
+    error: Optional[str] = None
+
+
+# ----------------------------------------------------------------- journal
+class JournalEntryCreate(BaseModel):
+    setup: str = Field(..., min_length=3)
+    emotion_before: int = Field(..., ge=1, le=10)
+    emotion_after: Optional[int] = Field(default=None, ge=1, le=10)
+    stop_defined: bool
+    plan_followed: bool
+    pnl_pct: Optional[float] = None
+    note: Optional[str] = None
+
+
+class JournalEntryOut(JournalEntryCreate):
+    id: int
+    created_at: str
+
+
+class EmotionBand(BaseModel):
+    band: str
+    win_rate: float
+    trades: int
+
+
+class JournalMetricsOut(BaseModel):
+    by_emotion: List[EmotionBand]
+    plan_followed_pnl: Optional[float]
+    plan_deviated_pnl: Optional[float]
+    discipline_correlation: Optional[float]
+    real_win_rate: Optional[float]
+
+
+# ----------------------------------------------------------------- config
+class ConfigOut(BaseModel):
+    exchange: str
+    dry_run: bool
+    initial_capital: float
+    orchestrator_interval_seconds: int
+    autonomy_level: int
+    app_env: str
+
+
+class ConfigPatch(BaseModel):
+    initial_capital: Optional[float] = Field(default=None, gt=0)
+    orchestrator_interval_seconds: Optional[int] = Field(default=None, ge=5, le=3600)
+
+
+class AlertsConfigPatch(BaseModel):
+    revenge_size_multiplier: Optional[float] = None
+    euphoria_size_multiplier: Optional[float] = None
+    overconfidence_margin: Optional[float] = None
+    risk_of_ruin_alert_pct: Optional[float] = None
+
+
 __all__ = [
-    "APIResponse",
-    "Meta",
-    "Links",
-    "ErrorResponse",
-    "PortfolioMetricsOut",
-    "AutonomyLevelOut",
-    "HITLConfigOut",
-    "AutonomyLevelPatch",
-    "OrderSide",
-    "OrderCreate",
-    "OrderDecisionPatch",
-    "OrderOut",
-    "AgentStatusOut",
-    "AgentConfigOut",
-    "ProcessEventOut",
-    "AlertOut",
+    "APIResponse", "Meta", "Links", "ErrorResponse",
+    "PortfolioMetricsOut", "EquityPoint",
+    "AutonomyLevelOut", "HITLConfigOut", "AutonomyLevelPatch",
+    "OrderSide", "OrderCreate", "OrderDecisionPatch", "OrderOut",
+    "AgentStatusOut", "AgentConfigOut",
+    "ProcessEventOut", "AlertOut",
+    # market
+    "CandleOut", "MacdOut", "StochOut", "BollingerOut", "IndicatorsOut",
+    "RegimeOut", "SRLevelOut", "LevelsOut",
+    "VolumeProfileBin", "VolumeProfileOut", "PatternOut", "SignalOut",
+    # risk
+    "ProtectionOut", "CircuitBreakerOut", "KellyOut",
+    "RiskConfigOut", "RiskConfigPatch",
+    # backtest
+    "BacktestConfigIn", "BacktestResultOut", "MonteCarloOut",
+    "WalkForwardFold", "WalkForwardOut", "BacktestJobOut",
+    # journal
+    "JournalEntryCreate", "JournalEntryOut", "EmotionBand", "JournalMetricsOut",
+    # config
+    "ConfigOut", "ConfigPatch", "AlertsConfigPatch",
 ]

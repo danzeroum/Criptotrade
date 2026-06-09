@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from src.api.routes import agents, alerts, hitl, metrics, orders, process
+from src.api.routes import agents, alerts, backtest, config, hitl, journal, market, metrics, orders, process, risk
 from src.core.db import init_db
 
 PREFIX = "/v1"
@@ -79,7 +79,7 @@ def create_app() -> FastAPI:
     app.add_middleware(APIKeyMiddleware)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:8501").split(","),
+        allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
         allow_methods=["GET", "POST", "PATCH"],
         allow_headers=["X-API-Key", "Content-Type"],
     )
@@ -90,6 +90,11 @@ def create_app() -> FastAPI:
     app.include_router(agents.router, prefix=PREFIX)
     app.include_router(process.router, prefix=PREFIX)
     app.include_router(alerts.router, prefix=PREFIX)
+    app.include_router(market.router, prefix=PREFIX)
+    app.include_router(risk.router, prefix=PREFIX)
+    app.include_router(backtest.router, prefix=PREFIX)
+    app.include_router(journal.router, prefix=PREFIX)
+    app.include_router(config.router, prefix=PREFIX)
 
     @app.get("/health", tags=["infra"])
     async def health() -> dict:

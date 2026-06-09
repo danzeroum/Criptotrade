@@ -19,6 +19,16 @@ from src.hitl.orders import Order, OrderConflictError, OrderStatus, OrderStore
 router = APIRouter(prefix="/orders", tags=["orders"])
 
 
+def _order_to_out(o: Order) -> OrderOut:
+    d = o.to_dict()
+    sl = d.get("stop_loss")
+    tp = d.get("take_profit")
+    px = d.get("price")
+    if sl and tp and px and (px - sl) != 0:
+        d["rr"] = round((tp - px) / (px - sl), 2)
+    return OrderOut(**d)
+
+
 @router.get(
     "",
     response_model=APIResponse[List[OrderOut]],
@@ -31,7 +41,7 @@ async def list_orders(
 ) -> APIResponse[List[OrderOut]]:
     orders = store.list(status=status, pair=pair)
     return APIResponse(
-        data=[OrderOut(**o.to_dict()) for o in orders],
+        data=[_order_to_out(o) for o in orders],
         meta=Meta(total=len(orders), page=1, per_page=len(orders) or 1),
     )
 
