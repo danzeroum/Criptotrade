@@ -1,0 +1,251 @@
+/* ============================================================
+   Criptotrade — Base UI components
+   Exposes: Icon, Card, Badge, Btn, KPI, Meter, Seg, Tabs,
+            NumField, SliderField, LoadingState, EmptyState, ErrorState
+   ============================================================ */
+
+const { useState, useEffect, useRef } = React;
+
+// ---- Icon (inline SVG paths via name) ----
+const ICONS = {
+  alert:     'M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z',
+  check:     'M20 6L9 17l-5-5',
+  x:         'M18 6L6 18M6 6l12 12',
+  info:      'M12 16v-4m0-4h.01M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z',
+  trending:  'M23 6l-9.5 9.5-5-5L1 18',
+  bar:       'M18 20V10M12 20V4M6 20v-6',
+  activity:  'M22 12h-4l-3 9L9 3l-3 9H2',
+  settings:  'M12 15a3 3 0 100-6 3 3 0 000 6zm7.49-3.63a7.5 7.5 0 01.01.63 7.5 7.5 0 01-.01.63l1.58 1.24a.38.38 0 01.09.48l-1.5 2.59a.38.38 0 01-.46.17l-1.87-.75a7.47 7.47 0 01-1.09.63l-.28 1.99a.38.38 0 01-.37.31h-3a.38.38 0 01-.37-.31l-.28-1.99a7.47 7.47 0 01-1.09-.63l-1.87.75a.38.38 0 01-.46-.17l-1.5-2.59a.38.38 0 01.09-.48l1.58-1.24A7.48 7.48 0 014.5 12a7.48 7.48 0 01.01-.63L2.93 10.13a.38.38 0 01-.09-.48l1.5-2.59a.38.38 0 01.46-.17l1.87.75c.34-.23.71-.43 1.09-.63l.28-1.99A.38.38 0 018.41 4.7h3c.2 0 .36.14.37.31l.28 1.99c.38.2.75.4 1.09.63l1.87-.75a.38.38 0 01.46.17l1.5 2.59a.38.38 0 01-.09.48l-1.58 1.24z',
+  shield:    'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+  clock:     'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm0-7l-3-3V7',
+  book:      'M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z',
+  bell:      'M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0',
+  zap:       'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
+  refresh:   'M1 4v6h6M23 20v-6h-6M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15',
+  user:      'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z',
+  dollar:    'M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6',
+  eye:       'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 9a3 3 0 100 6 3 3 0 000-6z',
+  play:      'M5 3l14 9-14 9V3z',
+  stop:      'M18 6H6v12h12V6z',
+  plus:      'M12 5v14M5 12h14',
+  chevdown:  'M6 9l6 6 6-6',
+  chevright: 'M9 18l6-6-6-6',
+  candle:    'M9 4v2M9 18v2M15 4v2M15 18v2M7 6h4v5H7zm6 0h4v8h-4zM7 15h4v3H7zM13 18h4v-5h-4z',
+  list:      'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
+};
+
+function Icon({ name, size = 16, className = '' }) {
+  const d = ICONS[name] || ICONS.info;
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size} height={size}
+      viewBox="0 0 24 24"
+      fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      className={`ico ${className}`}
+      aria-hidden="true"
+    >
+      <path d={d} />
+    </svg>
+  );
+}
+window.Icon = Icon;
+
+// ---- Card ----
+function Card({ title, icon, action, children, style }) {
+  return (
+    <div className="card" style={style}>
+      {title && (
+        <div className="card-head">
+          <span className="card-title">
+            {icon && <Icon name={icon} />}
+            {title}
+          </span>
+          {action}
+        </div>
+      )}
+      <div className="card-pad">{children}</div>
+    </div>
+  );
+}
+window.Card = Card;
+
+// ---- Badge ----
+function Badge({ variant = 'neutral', dot = true, children }) {
+  return (
+    <span className={`badge badge-${variant}`}>
+      {dot && <span className="dot" />}
+      {children}
+    </span>
+  );
+}
+window.Badge = Badge;
+
+// ---- Btn ----
+function Btn({ variant = '', size = '', onClick, disabled, children, style }) {
+  const cls = ['btn', variant ? `btn-${variant}` : '', size ? `btn-${size}` : ''].filter(Boolean).join(' ');
+  return (
+    <button className={cls} onClick={onClick} disabled={disabled} style={style}>
+      {children}
+    </button>
+  );
+}
+window.Btn = Btn;
+
+// ---- KPI tile ----
+function KPI({ label, value, sub, icon, delta, format = 'plain' }) {
+  const fmtVal = (v) => {
+    if (v === null || v === undefined) return '—';
+    if (format === 'pct') return `${(+v * 100).toFixed(2)}%`;
+    if (format === 'pct_direct') return `${(+v).toFixed(2)}%`;
+    if (format === 'usd') return `$${(+v).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (format === 'int') return String(Math.round(+v));
+    return String(v);
+  };
+  const deltaVariant = delta == null ? '' : delta > 0 ? 'ok' : delta < 0 ? 'down' : 'neutral';
+
+  return (
+    <div className="kpi">
+      <div className="kpi-label">
+        {icon && <Icon name={icon} size={14} />}
+        {label}
+      </div>
+      <div className="kpi-value">{fmtVal(value)}</div>
+      {(sub || delta != null) && (
+        <div className="kpi-sub">
+          {delta != null && (
+            <span className={`badge badge-${deltaVariant}`} style={{ marginRight: 6 }}>
+              {delta > 0 ? '+' : ''}{typeof delta === 'number' ? delta.toFixed(2) : delta}%
+            </span>
+          )}
+          {sub}
+        </div>
+      )}
+    </div>
+  );
+}
+window.KPI = KPI;
+
+// ---- Meter (progress bar) ----
+function Meter({ value, max = 100, warn = 70, crit = 90 }) {
+  const pct = Math.min(100, Math.max(0, (value / max) * 100));
+  const color = pct >= crit ? 'var(--down)' : pct >= warn ? 'var(--warn)' : 'var(--up)';
+  return (
+    <div className="meter">
+      <span style={{ width: `${pct}%`, background: color }} />
+    </div>
+  );
+}
+window.Meter = Meter;
+
+// ---- Seg (segmented control) ----
+function Seg({ options, value, onChange }) {
+  return (
+    <div className="seg">
+      {options.map(o => (
+        <button
+          key={o.value ?? o}
+          className={value === (o.value ?? o) ? 'active' : ''}
+          onClick={() => onChange(o.value ?? o)}
+        >
+          {o.label ?? o}
+        </button>
+      ))}
+    </div>
+  );
+}
+window.Seg = Seg;
+
+// ---- Tabs ----
+function Tabs({ tabs, active, onChange }) {
+  return (
+    <div className="tabs">
+      {tabs.map(t => (
+        <button
+          key={t.value ?? t}
+          className={`tab${active === (t.value ?? t) ? ' active' : ''}`}
+          onClick={() => onChange(t.value ?? t)}
+        >
+          {t.label ?? t}
+        </button>
+      ))}
+    </div>
+  );
+}
+window.Tabs = Tabs;
+
+// ---- NumField ----
+function NumField({ label, value, onChange, min, max, step = 0.1, unit = '' }) {
+  return (
+    <label style={{ display: 'block' }}>
+      <span style={{ fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 500 }}>{label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+        <input
+          type="number"
+          value={value}
+          min={min} max={max} step={step}
+          onChange={e => onChange(+e.target.value)}
+          style={{
+            flex: 1, padding: '7px 10px', borderRadius: 'var(--r-sm)',
+            border: '1px solid var(--border-2)', background: 'var(--surface)',
+            fontSize: 13, fontFamily: 'var(--mono)',
+          }}
+        />
+        {unit && <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{unit}</span>}
+      </div>
+    </label>
+  );
+}
+window.NumField = NumField;
+
+// ---- SliderField ----
+function SliderField({ label, value, onChange, min = 0, max = 100, step = 1, unit = '' }) {
+  return (
+    <label style={{ display: 'block' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+        <span style={{ fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 500 }}>{label}</span>
+        <span style={{ fontSize: 11.5, fontFamily: 'var(--mono)', color: 'var(--ink-2)' }}>
+          {value}{unit}
+        </span>
+      </div>
+      <input type="range" value={value} min={min} max={max} step={step}
+        onChange={e => onChange(+e.target.value)}
+        style={{ width: '100%' }} />
+    </label>
+  );
+}
+window.SliderField = SliderField;
+
+// ---- Honest states ----
+function LoadingState({ label = 'Carregando…' }) {
+  return (
+    <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--ink-3)', fontSize: 13 }}>
+      <div style={{ marginBottom: 10, fontSize: 20 }}>⋯</div>
+      {label}
+    </div>
+  );
+}
+window.LoadingState = LoadingState;
+
+function EmptyState({ label = 'Sem dados', sub = '' }) {
+  return (
+    <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+      <Icon name="list" size={32} style={{ color: 'var(--ink-4)', margin: '0 auto 12px' }} />
+      <div style={{ fontSize: 13, color: 'var(--ink-2)', fontWeight: 500 }}>{label}</div>
+      {sub && <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 4 }}>{sub}</div>}
+    </div>
+  );
+}
+window.EmptyState = EmptyState;
+
+function ErrorState({ message = 'API offline', onRetry }) {
+  return (
+    <div style={{ padding: '32px 24px', textAlign: 'center' }}>
+      <Icon name="alert" size={28} style={{ color: 'var(--down)', margin: '0 auto 10px' }} />
+      <div style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 12 }}>{message}</div>
+      {onRetry && <Btn variant="ghost" size="sm" onClick={onRetry}>Tentar novamente</Btn>}
+    </div>
+  );
+}
+window.ErrorState = ErrorState;

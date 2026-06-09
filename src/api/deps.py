@@ -10,6 +10,7 @@ import os
 from functools import lru_cache
 
 from src.agents.registry import AgentRegistry
+from src.core.exchange_client import ExchangeClient
 from src.core.alerts import AlertBus, AlertStore, make_guardrail_sink
 from src.core.db import get_db_path
 from src.core.ledger import TradingLedger
@@ -77,6 +78,20 @@ def get_agent_registry() -> AgentRegistry:
     return AgentRegistry(db_path=str(get_db_path()))
 
 
+@lru_cache(maxsize=1)
+def get_exchange_client() -> ExchangeClient:
+    exchange = os.getenv("EXCHANGE", "binance")
+    testnet = os.getenv("EXCHANGE_TESTNET", "true").lower() == "true"
+    api_key = os.getenv("EXCHANGE_API_KEY")
+    api_secret = os.getenv("EXCHANGE_API_SECRET")
+    return ExchangeClient(
+        exchange_id=exchange,
+        testnet=testnet,
+        api_key=api_key,
+        api_secret=api_secret,
+    )
+
+
 def get_metrics_calculator() -> PortfolioMetricsCalculator:
     return PortfolioMetricsCalculator(get_ledger(), initial_capital=_initial_capital())
 
@@ -85,7 +100,7 @@ def reset_singletons() -> None:
     """Clear cached singletons (used by tests to inject fresh state)."""
     for fn in (
         get_ledger, get_alert_store, get_alert_bus, get_hitl_store,
-        get_order_store, get_agent_registry,
+        get_order_store, get_agent_registry, get_exchange_client,
     ):
         fn.cache_clear()
 
@@ -98,5 +113,6 @@ __all__ = [
     "get_order_store",
     "get_agent_registry",
     "get_metrics_calculator",
+    "get_exchange_client",
     "reset_singletons",
 ]
