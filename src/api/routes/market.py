@@ -10,11 +10,6 @@ from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from src.analysis.indicators import TechnicalAnalyzer
-from src.analysis.pattern_scanner import PatternScanner
-from src.analysis.regime_detector import detect_regime, strategies_for_regime
-from src.analysis.support_resistance import SupportResistanceDetector
-from src.analysis.volume_profile import VolumeProfile
 from src.api.deps import get_exchange_client
 from src.api.schemas import (
     APIResponse,
@@ -84,6 +79,7 @@ async def get_indicators(
     limit: int = Query(150, ge=50, le=500),
     client: Any = Depends(get_exchange_client),
 ) -> APIResponse[IndicatorsOut]:
+    from src.analysis.indicators import TechnicalAnalyzer  # lazy — numpy optional in CI
     symbol = _decode_pair(pair)
     ohlcv = await _fetch_candles(symbol, tf, limit, client)
     try:
@@ -136,6 +132,8 @@ async def get_regime(
     limit: int = Query(150, ge=50, le=500),
     client: Any = Depends(get_exchange_client),
 ) -> APIResponse[RegimeOut]:
+    from src.analysis.indicators import TechnicalAnalyzer  # lazy — numpy optional in CI
+    from src.analysis.regime_detector import detect_regime, strategies_for_regime  # lazy
     symbol = _decode_pair(pair)
     ohlcv = await _fetch_candles(symbol, tf, limit, client)
     try:
@@ -172,6 +170,7 @@ async def get_levels(
     limit: int = Query(150, ge=50, le=500),
     client: Any = Depends(get_exchange_client),
 ) -> APIResponse[LevelsOut]:
+    from src.analysis.support_resistance import SupportResistanceDetector  # lazy
     symbol = _decode_pair(pair)
     ohlcv = await _fetch_candles(symbol, tf, limit, client)
 
@@ -214,6 +213,7 @@ async def get_volume_profile(
     bins: int = Query(20, ge=10, le=50),
     client: Any = Depends(get_exchange_client),
 ) -> APIResponse[VolumeProfileOut]:
+    from src.analysis.volume_profile import VolumeProfile  # lazy — numpy optional in CI
     symbol = _decode_pair(pair)
     ohlcv = await _fetch_candles(symbol, tf, limit, client)
 
@@ -268,6 +268,7 @@ async def get_patterns(
     limit: int = Query(150, ge=50, le=500),
     client: Any = Depends(get_exchange_client),
 ) -> APIResponse[List[PatternOut]]:
+    from src.analysis.pattern_scanner import PatternScanner  # lazy — numpy optional in CI
     symbol = _decode_pair(pair)
     ohlcv = await _fetch_candles(symbol, tf, limit, client)
 
@@ -298,6 +299,8 @@ async def get_signal(
     limit: int = Query(150, ge=50, le=500),
     client: Any = Depends(get_exchange_client),
 ) -> APIResponse[SignalOut]:
+    from src.analysis.indicators import TechnicalAnalyzer  # lazy — numpy optional in CI
+    from src.analysis.regime_detector import detect_regime, strategies_for_regime  # lazy
     symbol = _decode_pair(pair)
     ohlcv = await _fetch_candles(symbol, tf, limit, client)
     try:
