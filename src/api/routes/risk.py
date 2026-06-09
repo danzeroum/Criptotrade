@@ -4,8 +4,6 @@ Lê risk_params.yaml para limites e calcula métricas a partir do ledger.
 """
 from __future__ import annotations
 
-import math
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List

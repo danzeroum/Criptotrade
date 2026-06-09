@@ -8,7 +8,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
@@ -75,9 +75,6 @@ def _result_to_out(result: BacktestResult, initial_capital: float) -> BacktestRe
             equity=round(cap, 2),
             drawdown=round(dd, 4),
         ))
-
-    wins = [t for t in trades if t.pnl_usdt > 0]
-    losses = [t for t in trades if t.pnl_usdt <= 0]
 
     return BacktestResultOut(
         total_trades=result.total_trades,

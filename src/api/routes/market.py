@@ -71,7 +71,7 @@ async def get_candles(
 ) -> APIResponse[List[CandleOut]]:
     symbol = _decode_pair(pair)
     ohlcv = await _fetch_candles(symbol, tf, limit, client)
-    candles = [CandleOut(t=int(r[0]), o=r[1], h=r[2], l=r[3], c=r[4], v=r[5]) for r in ohlcv]
+    candles = [CandleOut(t=int(r[0]), o=r[1], h=r[2], lo=r[3], c=r[4], v=r[5]) for r in ohlcv]
     return APIResponse(data=candles)
 
 

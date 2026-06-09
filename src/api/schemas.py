@@ -199,7 +199,7 @@ class CandleOut(BaseModel):
     t: int
     o: float
     h: float
-    l: float
+    lo: float
     c: float
     v: float
 

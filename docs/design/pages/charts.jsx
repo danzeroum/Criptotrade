@@ -30,7 +30,7 @@ function CandleChart({ candles = [], bb = [], width = 680, height = 260 }) {
   const visible = candles.slice(-70);
   const bbv = bb.slice(-70);
 
-  const allPrices = visible.flatMap(c => [c.h || c.high, c.l || c.low]);
+  const allPrices = visible.flatMap(c => [c.h || c.high, c.lo ?? c.l ?? c.low]);
   const bbPrices = bbv.flatMap(b => [b.up, b.low].filter(Boolean));
   const { min: pMin, max: pMax } = _range([...allPrices, ...bbPrices]);
   const pad = (pMax - pMin) * 0.05;
@@ -71,7 +71,7 @@ function CandleChart({ candles = [], bb = [], width = 680, height = 260 }) {
         const open = c.o !== undefined ? c.o : c.open;
         const close = c.c !== undefined ? c.c : c.close;
         const high = c.h !== undefined ? c.h : c.high;
-        const low = c.l !== undefined ? c.l : c.low;
+        const low = c.lo !== undefined ? c.lo : c.l !== undefined ? c.l : c.low;
         const bull = close >= open;
         const color = bull ? bullColor : bearColor;
         const bodyY = sy(Math.max(open, close));
