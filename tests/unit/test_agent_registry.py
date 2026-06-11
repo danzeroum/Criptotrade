@@ -1,7 +1,7 @@
 """Phase 4b-ii — AgentRegistry in-memory cycle aggregation (no file scan)."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -44,7 +44,7 @@ def test_cycles_reset_on_new_utc_day():
     reg = AgentRegistry()
     # Use today's 23:59 UTC so day1.date() == _cycles_date (today) and
     # day2 = day1 + 1h falls on the next UTC day, triggering the reset.
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     day1 = now.replace(hour=23, minute=59, second=0, microsecond=0)
     reg.record_cycle("strategy", when=day1)
     reg.record_cycle("strategy", when=day1)
@@ -97,7 +97,7 @@ def test_no_db_path_is_legacy_in_memory(tmp_path):
 
 def test_cycles_today_counts_only_current_utc_day(tmp_path):
     reg = AgentRegistry(db_path=str(tmp_path / "agents.db"))
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     reg.record_cycle("strategy", when=now)
     reg.record_cycle("strategy", when=now - timedelta(days=2))  # previous day
     assert reg.cycles_today("strategy") == 1

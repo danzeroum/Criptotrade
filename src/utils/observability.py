@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 def generate_trace_id() -> str:
@@ -18,10 +18,10 @@ class SpanRecord:
     """Structured record of a single agent operation."""
 
     operation: str
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     start_time: datetime = field(default_factory=datetime.utcnow)
-    reasoning_log: List[str] = field(default_factory=list)
-    end_time: Optional[datetime] = None
+    reasoning_log: list[str] = field(default_factory=list)
+    end_time: datetime | None = None
 
     def log_reasoning(self, thought_process: str) -> None:
         """Append a reasoning message to the span."""
@@ -37,9 +37,9 @@ class AgentObserver:
 
     def __init__(self) -> None:
         self.trace_id: str = generate_trace_id()
-        self.spans: List[SpanRecord] = []
+        self.spans: list[SpanRecord] = []
 
-    def start_span(self, operation: str, metadata: Optional[Dict[str, Any]] = None) -> SpanRecord:
+    def start_span(self, operation: str, metadata: dict[str, Any] | None = None) -> SpanRecord:
         """Create a new span and register it with the observer."""
         record = SpanRecord(operation=operation, metadata=metadata or {})
         self.spans.append(record)
@@ -51,7 +51,7 @@ class AgentObserver:
             raise RuntimeError("No active span to record reasoning against.")
         self.spans[-1].log_reasoning(thought_process)
 
-    def export_trajectory(self) -> Dict[str, Any]:
+    def export_trajectory(self) -> dict[str, Any]:
         """Export a serializable representation of the agent trajectory."""
         return {
             "trace_id": self.trace_id,

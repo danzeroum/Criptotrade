@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -97,7 +97,7 @@ def test_metrics_empty_has_envelope(client):
 
 
 def test_metrics_with_trades(client):
-    base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    base = datetime(2026, 1, 1, tzinfo=UTC)
     _append_closed(client.ledger, 100.0, base, "a")
     _append_closed(client.ledger, -40.0, base, "b")
     r = client.get("/v1/metrics?period=all")
@@ -424,7 +424,7 @@ def test_kelly_empty_ledger_returns_insufficient(client):
 
 
 def test_kelly_below_threshold_returns_insufficient(client):
-    base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    base = datetime(2026, 1, 1, tzinfo=UTC)
     for i in range(9):
         _append_closed(client.ledger, 50.0 if i % 2 == 0 else -20.0, base, f"ord_{i}")
     r = client.get("/v1/risk/kelly")
@@ -436,7 +436,7 @@ def test_kelly_below_threshold_returns_insufficient(client):
 
 
 def test_kelly_sufficient_trades_returns_ok(client):
-    base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    base = datetime(2026, 1, 1, tzinfo=UTC)
     for i in range(12):
         _append_closed(client.ledger, 100.0 if i % 2 == 0 else -30.0, base, f"ord_{i}")
     r = client.get("/v1/risk/kelly")
@@ -449,10 +449,11 @@ def test_kelly_sufficient_trades_returns_ok(client):
     assert 0.0 <= d["risk_of_ruin"] <= 100.0
 
 
-# ----------------------------------------------------------------- catch-all exception → JSON 500 (P1-1)
+# ------------------------------------------------- catch-all exception → JSON 500 (P1-1)
 def test_unhandled_exception_returns_json_500(client):
-    from src.api import deps
     from fastapi.testclient import TestClient
+
+    from src.api import deps
 
     def broken():
         raise RuntimeError("simulated unhandled error")
@@ -473,7 +474,7 @@ def test_unhandled_exception_returns_json_500(client):
     assert "docs" in body
 
 
-# ----------------------------------------------------------------- openapi at /v1/openapi.json (P1-6)
+# ----------------------------------------- openapi at /v1/openapi.json (P1-6)
 def test_openapi_schema_served_at_v1_path(client):
     r = client.get("/v1/openapi.json")
     assert r.status_code == 200

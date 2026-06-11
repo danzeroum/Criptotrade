@@ -2,7 +2,6 @@
 
 import re
 from dataclasses import dataclass, field
-from typing import List
 
 from src.core.safe_agent_base import SafeAgentBase
 
@@ -11,9 +10,9 @@ from src.core.safe_agent_base import SafeAgentBase
 class Agent:
     """Lightweight agent stub for emergent testing."""
 
-    enabled_patterns: List[str] = field(default_factory=list)
+    enabled_patterns: list[str] = field(default_factory=list)
 
-    def enable_patterns(self, patterns: List[str]) -> None:
+    def enable_patterns(self, patterns: list[str]) -> None:
         self.enabled_patterns.extend(patterns)
 
     def process_complex_task(self) -> "Result":
@@ -22,7 +21,7 @@ class Agent:
 
 @dataclass
 class Result:
-    patterns: List[str]
+    patterns: list[str]
 
     def shows_adaptive_behavior(self) -> bool:
         return "routing" in self.patterns and "reflection" in self.patterns

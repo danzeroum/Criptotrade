@@ -80,7 +80,8 @@ def test_orders_accepts_approved_status(db):
             "VALUES ('ord_2','BTC/USDT','buy',1,100,'approved','2026-06-04T00:00:00Z')"
         )
     with connection(db) as conn:
-        assert conn.execute("SELECT status FROM orders WHERE id='ord_2'").fetchone()[0] == "approved"
+        row = conn.execute("SELECT status FROM orders WHERE id='ord_2'").fetchone()
+        assert row[0] == "approved"
 
 
 def test_orders_quantity_must_be_positive(db):

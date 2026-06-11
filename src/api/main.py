@@ -9,9 +9,6 @@ import logging
 import os
 import secrets
 from contextlib import asynccontextmanager
-from typing import Set
-
-_log = logging.getLogger(__name__)
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -20,11 +17,25 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from src.api.routes import agents, alerts, backtest, config, hitl, journal, market, metrics, orders, process, risk
+from src.api.routes import (
+    agents,
+    alerts,
+    backtest,
+    config,
+    hitl,
+    journal,
+    market,
+    metrics,
+    orders,
+    process,
+    risk,
+)
 from src.core.db import init_db
 
+_log = logging.getLogger(__name__)
+
 PREFIX = "/v1"
-PUBLIC_PATHS: Set[str] = {
+PUBLIC_PATHS: set[str] = {
     "/health",
     "/v1/docs",
     "/v1/redoc",
@@ -32,7 +43,7 @@ PUBLIC_PATHS: Set[str] = {
 }
 
 
-def _valid_keys() -> Set[str]:
+def _valid_keys() -> set[str]:
     raw = os.getenv("API_KEYS", "").strip()
     return {k for k in (s.strip() for s in raw.split(",")) if k}
 

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -70,7 +70,7 @@ def test_empty_ledger_degrades_gracefully(ledger):
 
 
 def test_win_rate_and_pnl(ledger):
-    base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    base = datetime(2026, 1, 1, tzinfo=UTC)
     _append(ledger, "position_closed",
             {"order_id": "a", "pnl": 100.0}, base)
     _append(ledger, "position_closed",
@@ -87,7 +87,7 @@ def test_win_rate_and_pnl(ledger):
 
 
 def test_max_drawdown(ledger):
-    base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    base = datetime(2026, 1, 1, tzinfo=UTC)
     # Equity: 10000 -> 11000 (peak) -> 9000 -> 9500.
     for i, pnl in enumerate([1000.0, -2000.0, 500.0]):
         _append(ledger, "position_closed", {"order_id": str(i), "pnl": pnl},
@@ -98,7 +98,7 @@ def test_max_drawdown(ledger):
 
 
 def test_sharpe_needs_two_days(ledger):
-    base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    base = datetime(2026, 1, 1, tzinfo=UTC)
     # Two trades, same day -> only one daily return -> Sharpe undefined.
     _append(ledger, "position_closed", {"order_id": "a", "pnl": 10.0}, base)
     _append(ledger, "position_closed", {"order_id": "b", "pnl": 20.0}, base)
@@ -107,7 +107,7 @@ def test_sharpe_needs_two_days(ledger):
 
 
 def test_sharpe_positive_for_consistent_gains(ledger):
-    base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    base = datetime(2026, 1, 1, tzinfo=UTC)
     for i in range(5):
         _append(ledger, "position_closed", {"order_id": str(i), "pnl": 100.0},
                 base + timedelta(days=i))
@@ -133,7 +133,7 @@ def test_closed_fill_not_counted_as_open(ledger):
 
 
 def test_period_filter_scopes_pnl(ledger):
-    now = datetime(2026, 6, 1, tzinfo=timezone.utc)
+    now = datetime(2026, 6, 1, tzinfo=UTC)
     _append(ledger, "position_closed", {"order_id": "old", "pnl": 500.0},
             now - timedelta(days=40))
     _append(ledger, "position_closed", {"order_id": "recent", "pnl": 100.0},

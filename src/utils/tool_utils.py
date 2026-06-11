@@ -1,7 +1,7 @@
 """Abstrações para ferramentas utilizadas por agentes."""
 from __future__ import annotations
 
-from typing import Awaitable, Callable
+from collections.abc import Awaitable, Callable
 
 AsyncTool = Callable[[str], Awaitable[str]]
 
