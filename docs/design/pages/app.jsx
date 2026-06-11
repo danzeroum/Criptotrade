@@ -173,7 +173,7 @@ function App() {
   // Poll pending orders count for sidebar badge
   useEffect(() => {
     const tick = () => {
-      CT_API.getOrders('?status=pending')
+      CT_API.getOrders(200, 0, '&status=pending')
         .then(d => setPendingCount(Array.isArray(d) ? d.length : 0))
         .catch(() => {});
     };

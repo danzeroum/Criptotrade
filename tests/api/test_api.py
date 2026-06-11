@@ -481,3 +481,76 @@ def test_openapi_schema_served_at_v1_path(client):
     schema = r.json()
     assert schema["info"]["title"] == "Criptotrade API"
     assert "/v1/risk/kelly" in schema["paths"]
+
+
+# -------------------------------------- risk config read-only FS → 503 (P1-2)
+def test_patch_risk_config_permission_error_returns_503(client, monkeypatch):
+    import src.api.routes.risk as risk_module
+
+    def _boom(_):
+        raise PermissionError("read-only fs")
+
+    monkeypatch.setattr(risk_module, "_save_yaml", _boom)
+    r = client.patch("/v1/risk/config", json={"max_position_size_pct": 3.0})
+    assert r.status_code == 503
+    assert r.json()["error"] == "config_not_writable"
+
+
+def test_patch_risk_config_os_error_returns_503(client, monkeypatch):
+    import src.api.routes.risk as risk_module
+
+    def _boom(_):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(risk_module, "_save_yaml", _boom)
+    r = client.patch("/v1/risk/config", json={"max_daily_loss_pct": 6.0})
+    assert r.status_code == 503
+    assert r.json()["error"] == "config_not_writable"
+
+
+# -------------------------------------- orders pagination (P1-3)
+def _seed_pending_orders(store, n: int = 55) -> None:
+    from src.hitl.orders import Order
+    for _ in range(n):
+        store.submit(Order(
+            pair="BTC/USDT", side="buy", quantity=50.0, price=1000.0,
+            strategy="dca", agent_id="strategy_agent", confidence=0.8,
+            reason="pagination seeding test",
+            position_size_pct=2.0, stop_loss=970.0, take_profit=1080.0,
+        ))
+
+
+def test_list_orders_default_limit_caps_at_50(client):
+    _seed_pending_orders(client.order_store, 55)
+    r = client.get("/v1/orders")
+    body = r.json()
+    assert r.status_code == 200
+    assert len(body["data"]) == 50
+    assert body["meta"]["total"] == 55
+    assert body["meta"]["per_page"] == 50
+    assert body["meta"]["page"] == 1
+
+
+def test_list_orders_offset_advances_page(client):
+    _seed_pending_orders(client.order_store, 55)
+    r = client.get("/v1/orders?offset=50")
+    body = r.json()
+    assert r.status_code == 200
+    assert len(body["data"]) == 5
+    assert body["meta"]["total"] == 55
+    assert body["meta"]["page"] == 2
+
+
+def test_list_orders_custom_limit_respected(client):
+    _seed_pending_orders(client.order_store, 10)
+    r = client.get("/v1/orders?limit=3")
+    body = r.json()
+    assert r.status_code == 200
+    assert len(body["data"]) == 3
+    assert body["meta"]["total"] == 10
+    assert body["meta"]["per_page"] == 3
+
+
+def test_list_orders_limit_above_500_returns_422(client):
+    r = client.get("/v1/orders?limit=501")
+    assert r.status_code == 422

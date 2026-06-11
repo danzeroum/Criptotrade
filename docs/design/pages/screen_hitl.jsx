@@ -125,7 +125,7 @@ function ScreenHITL() {
     setLoading(true);
     Promise.all([
       CT_API.getHITL(),
-      CT_API.getOrders('?status=pending'),
+      CT_API.getOrders(200, 0, '&status=pending'),
     ])
       .then(([cfg, ords]) => {
         setConfig(cfg);

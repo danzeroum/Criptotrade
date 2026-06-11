@@ -33,7 +33,8 @@ const CT_API = (() => {
     getMetrics:       (p = '7d')   => req(`/v1/metrics?period=${p}`),
     getHITL:          ()           => req('/v1/hitl/config'),
     patchHITL:        (body)       => req('/v1/hitl/config', { method: 'PATCH', body: JSON.stringify(body) }),
-    getOrders:        (q = '')     => req(`/v1/orders${q}`),
+    getOrders:        (limit = 50, offset = 0, q = '') =>
+      req(`/v1/orders?limit=${limit}&offset=${offset}${q}`),
     decideOrder:      (id, body)   => req(`/v1/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify(body) }),
     getAgents:        ()           => req('/v1/agents'),
     getAgentConfig:   (id)         => req(`/v1/agents/${id}/config`),

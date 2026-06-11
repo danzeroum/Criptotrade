@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import yaml
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, HTTPException
 
 from src.api.deps import get_ledger, get_metrics_calculator
 from src.api.schemas import (
@@ -268,5 +268,15 @@ async def patch_risk_config(
     if "max_monthly_loss_pct" in updates:
         cfg.setdefault("loss_limits", {})["max_monthly_loss_pct"] = updates["max_monthly_loss_pct"]
 
-    _save_yaml(cfg)
+    try:
+        _save_yaml(cfg)
+    except (PermissionError, FileNotFoundError, OSError) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "config_not_writable",
+                "message": "Configuração de risco é somente-leitura neste ambiente.",
+                "docs": "/v1/docs",
+            },
+        ) from exc
     return await get_risk_config()
