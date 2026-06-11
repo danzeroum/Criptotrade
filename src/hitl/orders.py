@@ -248,7 +248,11 @@ class OrderStore:
         return _row_to_order(row) if row else None
 
     def list(
-        self, status: Optional[OrderStatus] = None, pair: Optional[str] = None
+        self,
+        status: Optional[OrderStatus] = None,
+        pair: Optional[str] = None,
+        limit: Optional[int] = None,
+        offset: int = 0,
     ) -> List[Order]:
         query = "SELECT * FROM orders"
         clauses: List[str] = []
@@ -262,9 +266,35 @@ class OrderStore:
         if clauses:
             query += " WHERE " + " AND ".join(clauses)
         query += " ORDER BY created_at DESC"
+        if limit is not None:
+            query += " LIMIT ?"
+            params.append(limit)
+            if offset:
+                query += " OFFSET ?"
+                params.append(offset)
         with connection(self._db_path) as conn:
             rows = conn.execute(query, params).fetchall()
         return [_row_to_order(r) for r in rows]
+
+    def count(
+        self,
+        status: Optional[OrderStatus] = None,
+        pair: Optional[str] = None,
+    ) -> int:
+        """Return total matching orders (ignoring pagination) for Meta.total."""
+        query = "SELECT COUNT(*) FROM orders"
+        clauses: List[str] = []
+        params: List[Any] = []
+        if status is not None:
+            clauses.append("status=?")
+            params.append(status.value)
+        if pair is not None:
+            clauses.append("pair=?")
+            params.append(pair)
+        if clauses:
+            query += " WHERE " + " AND ".join(clauses)
+        with connection(self._db_path) as conn:
+            return conn.execute(query, params).fetchone()[0]
 
     def pending_count(self) -> int:
         with connection(self._db_path) as conn:

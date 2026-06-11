@@ -37,12 +37,15 @@ def _order_to_out(o: Order) -> OrderOut:
 async def list_orders(
     status: Optional[OrderStatus] = Query(None),
     pair: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     store: OrderStore = Depends(get_order_store),
 ) -> APIResponse[List[OrderOut]]:
-    orders = store.list(status=status, pair=pair)
+    total = store.count(status=status, pair=pair)
+    orders = store.list(status=status, pair=pair, limit=limit, offset=offset)
     return APIResponse(
         data=[_order_to_out(o) for o in orders],
-        meta=Meta(total=len(orders), page=1, per_page=len(orders) or 1),
+        meta=Meta(total=total, page=offset // limit + 1, per_page=limit),
     )
 
 

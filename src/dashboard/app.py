@@ -141,7 +141,7 @@ with st.sidebar:
 
 # ── HITL console — pending orders ─────────────────────────────────────────────
 st.subheader("⚡ Console HITL — Ordens pendentes")
-pending, pending_err = _get("/v1/orders?status=pending")
+pending, pending_err = _get("/v1/orders?status=pending&limit=200")
 if pending_err:
     st.warning(f"Não foi possível carregar ordens ({pending_err}).")
 elif pending and pending["data"]:
@@ -279,7 +279,7 @@ st.divider()
 
 # ── Recent orders (full lifecycle) ────────────────────────────────────────────
 st.subheader("📋 Ordens recentes")
-orders, orders_err = _get("/v1/orders")
+orders, orders_err = _get("/v1/orders?limit=50")
 _ORDER_ICON = {
     "pending": "⏳", "approved": "✅", "filled": "💰", "rejected": "❌", "cancelled": "🚫",
 }
