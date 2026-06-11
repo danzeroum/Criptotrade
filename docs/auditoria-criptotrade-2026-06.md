@@ -323,10 +323,9 @@ O sistema tem uma base sólida para um MVP de trading:
 
 ### P1 — Correção / Confiabilidade (Confirmados no Código)
 
-- [ ] **P1-1 — Handler catch-all `Exception` → JSON 500** (`main.py:103-139`)  
-  Adicionar `@app.exception_handler(Exception)` que retorne `{"error": "internal_error", "message": "Erro interno inesperado.", "docs": "/v1/docs"}` com status 500. Logar o traceback internamente (sem expô-lo ao cliente).  
-  **Aceite:** qualquer exceção Python não tratada retorna JSON 500, nunca texto plano; stacktrace aparece nos logs do container, não na resposta HTTP.  
-  **Esforço:** P
+- [x] **P1-1 — Handler catch-all `Exception` → JSON 500** (`main.py:103-139`)  
+  ✅ `commit 9adbc00` — `@app.exception_handler(Exception)` em `main.py` registrado em `ServerErrorMiddleware`; loga traceback internamente; retorna `{"error":"internal_error","docs":"/v1/docs"}`. Teste: `test_unhandled_exception_returns_json_500`.  
+  **Aceite:** ✅ qualquer exceção Python não tratada retorna JSON 500; stacktrace nos logs do container, não na resposta HTTP.
 
 - [ ] **P1-2 — Corrigir `PATCH /v1/risk/config` em FS read-only** (`risk.py:38-40`, `risk.py:247-267`)  
   `_save_yaml()` abre `_RISK_PARAMS_PATH` para escrita sem tratar `PermissionError` ou `FileNotFoundError`. Resolver: (a) tratar exceção e retornar `503 {"error":"config_not_writable"}` estruturado, ou (b) mover config para banco de dados/variável de ambiente.  
@@ -338,21 +337,18 @@ O sistema tem uma base sólida para um MVP de trading:
   **Aceite:** `GET /v1/orders?limit=50&offset=0` retorna ≤ 50 ordens + `Meta` correto; com ~10k ordens, resposta < 1s e sem crescimento de memória; console e dashboard paginam.  
   **Esforço:** M
 
-- [ ] **P1-4 — Kelly com dados insuficientes** (`risk.py:162-208`)  
-  Se `trades == 0` (ou `trades < N`, ex. 10), retornar estado `insufficient_data` em vez de calcular com defaults enganosos. Sugestão: adicionar campo `data_quality: "ok" | "insufficient"` em `KellyOut`; quando insuficiente, `full_kelly=null`, `risk_of_ruin=null`.  
-  **Aceite:** `GET /v1/risk/kelly` com ledger vazio retorna `{data_quality: "insufficient", trades: 0, full_kelly: null, risk_of_ruin: null}`; tela de Risco exibe "Dados insuficientes (0 trades)" em vez de "Risco 100%".  
-  **Esforço:** P
+- [x] **P1-4 — Kelly com dados insuficientes** (`risk.py:162-208`)  
+  ✅ `commit 9adbc00` — `risk.py` retorna cedo quando `trades < _MIN_KELLY_TRADES (10)` com `{data_quality:"insufficient"}`. `schemas.py:KellyOut` com campos opcionais. `screen_risk.jsx` exibe `EmptyState "Dados insuficientes (N trades — mínimo 10)"` e KPI de ruína mostra "Dados insuficientes". Testes: `test_kelly_empty_ledger_returns_insufficient`, `test_kelly_below_threshold_returns_insufficient`, `test_kelly_sufficient_trades_returns_ok`.  
+  **Aceite:** ✅ ledger vazio → `{data_quality:"insufficient", trades:0, full_kelly:null, risk_of_ruin:null}`; tela exibe "Dados insuficientes".
 
 - [ ] **P1-5 — Investigar `open_positions` fantasma** (a confirmar em P0-0)  
   Mapear ciclo completo: `position_opened` → `position_closed` no ledger; verificar se ordens sintéticas são fechadas corretamente pelo orquestrador. Requer dados de prod (P0-0).  
   **Aceite:** contador `open_positions` reflete posições reais; sem crescimento ilimitado entre restarts; teste de integração cobrindo o ciclo completo.  
   **Esforço:** G (investigação + fix dependente de dados de prod)
 
-- [ ] **P1-6 — `openapi_url` para o prefixo `/v1`** (`main.py:70-77`)  
-  Opção A (mais simples): setar `openapi_url="/v1/openapi.json"` em `create_app()` e adicionar `/v1/openapi.json` em `PUBLIC_PATHS`.  
-  Opção B: configurar nginx para proxiar também `/openapi.json`.  
-  **Aceite:** `/v1/docs` carrega o schema sem erro 404 em produção; `/v1/redoc` funciona igualmente.  
-  **Esforço:** P
+- [x] **P1-6 — `openapi_url` para o prefixo `/v1`** (`main.py:70-77`)  
+  ✅ `commit 9adbc00` — `openapi_url="/v1/openapi.json"` em `create_app()`; `PUBLIC_PATHS` atualizado. Teste: `test_openapi_schema_served_at_v1_path`.  
+  **Aceite:** ✅ `/v1/docs` carrega o schema sem 404; `/v1/redoc` funciona igualmente.
 
 - [ ] **P1-7 — Conflito de preço no Console React** (`docs/design/pages/screen_market.jsx`)  
   Header do console usa dado mock/hardcoded enquanto gráfico busca da API — fonte dupla. Unificar: header lê o mesmo dado do `apiClient.js`.  
