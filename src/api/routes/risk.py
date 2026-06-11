@@ -26,6 +26,7 @@ from src.core.metrics import PortfolioMetricsCalculator
 router = APIRouter(prefix="/risk", tags=["risk"])
 
 _RISK_PARAMS_PATH = Path(__file__).resolve().parents[4] / "config" / "strategies" / "risk_params.yaml"
+_MIN_KELLY_TRADES = 10
 
 
 def _load_yaml() -> Dict[str, Any]:
@@ -164,6 +165,10 @@ async def get_kelly(
     calc: PortfolioMetricsCalculator = Depends(get_metrics_calculator),
 ) -> APIResponse[KellyOut]:
     entries = [e for e in ledger.read_all() if e.get("event_type") == "position_closed"]
+    trades = len(entries)
+
+    if trades < _MIN_KELLY_TRADES:
+        return APIResponse(data=KellyOut(data_quality="insufficient", trades=trades))
 
     pnls = [e.get("data", {}).get("pnl", 0.0) for e in entries]
     initial_capital = calc.initial_capital or 10000.0
@@ -172,8 +177,7 @@ async def get_kelly(
     wins = [p for p in pnl_pcts if p > 0]
     losses = [p for p in pnl_pcts if p < 0]
 
-    trades = len(pnl_pcts)
-    win_rate = len(wins) / trades if trades else 0.5
+    win_rate = len(wins) / trades
     avg_win = sum(wins) / len(wins) if wins else 1.0
     avg_loss = abs(sum(losses) / len(losses)) if losses else 1.0
 
@@ -197,6 +201,8 @@ async def get_kelly(
         risk_of_ruin = 0.0
 
     return APIResponse(data=KellyOut(
+        data_quality="ok",
+        trades=trades,
         win_rate=round(win_rate, 4),
         avg_win_pct=round(avg_win, 4),
         avg_loss_pct=round(avg_loss, 4),
@@ -204,7 +210,6 @@ async def get_kelly(
         fraction=fraction,
         fractional_kelly=fractional_kelly,
         risk_of_ruin=risk_of_ruin,
-        trades=trades,
     ))
 
 

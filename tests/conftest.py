@@ -6,7 +6,7 @@ Centralizes the test doubles that were previously duplicated across
 """
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
@@ -25,7 +25,7 @@ def dummy_exchange() -> DummyExchange:
 def squad_approval():
     """HITL handler for ``SquadOrchestrator`` (signature: ``(order) -> bool``)."""
 
-    async def _approve(_order: Dict[str, Any]) -> bool:
+    async def _approve(_order: dict[str, Any]) -> bool:
         return True
 
     return _approve
@@ -35,7 +35,7 @@ def squad_approval():
 def autonomy_approval():
     """HITL handler for ``ProgressiveAutonomyManager`` (``(agent, action) -> dict``)."""
 
-    async def _approve(_agent: str, _action: Dict[str, Any]) -> Dict[str, Any]:
+    async def _approve(_agent: str, _action: dict[str, Any]) -> dict[str, Any]:
         return {"approved": True, "modifications": None, "feedback": None}
 
     return _approve

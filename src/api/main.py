@@ -5,10 +5,10 @@ Orders/positions/agents arrive in later phases.
 """
 from __future__ import annotations
 
+import logging
 import os
 import secrets
 from contextlib import asynccontextmanager
-from typing import Set
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -17,19 +17,33 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from src.api.routes import agents, alerts, backtest, config, hitl, journal, market, metrics, orders, process, risk
+from src.api.routes import (
+    agents,
+    alerts,
+    backtest,
+    config,
+    hitl,
+    journal,
+    market,
+    metrics,
+    orders,
+    process,
+    risk,
+)
 from src.core.db import init_db
 
+_log = logging.getLogger(__name__)
+
 PREFIX = "/v1"
-PUBLIC_PATHS: Set[str] = {
+PUBLIC_PATHS: set[str] = {
     "/health",
     "/v1/docs",
     "/v1/redoc",
-    "/openapi.json",
+    "/v1/openapi.json",
 }
 
 
-def _valid_keys() -> Set[str]:
+def _valid_keys() -> set[str]:
     raw = os.getenv("API_KEYS", "").strip()
     return {k for k in (s.strip() for s in raw.split(",")) if k}
 
@@ -73,6 +87,7 @@ def create_app() -> FastAPI:
         version="1.0.0",
         docs_url="/v1/docs",
         redoc_url="/v1/redoc",
+        openapi_url="/v1/openapi.json",
         lifespan=_lifespan,
     )
 
@@ -137,6 +152,18 @@ def create_app() -> FastAPI:
     # framework-raised, e.g. unmatched paths) so detail handling is consistent.
     app.add_exception_handler(HTTPException, http_exception_handler)
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(request: Request, exc: Exception):
+        _log.exception("Unhandled exception on %s %s", request.method, request.url.path)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "internal_error",
+                "message": "Erro interno inesperado. Consulte os logs do servidor.",
+                "docs": "/v1/docs",
+            },
+        )
 
     return app
 

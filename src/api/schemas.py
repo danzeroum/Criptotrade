@@ -308,14 +308,15 @@ class CircuitBreakerOut(BaseModel):
 
 
 class KellyOut(BaseModel):
-    win_rate: float
-    avg_win_pct: float
-    avg_loss_pct: float
-    full_kelly: float
-    fraction: float
-    fractional_kelly: float
-    risk_of_ruin: float
+    data_quality: str = "ok"  # "ok" | "insufficient"
     trades: int
+    win_rate: Optional[float] = None
+    avg_win_pct: Optional[float] = None
+    avg_loss_pct: Optional[float] = None
+    full_kelly: Optional[float] = None
+    fraction: Optional[float] = None
+    fractional_kelly: Optional[float] = None
+    risk_of_ruin: Optional[float] = None
 
 
 class EquityPoint(BaseModel):

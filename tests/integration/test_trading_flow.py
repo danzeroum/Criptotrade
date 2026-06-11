@@ -2,9 +2,9 @@ import asyncio
 
 import pytest
 
-from src.orchestration.squad_orchestrator import SquadOrchestrator
 from src.core.ledger import TradingLedger
 from src.hitl.orders import OrderStatus, OrderStore, make_approval_handler
+from src.orchestration.squad_orchestrator import SquadOrchestrator
 
 
 class _DummyExchange:

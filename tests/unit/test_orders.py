@@ -79,7 +79,9 @@ def test_resolve_approve_sets_approved_not_filled(ledger):
 def test_resolve_reject_sets_rejected(ledger):
     store = _store(ledger, threshold_provider=lambda: 0.0)
     order = store.submit(_order())
-    resolved = store.resolve(order.id, approved=False, operator="roberto", operator_note="risco alto")
+    resolved = store.resolve(
+        order.id, approved=False, operator="roberto", operator_note="risco alto"
+    )
     assert resolved.status == OrderStatus.rejected
     assert resolved.operator_note == "risco alto"
     assert len(ledger.get_events("order_fill")) == 0
