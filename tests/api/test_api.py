@@ -410,3 +410,73 @@ def test_process_events_empty(client):
     r = client.get("/v1/process/events")
     assert r.status_code == 200
     assert r.json()["data"] == []
+
+
+# ----------------------------------------------------------------- risk/kelly (P1-4)
+def test_kelly_empty_ledger_returns_insufficient(client):
+    r = client.get("/v1/risk/kelly")
+    assert r.status_code == 200
+    d = r.json()["data"]
+    assert d["data_quality"] == "insufficient"
+    assert d["trades"] == 0
+    assert d["full_kelly"] is None
+    assert d["risk_of_ruin"] is None
+
+
+def test_kelly_below_threshold_returns_insufficient(client):
+    base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    for i in range(9):
+        _append_closed(client.ledger, 50.0 if i % 2 == 0 else -20.0, base, f"ord_{i}")
+    r = client.get("/v1/risk/kelly")
+    assert r.status_code == 200
+    d = r.json()["data"]
+    assert d["data_quality"] == "insufficient"
+    assert d["trades"] == 9
+    assert d["full_kelly"] is None
+
+
+def test_kelly_sufficient_trades_returns_ok(client):
+    base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    for i in range(12):
+        _append_closed(client.ledger, 100.0 if i % 2 == 0 else -30.0, base, f"ord_{i}")
+    r = client.get("/v1/risk/kelly")
+    assert r.status_code == 200
+    d = r.json()["data"]
+    assert d["data_quality"] == "ok"
+    assert d["trades"] == 12
+    assert d["full_kelly"] is not None
+    assert d["risk_of_ruin"] is not None
+    assert 0.0 <= d["risk_of_ruin"] <= 100.0
+
+
+# ----------------------------------------------------------------- catch-all exception → JSON 500 (P1-1)
+def test_unhandled_exception_returns_json_500(client):
+    from src.api import deps
+    from fastapi.testclient import TestClient
+
+    def broken():
+        raise RuntimeError("simulated unhandled error")
+
+    client.app.dependency_overrides[deps.get_ledger] = broken
+    try:
+        # raise_server_exceptions=False: ServerErrorMiddleware calls the
+        # Exception handler and sends the response before re-raising; the
+        # TestClient swallows the re-raise and returns what was sent.
+        with TestClient(client.app, raise_server_exceptions=False) as tc:
+            r = tc.get("/v1/risk/kelly")
+    finally:
+        del client.app.dependency_overrides[deps.get_ledger]
+
+    assert r.status_code == 500
+    body = r.json()
+    assert body["error"] == "internal_error"
+    assert "docs" in body
+
+
+# ----------------------------------------------------------------- openapi at /v1/openapi.json (P1-6)
+def test_openapi_schema_served_at_v1_path(client):
+    r = client.get("/v1/openapi.json")
+    assert r.status_code == 200
+    schema = r.json()
+    assert schema["info"]["title"] == "Criptotrade API"
+    assert "/v1/risk/kelly" in schema["paths"]

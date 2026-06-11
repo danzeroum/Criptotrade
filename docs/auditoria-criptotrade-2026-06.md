@@ -66,7 +66,7 @@ Consequências diretas:
 | `/process/events` é feature de PM, não bug | ✅ Aceito | P2-3 (requalificado) |
 | Streamlit como dev-tool, não frontend de produção | ✅ Aceito | P2-4 (documentar separação) |
 | Verificação pós-push necessária | ✅ Aceito | Critério de aceite em cada item |
-| Cobertura "inflada por skips" | ❌ Rejeitado | Sem marcadores `skip`/`xfail` no código; testes rodam com `DummyExchange`; 138 testes reais (README) |
+| Cobertura "inflada por skips" | ❌ Rejeitado | Sem marcadores `skip`/`xfail` no código; testes rodam com `DummyExchange`; contagem exata a verificar (README cita 138 — ver G-17/P2-4) |
 
 ---
 
@@ -107,7 +107,7 @@ Consequências diretas:
 | `GET /v1/hitl/config` | `getHITL()` | ✅ linha 75 |
 | `PATCH /v1/hitl/config` | `patchHITL(body)` | ✅ linha 132 |
 | `GET /v1/orders` | `getOrders(q)` | ✅ linhas 144, 282 |
-| `PATCH /v1/orders/{id}/status` | `decideOrder(id, body)` | ✅ linhas 158, 169 |
+| `PATCH /v1/orders/{id}/status` | `decideOrder(id, body)` | ✅ linhas 159, 169 |
 | `GET /v1/agents` | `getAgents()` | ✅ linha 183 |
 | `GET /v1/agents/{id}/config` | `getAgentConfig(id)` | ✅ linha 198 |
 | `PATCH /v1/agents/{id}/config` | `patchAgentConfig(id, body)` | — |

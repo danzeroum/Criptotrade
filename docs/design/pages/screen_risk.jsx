@@ -84,7 +84,8 @@ function ScreenRisk() {
 
   const cap = CT.capital;
   const cbArmed = cb?.status === 'armed';
-  const riskOfRuinHigh = kelly?.risk_of_ruin > 5;
+  const kellyOk = kelly?.data_quality === 'ok';
+  const riskOfRuinHigh = kellyOk && kelly.risk_of_ruin != null && kelly.risk_of_ruin > 5;
 
   return (
     <div>
@@ -115,10 +116,10 @@ function ScreenRisk() {
         <div className="card">
           <KPI
             label="Risco de ruína"
-            value={kelly?.risk_of_ruin}
+            value={kellyOk ? kelly.risk_of_ruin : null}
             format="pct_direct"
             icon="alert"
-            sub={riskOfRuinHigh ? '⚠ Acima do limite 5%' : 'Dentro do limite'}
+            sub={riskOfRuinHigh ? '⚠ Acima do limite 5%' : kellyOk ? 'Dentro do limite' : 'Dados insuficientes'}
           />
         </div>
       </div>
@@ -144,7 +145,9 @@ function ScreenRisk() {
             <span className="card-title"><Icon name="zap" />Kelly Criterion</span>
           </div>
           <div className="card-pad">
-            {kelly && (
+            {!kelly ? null : !kellyOk ? (
+              <EmptyState label={`Dados insuficientes (${kelly.trades} trade${kelly.trades !== 1 ? 's' : ''} — mínimo ${10})`} />
+            ) : (
               <>
                 <div style={{ marginBottom: 14 }}>
                   <div className="stat-row">
