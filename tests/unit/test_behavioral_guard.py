@@ -198,3 +198,143 @@ class TestPatternScanner:
         tops = [r for r in results if r.pattern == "double_top"]
         assert len(tops) > 0
         assert tops[0].direction == "bearish"
+
+    def test_head_and_shoulders(self):
+        """Middle pivot clearly higher than roughly equal shoulder pivots."""
+        lb = 3
+        base_h = 50100.0
+        base_l = 49900.0
+        n = 40
+        highs  = [base_h] * n
+        lows   = [base_l] * n
+        closes = [50000.0] * n
+
+        # Left shoulder at 8, head at 18, right shoulder at 28
+        highs[8]  = 53000.0  # shoulder 1
+        highs[18] = 58000.0  # head (highest)
+        highs[28] = 53300.0  # shoulder 2 (~0.6% above shoulder1 — within 3%)
+
+        # Troughs (neckline) between pivots
+        lows[13] = 49000.0
+        lows[23] = 48800.0
+
+        candles = [
+            [i * 3600000, closes[i], highs[i], lows[i], closes[i], 1000.0]
+            for i in range(n)
+        ]
+        scanner = PatternScanner(pivot_lookback=lb)
+        results = scanner.scan(candles)
+        hs = [r for r in results if r.pattern == "head_and_shoulders"]
+        assert len(hs) > 0
+        assert hs[0].direction == "bearish"
+        assert hs[0].target_price is not None
+
+    def test_ascending_triangle(self):
+        """Flat resistance top, rising support lows."""
+        lb = 3
+        n = 40
+        highs  = [50100.0] * n
+        # base_l must be > 50000 so lows[30]=50000 is a genuine local minimum
+        lows   = [52000.0] * n
+        closes = [50000.0] * n
+
+        # Flat resistance at 55000 / 55200 (within 1%)
+        highs[10] = 55000.0
+        highs[22] = 55200.0  # 0.36% apart
+
+        # Rising support: 48000 → 50000 (both below base 52000 → genuine pivots)
+        lows[16] = 48000.0
+        lows[30] = 50000.0
+
+        candles = [
+            [i * 3600000, closes[i], highs[i], lows[i], closes[i], 1000.0]
+            for i in range(n)
+        ]
+        scanner = PatternScanner(pivot_lookback=lb)
+        results = scanner.scan(candles)
+        at = [r for r in results if r.pattern == "ascending_triangle"]
+        assert len(at) > 0
+        assert at[0].direction == "bullish"
+
+    def test_descending_triangle(self):
+        """Flat support bottom, declining resistance highs."""
+        lb = 3
+        n = 40
+        highs  = [50100.0] * n
+        lows   = [49900.0] * n
+        closes = [50000.0] * n
+
+        # Declining resistance: 55000 → 52000
+        highs[10] = 55000.0
+        highs[22] = 52000.0
+
+        # Flat support: 45000 / 45200 (within 1%)
+        lows[16] = 45000.0
+        lows[30] = 45150.0  # 0.33% apart
+
+        candles = [
+            [i * 3600000, closes[i], highs[i], lows[i], closes[i], 1000.0]
+            for i in range(n)
+        ]
+        scanner = PatternScanner(pivot_lookback=lb)
+        results = scanner.scan(candles)
+        dt = [r for r in results if r.pattern == "descending_triangle"]
+        assert len(dt) > 0
+        assert dt[0].direction == "bearish"
+
+    def test_rectangle_neutral(self):
+        """Both highs and lows are flat → rectangle, price inside → neutral."""
+        lb = 3
+        n = 40
+        # Close stays mid-range (50000), well inside the rectangle.
+        # base_l > 45100 so both flat support pivots are genuine local minima.
+        highs  = [50050.0] * n
+        lows   = [46000.0] * n
+        closes = [50000.0] * n
+
+        # Flat resistance ~55000
+        highs[10] = 55000.0
+        highs[22] = 55200.0  # within 1.5%
+
+        # Flat support ~45000
+        lows[16] = 45000.0
+        lows[30] = 45100.0  # within 1.5%
+
+        candles = [
+            [i * 3600000, closes[i], highs[i], lows[i], closes[i], 1000.0]
+            for i in range(n)
+        ]
+        scanner = PatternScanner(pivot_lookback=lb)
+        results = scanner.scan(candles)
+        rects = [r for r in results if r.pattern == "rectangle"]
+        assert len(rects) > 0
+        assert rects[0].direction == "neutral"
+        assert rects[0].target_price is None
+
+    def test_rectangle_bullish_breakout(self):
+        """Close above resistance → bullish rectangle breakout."""
+        lb = 3
+        n = 40
+        highs  = [50050.0] * n
+        lows   = [46000.0] * n  # base_l > 45100 → both support pivots genuine
+        closes = [50000.0] * n
+        closes[-1] = 56000.0  # breakout above ~55000
+
+        highs[10] = 55000.0
+        highs[22] = 55200.0
+        lows[16]  = 45000.0
+        lows[30]  = 45100.0
+
+        candles = [
+            [i * 3600000, closes[i], highs[i], lows[i], closes[i], 1000.0]
+            for i in range(n)
+        ]
+        scanner = PatternScanner(pivot_lookback=lb)
+        results = scanner.scan(candles)
+        rects = [r for r in results if r.pattern == "rectangle"]
+        assert len(rects) > 0
+        assert rects[0].direction == "bullish"
+
+    def test_similarity_confidence_zero_price(self):
+        """_similarity_confidence with price_a=0 returns 0.5 (guard)."""
+        assert PatternScanner._similarity_confidence(0.0, 100.0) == 0.5
