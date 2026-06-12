@@ -89,7 +89,7 @@ cd Criptotrade
 cp .env.example .env          # ajuste conforme a tabela de env vars abaixo
 pip install -r requirements.txt
 
-pytest -q                     # 273 testes
+pytest -q                     # 344 testes
 ```
 
 ### Rodando (3 processos independentes)
@@ -239,7 +239,7 @@ Criptotrade/
 ## 🧪 Testes
 
 ```bash
-pytest -q                                   # suíte completa (273 testes)
+pytest -q                                   # suíte completa (344 testes)
 pytest tests/unit/test_orders.py -v         # bridge HITL (OrderStore SQLite)
 pytest tests/unit/test_db.py -v             # backend SQLite + migrations
 pytest tests/integration/test_trading_flow.py -v

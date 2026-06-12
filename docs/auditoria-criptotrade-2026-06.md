@@ -462,10 +462,10 @@ Além dos critérios do ADR-001 (Sharpe > 1.5, DD < 10%, Win Rate > 55%, 100 tra
 
 ### 7.4 Micro Follow-ups (baratos — junto do Sprint que tocar o arquivo)
 
-- `screen_market.jsx`: remover `macdData` morto (declarado na linha ~151, nunca renderizado).
-- `squad_orchestrator.py`: `Optional[float]` → `float | None`, dropar import `Optional` (convenção do repo; ruff UP é informativo, não bloqueante).
-- (Produto) "Variação 24h" e título do gráfico: dar fonte real (ticker ou derivado de candles) → remover dependência de `CT.symbol`.
-- Teste de posição **short** (`sell`) para `_exit_price` / `_check_open_positions` — ramo sell está sem cobertura em `tests/integration/test_trading_flow.py`.
+- ~~`screen_market.jsx`: remover `macdData` morto (declarado na linha ~151, nunca renderizado).~~ ✅ PR #51
+- ~~`squad_orchestrator.py`: `Optional[float]` → `float | None`, dropar import `Optional`.~~ ✅ PR #51
+- ~~(Produto) "Variação 24h" e título do gráfico: dar fonte real (ticker ou derivado de candles) → remover dependência de `CT.symbol`.~~ ✅ `GET /v1/market/{pair}/ticker` implementado; `screen_market.jsx` usa `ticker.change_24h_pct` e `ticker.symbol` diretamente da API.
+- ~~Teste de posição **short** (`sell`) para `_exit_price` / `_check_open_positions`.~~ ✅ PR #51
 
 ### 7.5 Housekeeping de Branches
 
