@@ -36,11 +36,17 @@ def main() -> int:
         return 1
 
     migrated = 0
+    skipped = 0
     with jsonl.open("r", encoding="utf-8") as fh:
-        for line in fh:
+        for lineno, line in enumerate(fh, 1):
             if not line.strip():
                 continue
-            entry = json.loads(line)
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError as exc:
+                print(f"WARNING: line {lineno} is malformed JSON — skipping ({exc})", file=sys.stderr)
+                skipped += 1
+                continue
             led.log_decision(
                 entry.get("event_type", "unknown"),
                 entry.get("data", {}),
@@ -48,6 +54,8 @@ def main() -> int:
             )
             migrated += 1
 
+    if skipped:
+        print(f"WARNING: {skipped} malformed lines skipped.", file=sys.stderr)
     print(f"Migrated {migrated} events: {jsonl} -> {led.db_path}")
     return 0
 

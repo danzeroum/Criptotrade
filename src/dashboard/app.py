@@ -273,7 +273,7 @@ elif agents and agents["data"]:
                 help="Em breve",
             )
 
-    total_cycles = sum(a["cycles"] for a in agents["data"])
+    total_cycles = sum(a["cycles"] for a in agent_list)
     st.caption(
         f"Ciclos hoje (total): {total_cycles} · "
         "0 em todos = o loop (orchestrator) não está rodando."
