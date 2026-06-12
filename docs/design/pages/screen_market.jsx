@@ -149,7 +149,6 @@ function ScreenMarket() {
   const sym = CT.symbol;
   const lastClose = candles?.length ? candles[candles.length - 1].c : null;
   const ind = indicators;
-  const macdData = ind?.macd ? [{ i: 0, ...ind.macd }] : [];
 
   const patternVariant = (d) => d === 'bullish' ? 'ok' : d === 'bearish' ? 'down' : 'neutral';
   const patternLabel = (d) => d === 'bullish' ? '↑' : d === 'bearish' ? '↓' : '→';
