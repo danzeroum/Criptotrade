@@ -50,6 +50,9 @@ Dois processos separados (não compartilham lifecycle — um restart da API não
          ┌─────────┴──────────┐
          │ Dashboard (Streamlit)│  KPIs · Console HITL · Agentes · Alertas
          └────────────────────┘
+
+> **Design:** existe um protótipo de console React em `docs/design/pages/` (mockups estáticos, não buildado/deployado).
+
 ```
 
 ### Componentes principais
@@ -86,7 +89,7 @@ cd Criptotrade
 cp .env.example .env          # ajuste conforme a tabela de env vars abaixo
 pip install -r requirements.txt
 
-pytest -q                     # 138 testes
+pytest -q                     # 273 testes
 ```
 
 ### Rodando (3 processos independentes)
@@ -177,7 +180,7 @@ Docs interativas (OpenAPI auto-gerado): **`http://localhost:8000/v1/docs`**.
 | `GET/PATCH /v1/hitl/config` | Nível de autonomia (0–3) |
 | `GET /v1/orders` · `POST /v1/orders` · `PATCH /v1/orders/{id}/status` | Lista / submete / aprova-rejeita ordens (HITL) |
 | `GET /v1/agents` · `GET /v1/agents/{id}` | Status dos agentes + `cycles_today` (501 para stubs) |
-| `GET /v1/process/events` | Event log XES (process mining) |
+| `GET /v1/process/events` | Event log XES (process mining) — ver [docs/integrations/process-mining.md](docs/integrations/process-mining.md) |
 | `GET /v1/alerts` (SSE) · `GET /v1/alerts/history` | Alertas de guardrail em tempo real / histórico |
 
 ---
@@ -196,7 +199,7 @@ Criptotrade/
 │   ├── strategies/         # DCA otimizado, base_strategy
 │   ├── dashboard/          # Streamlit (console operacional)
 │   └── ...                 # evaluation, memory, planning, consensus, ...
-├── migrations/             # SQL versionado (001_orders_and_cycles.sql)
+├── migrations/             # SQL versionado (001_orders_and_cycles.sql, 002_journal.sql, 003_backtest_jobs.sql)
 ├── config/                 # constitution.yaml, strategies/risk_params.yaml, prometheus.yml
 ├── docs/                   # ADRs, validação de planos, UX, tutoriais
 ├── tests/                  # unit, integration, emergent
@@ -209,7 +212,7 @@ Criptotrade/
 ## 🧪 Testes
 
 ```bash
-pytest -q                                   # suíte completa (138 testes)
+pytest -q                                   # suíte completa (273 testes)
 pytest tests/unit/test_orders.py -v         # bridge HITL (OrderStore SQLite)
 pytest tests/unit/test_db.py -v             # backend SQLite + migrations
 pytest tests/integration/test_trading_flow.py -v
@@ -228,11 +231,12 @@ CI (GitHub Actions): `python-ci.yml` (suíte completa + ruff + docker build + se
 - [x] Paper trading / `EXCHANGE_DRY_RUN` (sintético, zero rede)
 - [x] Loop contínuo em processo dedicado (`main_loop`) + event log XES
 - [x] Bridge HITL cross-process via SQLite WAL (auto + manual, `approved→filled`)
-- [x] `cycles_today` cross-process · ADR-001 (persistência)
+- [x] `cycles_today` cross-process · ADR-003 (persistência)
+- [x] Rate limiting (30 req/min escrita / 200 leitura), security headers, confirmação em mutações sensíveis (Sprint A / P0)
 
 ### 🔜 Backlog (Fase 5b — janitorial/observabilidade)
 - [ ] Tech debts `TODO(5b)` (reset de `_last_order_ref`, `wait_for_decision` com id inexistente, etc.)
-- [ ] Pruning de `cycle_events`; migração de XES events → SQLite (fecha ADR-001)
+- [ ] Pruning de `cycle_events`; migração de XES events → SQLite (fecha ADR-003)
 - [ ] Filtrar agentes `not_implemented` no dashboard; paginação em `/v1/orders`
 
 ---
