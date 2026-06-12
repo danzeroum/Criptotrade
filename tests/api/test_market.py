@@ -242,3 +242,131 @@ def test_regime_insufficient_data_returns_422(sparse_client):
 def test_signal_insufficient_data_returns_422(sparse_client):
     r = sparse_client.get("/v1/market/BTC-USDT/signal")
     assert r.status_code in (200, 422)
+
+
+# ── Signal branch coverage (RSI/MACD/regime conditionals) ────────────────────
+
+class _TrendUpClient:
+    """5:1 rising candles → RSI ~89 (truthy > 70), strong_uptrend regime."""
+    async def fetch_ohlcv(self, pair, timeframe="1h", limit=150):
+        ts = 1_700_000_000_000
+        candles = []
+        base = 40_000.0
+        for i in range(limit):
+            if i % 6 == 0:          # 1 in 6: small pullback
+                o = base; h = base + 50; l = base - 200; c = base - 150; base = c
+            else:                    # 5 in 6: rise
+                o = base; h = base + 250; l = base - 50; c = base + 200; base = c
+            candles.append([ts + i * 3_600_000, o, h, l, c, 100.0])
+        return candles
+
+    async def fetch_ticker(self, pair):
+        return {"symbol": pair, "last": 61_000.0, "bid": 60_900.0, "ask": 61_100.0, "timestamp": 0}
+
+
+class _TrendDownClient:
+    """5:1 declining candles → RSI ~10 (truthy < 30), strong_downtrend regime."""
+    async def fetch_ohlcv(self, pair, timeframe="1h", limit=150):
+        ts = 1_700_000_000_000
+        candles = []
+        base = 55_000.0
+        for i in range(limit):
+            if i % 6 == 0:          # 1 in 6: small bounce
+                o = base; h = base + 200; l = base - 50; c = base + 150; base = c
+            else:                    # 5 in 6: decline
+                o = base; h = base + 50; l = base - 250; c = base - 200; base = c
+            candles.append([ts + i * 3_600_000, o, h, l, c, 100.0])
+        return candles
+
+    async def fetch_ticker(self, pair):
+        return {"symbol": pair, "last": 33_000.0, "bid": 32_900.0, "ask": 33_100.0, "timestamp": 0}
+
+
+class _ChaoticClient:
+    """High ATR/price ratio (12%) → 'chaotic' regime → scores zeroed."""
+    async def fetch_ohlcv(self, pair, timeframe="1h", limit=150):
+        ts = 1_700_000_000_000
+        return [
+            [ts + i * 3_600_000, 50_000.0, 53_000.0, 47_000.0, 50_000.0, 100.0]
+            for i in range(limit)
+        ]
+
+    async def fetch_ticker(self, pair):
+        return {"symbol": pair, "last": 50_000.0, "bid": 49_900.0, "ask": 50_100.0, "timestamp": 0}
+
+
+class _SidewaysClient:
+    """Narrow range constant candles → 'sideways' regime → neither uptrend/downtrend/chaotic."""
+    async def fetch_ohlcv(self, pair, timeframe="1h", limit=150):
+        ts = 1_700_000_000_000
+        return [
+            [ts + i * 3_600_000, 50_000.0, 50_200.0, 49_800.0, 50_000.0, 100.0]
+            for i in range(limit)
+        ]
+
+    async def fetch_ticker(self, pair):
+        return {"symbol": pair, "last": 50_000.0, "bid": 49_900.0, "ask": 50_100.0, "timestamp": 0}
+
+
+@pytest.fixture
+def trend_up_client():
+    app = create_app()
+    app.dependency_overrides[deps.get_exchange_client] = lambda: _TrendUpClient()
+    return TestClient(app)
+
+
+@pytest.fixture
+def trend_down_client():
+    app = create_app()
+    app.dependency_overrides[deps.get_exchange_client] = lambda: _TrendDownClient()
+    return TestClient(app)
+
+
+@pytest.fixture
+def chaotic_client():
+    app = create_app()
+    app.dependency_overrides[deps.get_exchange_client] = lambda: _ChaoticClient()
+    return TestClient(app)
+
+
+@pytest.fixture
+def sideways_client():
+    app = create_app()
+    app.dependency_overrides[deps.get_exchange_client] = lambda: _SidewaysClient()
+    return TestClient(app)
+
+
+def test_signal_uptrend_rsi_overbought_buy_action(trend_up_client):
+    """RSI > 70 and uptrend regime → buy_score wins → buy action."""
+    r = trend_up_client.get("/v1/market/BTC-USDT/signal")
+    assert r.status_code == 200
+    d = r.json()["data"]
+    # RSI > 70 triggers sell_score += 0.4; uptrend + MACD bullish add buy_score 0.6 → buy wins
+    assert d["action"] in ("buy", "hold")
+    assert d["confidence"] > 0
+
+
+def test_signal_downtrend_rsi_oversold_sell_action(trend_down_client):
+    """RSI < 30 and downtrend regime → sell_score wins → sell action."""
+    r = trend_down_client.get("/v1/market/BTC-USDT/signal")
+    assert r.status_code == 200
+    d = r.json()["data"]
+    # RSI < 30 triggers buy_score += 0.4; downtrend + MACD bearish add sell_score 0.6 → sell wins
+    assert d["action"] in ("sell", "hold")
+    assert d["confidence"] > 0
+
+
+def test_signal_chaotic_regime_resets_scores(chaotic_client):
+    """ATR/price > 5% → chaotic regime → scores zeroed → hold action."""
+    r = chaotic_client.get("/v1/market/BTC-USDT/signal")
+    assert r.status_code == 200
+    d = r.json()["data"]
+    assert d["action"] == "hold"
+
+
+def test_signal_sideways_regime_fallthrough(sideways_client):
+    """Sideways regime → neither uptrend/downtrend/chaotic branch → hold action."""
+    r = sideways_client.get("/v1/market/BTC-USDT/signal")
+    assert r.status_code == 200
+    d = r.json()["data"]
+    assert d["action"] == "hold"
