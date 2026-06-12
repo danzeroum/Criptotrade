@@ -168,6 +168,7 @@ class OrchestratorLoop:
         ledger = TradingLedger()
         db_path = str(get_db_path())
         registry = AgentRegistry(db_path=db_path)  # loop writes cycle_events
+        registry.prune_cycle_events()  # bound the cross-process cycle history at startup
 
         # HITL bridge on the shared db. No guardrails here: the RiskAgent already
         # runs them in the pipeline, so the OrderStore is purely the approval gate.

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from src.core.db import connection, init_db
@@ -127,6 +127,23 @@ class AgentRegistry:
                     (agent_id, when.isoformat()),
                 )
 
+    def prune_cycle_events(self, retention_days: int = 30, now: Optional[datetime] = None) -> int:
+        """Delete ``cycle_events`` rows older than ``retention_days``.
+
+        Reads only ever touch the current UTC day (``cycles_today`` /
+        ``_last_action_at``), so older rows are pure history. Pruning bounds the
+        cross-process table's growth (ADR-003: the full XES-log → SQLite migration
+        stays deferred; this just keeps the existing counter table from growing
+        unbounded). Returns the number of rows deleted; a no-op without a db_path.
+        """
+        if self._db_path is None:
+            return 0
+        now = now or datetime.now(timezone.utc)
+        cutoff = (now - timedelta(days=retention_days)).isoformat()
+        with connection(self._db_path) as conn:
+            cur = conn.execute("DELETE FROM cycle_events WHERE cycled_at < ?", (cutoff,))
+            return cur.rowcount or 0
+
     def cycles_today(self, agent_id: str) -> int:
         """Cycles for ``agent_id`` during the current UTC day."""
         if self._db_path is None:
@@ -156,6 +173,9 @@ class AgentRegistry:
             self._cycles.clear()
             self._last_action.clear()
             self._cycles_date = today
+            # New day: prune stale cross-process history while we're here so a
+            # long-running loop keeps the table bounded without a restart.
+            self.prune_cycle_events()
 
     # ----------------------------------------------------------------- queries
     def list_ids(self) -> List[str]:
