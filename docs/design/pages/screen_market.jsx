@@ -50,6 +50,18 @@ function ScreenMarket() {
   const [tf, setTf] = useState('1h');
 
   const mockData = useMemo(() => ({
+    ticker: {
+      symbol: CT.symbol.pair,
+      last: CT.symbol.price,
+      bid: CT.symbol.price * 0.999,
+      ask: CT.symbol.price * 1.001,
+      high_24h: CT.symbol.high24h,
+      low_24h: CT.symbol.low24h,
+      volume_24h: 0,
+      change_24h_pct: CT.symbol.change24h,
+      change_24h_usd: CT.symbol.changeUsd,
+      timestamp: Date.now(),
+    },
     candles: CT.candles.map(c => ({ t: c.i, o: c.open, h: c.high, l: c.low, c: c.close, v: c.volume })),
     bb: CT.bb,
     indicators: {
@@ -104,6 +116,7 @@ function ScreenMarket() {
     },
   }), []);
 
+  const [ticker,        setTicker]        = useState(mock ? mockData.ticker : null);
   const [candles,       setCandles]       = useState(mock ? mockData.candles : null);
   const [bb,            setBb]            = useState(mock ? mockData.bb : null);
   const [indicators,    setIndicators]    = useState(mock ? mockData.indicators : null);
@@ -120,6 +133,7 @@ function ScreenMarket() {
     setLoading(true);
     const encoded = encodeURIComponent(pair);
     Promise.all([
+      CT_API.getTicker(pair),
       CT_API.getCandles(pair, tf, 70),
       CT_API.getIndicators(pair),
       CT_API.getRegime(pair),
@@ -128,7 +142,8 @@ function ScreenMarket() {
       CT_API.getPatterns(pair),
       CT_API.getSignal(pair),
     ])
-      .then(([c, ind, reg, lvl, vp, pat, sig]) => {
+      .then(([tick, c, ind, reg, lvl, vp, pat, sig]) => {
+        setTicker(tick);
         setCandles(c);
         setIndicators(ind);
         setRegime(reg);
@@ -146,8 +161,7 @@ function ScreenMarket() {
   if (loading) return <LoadingState label="Carregando análise de mercado…" />;
   if (error)   return <ErrorState message="Erro ao carregar mercado" onRetry={() => { setError(null); load(); }} />;
 
-  const sym = CT.symbol;
-  const lastClose = candles?.length ? candles[candles.length - 1].c : null;
+  const lastClose = ticker?.last ?? (candles?.length ? candles[candles.length - 1].c : null);
   const ind = indicators;
 
   const patternVariant = (d) => d === 'bullish' ? 'ok' : d === 'bearish' ? 'down' : 'neutral';
@@ -189,7 +203,7 @@ function ScreenMarket() {
           <KPI label="Preço atual" value={lastClose} format="usd" icon="dollar" />
         </div>
         <div className="card">
-          <KPI label="Variação 24h" value={sym?.change24h} format="pct_direct" delta={sym?.change24h} icon="trending" />
+          <KPI label="Variação 24h" value={ticker?.change_24h_pct} format="pct_direct" delta={ticker?.change_24h_pct} icon="trending" />
         </div>
         <div className="card">
           <KPI label="RSI" value={ind?.rsi?.toFixed(1)} sub={ind?.rsi < 30 ? 'Sobrevendido' : ind?.rsi > 70 ? 'Sobrecomprado' : 'Neutro'} />
@@ -206,7 +220,7 @@ function ScreenMarket() {
       <div className="grid" style={{ gridTemplateColumns: '1fr 300px', marginBottom: 20, alignItems: 'start' }}>
         <div className="card">
           <div className="card-head">
-            <span className="card-title"><Icon name="candle" />{sym?.pair ?? pair} · {tf}</span>
+            <span className="card-title"><Icon name="candle" />{ticker?.symbol ?? pair} · {tf}</span>
           </div>
           <div className="card-pad" style={{ padding: '14px 12px' }}>
             {candles && candles.length > 0 ? (

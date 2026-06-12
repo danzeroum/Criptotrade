@@ -196,6 +196,19 @@ class AlertOut(BaseModel):
 
 
 # ----------------------------------------------------------------- market
+class TickerOut(BaseModel):
+    symbol: str
+    last: float
+    bid: float
+    ask: float
+    high_24h: float
+    low_24h: float
+    volume_24h: float
+    change_24h_pct: float
+    change_24h_usd: float
+    timestamp: int
+
+
 class CandleOut(BaseModel):
     t: int
     o: float

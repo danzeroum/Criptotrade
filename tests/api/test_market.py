@@ -19,6 +19,15 @@ class _MockExchangeClient:
         ts = 1_700_000_000_000
         return [[ts + i * 3_600_000, 50_000.0, 51_000.0, 49_000.0, 50_500.0, 100.0] for i in range(limit)]
 
+    async def fetch_ticker(self, pair):
+        return {
+            "symbol": pair,
+            "last": 50_500.0,
+            "bid": 50_450.0,
+            "ask": 50_550.0,
+            "timestamp": 1_700_000_000_000,
+        }
+
 
 @pytest.fixture
 def client():
@@ -89,3 +98,24 @@ def test_custom_market_pairs_env_restricts_allowlist(monkeypatch):
     # Restore default
     monkeypatch.delenv("MARKET_PAIRS")
     importlib.reload(mmod)
+
+
+def test_ticker_returns_200_with_24h_stats(client):
+    r = client.get("/v1/market/BTC-USDT/ticker")
+    assert r.status_code == 200
+    d = r.json()["data"]
+    assert d["symbol"] == "BTC/USDT"
+    assert d["last"] == pytest.approx(50_500.0)
+    assert d["bid"] == pytest.approx(50_450.0)
+    assert d["ask"] == pytest.approx(50_550.0)
+    assert d["high_24h"] >= d["last"]
+    assert d["low_24h"] <= d["last"]
+    assert d["volume_24h"] > 0
+    assert isinstance(d["change_24h_pct"], float)
+    assert isinstance(d["change_24h_usd"], float)
+
+
+def test_ticker_unknown_pair_returns_422(client):
+    r = client.get("/v1/market/FOO-BAR/ticker")
+    assert r.status_code == 422
+    assert r.json()["error"] == "invalid_pair"

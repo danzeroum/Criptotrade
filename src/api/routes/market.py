@@ -24,6 +24,7 @@ from src.api.schemas import (
     RegimeOut,
     SRLevelOut,
     SignalOut,
+    TickerOut,
     VolumeProfileBin,
     VolumeProfileOut,
 )
@@ -71,6 +72,56 @@ async def _fetch_candles(pair: str, tf: str, limit: int, client: Any) -> list:
             "error": "market_data_unavailable",
             "message": f"Não foi possível obter candles para {pair}: {exc}",
         }) from exc
+
+
+@router.get(
+    "/{pair}/ticker",
+    response_model=APIResponse[TickerOut],
+    summary="Ticker 24h (preço atual, variação, high/low, volume)",
+)
+async def get_ticker(
+    pair: str,
+    client: Any = Depends(get_exchange_client),
+) -> APIResponse[TickerOut]:
+    symbol = _decode_pair(pair)
+    try:
+        ticker_raw = await client.fetch_ticker(symbol)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail={
+            "error": "market_data_unavailable",
+            "message": f"Não foi possível obter ticker para {symbol}: {exc}",
+        }) from exc
+
+    # Derive 24h stats from the last 25 hourly candles (open 24h ago → change %).
+    candles_raw = await _fetch_candles(symbol, "1h", 25, client)
+    last = float(ticker_raw.get("last") or 0.0)
+
+    if candles_raw and len(candles_raw) >= 2:
+        window = candles_raw[-24:]
+        high_24h = max(c[2] for c in window)
+        low_24h = min(c[3] for c in window)
+        volume_24h = sum(c[5] for c in window)
+        open_24h = float(candles_raw[-min(24, len(candles_raw))][1])
+        change_24h_pct = (last - open_24h) / open_24h * 100 if open_24h else 0.0
+        change_24h_usd = last - open_24h
+    else:
+        high_24h = low_24h = last
+        volume_24h = 0.0
+        change_24h_pct = 0.0
+        change_24h_usd = 0.0
+
+    return APIResponse(data=TickerOut(
+        symbol=symbol,
+        last=last,
+        bid=float(ticker_raw.get("bid") or last),
+        ask=float(ticker_raw.get("ask") or last),
+        high_24h=high_24h,
+        low_24h=low_24h,
+        volume_24h=volume_24h,
+        change_24h_pct=round(change_24h_pct, 4),
+        change_24h_usd=round(change_24h_usd, 2),
+        timestamp=int(ticker_raw.get("timestamp") or 0),
+    ))
 
 
 @router.get(

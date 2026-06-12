@@ -52,6 +52,7 @@ const CT_API = (() => {
     },
 
     // ---- Phase 1: market ----
+    getTicker:        (pair) => req(`/v1/market/${pair.replace('/', '-')}/ticker`),
     getCandles:       (pair, tf = '1h', limit = 100) =>
       req(`/v1/market/${pair.replace('/', '-')}/candles?tf=${tf}&limit=${limit}`),
     getIndicators:    (pair) => req(`/v1/market/${pair.replace('/', '-')}/indicators`),

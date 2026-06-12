@@ -869,6 +869,38 @@
         "title": "APIResponse[SignalOut]",
         "type": "object"
       },
+      "APIResponse_TickerOut_": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/TickerOut"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[TickerOut]",
+        "type": "object"
+      },
       "APIResponse_VolumeProfileOut_": {
         "properties": {
           "_links": {
@@ -3167,6 +3199,64 @@
         "title": "StochOut",
         "type": "object"
       },
+      "TickerOut": {
+        "properties": {
+          "ask": {
+            "title": "Ask",
+            "type": "number"
+          },
+          "bid": {
+            "title": "Bid",
+            "type": "number"
+          },
+          "change_24h_pct": {
+            "title": "Change 24H Pct",
+            "type": "number"
+          },
+          "change_24h_usd": {
+            "title": "Change 24H Usd",
+            "type": "number"
+          },
+          "high_24h": {
+            "title": "High 24H",
+            "type": "number"
+          },
+          "last": {
+            "title": "Last",
+            "type": "number"
+          },
+          "low_24h": {
+            "title": "Low 24H",
+            "type": "number"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "timestamp": {
+            "title": "Timestamp",
+            "type": "integer"
+          },
+          "volume_24h": {
+            "title": "Volume 24H",
+            "type": "number"
+          }
+        },
+        "required": [
+          "symbol",
+          "last",
+          "bid",
+          "ask",
+          "high_24h",
+          "low_24h",
+          "volume_24h",
+          "change_24h_pct",
+          "change_24h_usd",
+          "timestamp"
+        ],
+        "title": "TickerOut",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -4508,6 +4598,48 @@
           }
         },
         "summary": "Sinal de trading atual (buy/sell/hold) baseado em indicadores",
+        "tags": [
+          "market"
+        ]
+      }
+    },
+    "/v1/market/{pair}/ticker": {
+      "get": {
+        "operationId": "get_ticker_v1_market__pair__ticker_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pair",
+            "required": true,
+            "schema": {
+              "title": "Pair",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_TickerOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ticker 24h (pre\u00e7o atual, varia\u00e7\u00e3o, high/low, volume)",
         "tags": [
           "market"
         ]
