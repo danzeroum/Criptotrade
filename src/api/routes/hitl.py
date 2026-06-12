@@ -5,7 +5,7 @@ auto-approval thresholds (see :mod:`src.hitl.config`).
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException
 
 from src.api.deps import get_hitl_store
 from src.api.schemas import APIResponse, AutonomyLevelPatch, HITLConfigOut
