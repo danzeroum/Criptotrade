@@ -88,3 +88,41 @@ def test_alerts_history_is_paginated(client):
     body = client.get("/v1/alerts/history?limit=2&page=1").json()
     data = body.get("data", body)
     assert isinstance(data, (list, dict))
+
+
+def test_equity_with_trades_builds_equity_curve(tmp_path):
+    """Equity endpoint with a closed position — covers the for-loop body in get_equity."""
+    ledger = TradingLedger(tmp_path / "trades.jsonl")
+    ledger.log_position_closed(
+        order_id="ord1", symbol="BTC/USDT", side="buy",
+        entry_price=50_000.0, exit_price=51_000.0, quantity=0.1,
+    )
+
+    store = AlertStore(tmp_path / "alerts.jsonl")
+    bus = AlertBus()
+    hitl = HITLConfigStore(ledger, initial_level=2)
+    order_store = OrderStore(
+        ledger,
+        threshold_provider=lambda: level_info(hitl.level).threshold_usdt,
+        guardrails=GuardrailSystem(alert_sink=make_guardrail_sink(store)),
+        db_path=str(tmp_path / "orders.db"),
+    )
+    app = create_app()
+    app.dependency_overrides[deps.get_ledger] = lambda: ledger
+    app.dependency_overrides[deps.get_metrics_calculator] = lambda: PortfolioMetricsCalculator(ledger, 10_000.0)
+    app.dependency_overrides[deps.get_hitl_store] = lambda: hitl
+    app.dependency_overrides[deps.get_alert_store] = lambda: store
+    app.dependency_overrides[deps.get_alert_bus] = lambda: bus
+    app.dependency_overrides[deps.get_order_store] = lambda: order_store
+    app.dependency_overrides[deps.get_agent_registry] = lambda: AgentRegistry(
+        db_path=str(tmp_path / "agents.db")
+    )
+    c = TestClient(app)
+    r = c.get("/v1/metrics/equity")
+    assert r.status_code == 200
+    points = r.json()["data"]
+    # Should have at least one real equity point from the closed position.
+    assert len(points) >= 1
+    equity_values = [p["equity"] for p in points]
+    # The closed trade had pnl = (51000-50000)*0.1 = 100 USDT → equity > 10000
+    assert any(eq > 10_000.0 for eq in equity_values)
