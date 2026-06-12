@@ -146,6 +146,7 @@ function ScreenMarket() {
   if (loading) return <LoadingState label="Carregando análise de mercado…" />;
   if (error)   return <ErrorState message="Erro ao carregar mercado" onRetry={() => { setError(null); load(); }} />;
 
+  const sym = CT.symbol;
   const lastClose = candles?.length ? candles[candles.length - 1].c : null;
   const ind = indicators;
   const macdData = ind?.macd ? [{ i: 0, ...ind.macd }] : [];
