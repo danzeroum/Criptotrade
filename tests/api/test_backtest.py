@@ -109,3 +109,115 @@ def test_mark_error_stores_message(db):
         row = conn.execute("SELECT * FROM backtest_jobs WHERE id=?", (job_id,)).fetchone()
     assert row["status"] == "error"
     assert row["error"] == "exchange timeout"
+
+
+def test_get_running_job_result_is_none(db):
+    """GET a still-running job — covers the result_json=NULL branch in _get_job."""
+    from src.api.routes.backtest import _insert_running
+
+    job_id = "job_still_running"
+    _insert_running(job_id, BacktestConfigIn())
+    c = _make_client(db)
+    r = c.get(f"/v1/backtest/jobs/{job_id}")
+    assert r.status_code == 200
+    data = r.json()["data"]
+    assert data["status"] == "running"
+    assert data["result"] is None
+
+
+# ── Synchronous endpoints ────────────────────────────────────────────────────
+
+def test_montecarlo_returns_200(db):
+    c = _make_client(db)
+    r = c.post("/v1/backtest/montecarlo", json={})
+    assert r.status_code == 200
+    d = r.json()["data"]
+    for key in ("n", "p5", "p50", "p95", "profitable_pct", "histogram"):
+        assert key in d
+    assert isinstance(d["histogram"], list)
+
+
+def test_walkforward_returns_200(db):
+    c = _make_client(db)
+    r = c.post("/v1/backtest/walkforward", json={})
+    assert r.status_code == 200
+    d = r.json()["data"]
+    assert "valid" in d
+    assert "windows" in d
+    assert isinstance(d["folds"], list)
+
+
+# ── _build_histogram helper ──────────────────────────────────────────────────
+
+def test_build_histogram_empty_values():
+    from src.api.routes.backtest import _build_histogram
+    counts, edges = _build_histogram([])
+    assert counts == []
+    assert edges == []
+
+
+def test_build_histogram_identical_values():
+    from src.api.routes.backtest import _build_histogram
+    counts, edges = _build_histogram([2.0, 2.0, 2.0], bins=5)
+    assert counts[0] == 3
+    assert sum(counts) == 3
+
+
+def test_build_histogram_varied_values():
+    from src.api.routes.backtest import _build_histogram
+    counts, edges = _build_histogram([-1.0, 0.0, 1.0, 2.0], bins=4)
+    assert sum(counts) == 4
+    assert len(edges) == 4
+
+
+# ── _result_to_out equity loop ───────────────────────────────────────────────
+
+def test_result_to_out_builds_equity_curve(db):
+    from src.api.routes.backtest import _result_to_out
+    from src.backtest.engine import BacktestResult, BacktestTrade
+
+    trade = BacktestTrade(
+        candle_index=0,
+        action="BUY",
+        entry_price=50_000.0,
+        exit_price=51_000.0,
+        position_size_pct=2.0,
+        pnl_usdt=200.0,
+        pnl_pct=0.02,
+    )
+    result = BacktestResult(
+        total_trades=1,
+        win_rate=1.0,
+        total_pnl_usdt=200.0,
+        total_pnl_pct=0.02,
+        max_drawdown_pct=0.0,
+        sharpe_ratio=1.0,
+        profit_factor=None,
+        avg_win_pct=2.0,
+        avg_loss_pct=0.0,
+        trades=[trade],
+    )
+    out = _result_to_out(result, 10_000.0)
+    assert len(out.equity) == 1
+    assert out.equity[0].equity == pytest.approx(10_200.0)
+    assert out.total_trades == 1
+
+
+# ── _run_job error path ──────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_run_job_marks_error_on_exchange_failure(db):
+    from src.api.routes.backtest import _insert_running, _run_job
+
+    class _FailingExchange:
+        async def fetch_ohlcv(self, *a, **kw):
+            raise RuntimeError("exchange timeout")
+
+    job_id = "job_async_fail"
+    _insert_running(job_id, BacktestConfigIn())
+    await _run_job(job_id, BacktestConfigIn(), _FailingExchange(), 10_000.0)
+
+    with connection() as conn:
+        row = conn.execute("SELECT * FROM backtest_jobs WHERE id=?", (job_id,)).fetchone()
+    assert row["status"] == "error"
+    assert "exchange timeout" in row["error"]
