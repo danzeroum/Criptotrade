@@ -155,7 +155,7 @@ Com zero trades no ledger (`position_closed` entries = 0), o código original re
 ---
 
 ### Bug 2 — 500 em texto plano para exceções não tratadas ✅ CORRIGIDO (P1-1 + P1-2)
-**Arquivo:** `src/api/main.py` · **Corrigido em:** `commit 9adbc00` (PR #32) + `commit d68e2fa` (PR #34)
+**Arquivo:** `src/api/main.py` · **Corrigido em:** `commit 9adbc00` (PR #32) + `commit d68e2fa` (PR #33)
 
 Exceções Python não tratadas retornavam `500 Internal Server Error` em texto plano. `PATCH /v1/risk/config` com FS read-only lançava `PermissionError` sem tratamento.
 
@@ -165,7 +165,7 @@ Exceções Python não tratadas retornavam `500 Internal Server Error` em texto 
 ---
 
 ### Bug 3 — `GET /v1/orders` sem paginação real ✅ CORRIGIDO (P1-3)
-**Arquivo:** `src/api/routes/orders.py` · **Corrigido em:** `commit d68e2fa` (PR #34)
+**Arquivo:** `src/api/routes/orders.py` · **Corrigido em:** `commit d68e2fa` (PR #33)
 
 Rota retornava todas as ordens em uma página (pseudo-meta). Com ~10k ordens, resposta podia atingir dezenas de MB.
 
@@ -270,7 +270,7 @@ O sistema tem uma base sólida para um MVP de trading:
 - **Progressive Autonomy** (`hitl.py`): níveis 0-3 de autonomia configuráveis.
 - **Envelope de resposta consistente** `APIResponse<T>` com `data` + `meta`: contrato de API estável.
 - **Tratamento gracioso de falhas no Dashboard** (`app.py:27-48`): degrada para "API offline" sem travar.
-- **P1 integralmente concluído** (7 itens, 4 PRs, ~180 linhas de prod + 91 testes passando).
+- **P1 integralmente concluído** (7 itens, PRs #32/#33/#34/#35, ~180 linhas de prod + ~121 testes ao todo — contagem exata a confirmar em P2-4).
 
 ---
 
@@ -319,10 +319,10 @@ O sistema tem uma base sólida para um MVP de trading:
   ✅ `commit 9adbc00` (PR #32) — `@app.exception_handler(Exception)` retorna `{"error":"internal_error","docs":"/v1/docs"}`; loga traceback internamente. Teste: `test_unhandled_exception_returns_json_500`.
 
 - [x] **P1-2 — `PATCH /v1/risk/config` em FS read-only** (`risk.py`)  
-  ✅ `commit d68e2fa` (PR #34) — `_save_yaml()` envolto em `try/except (PermissionError, FileNotFoundError, OSError)` → `HTTPException(503, detail={"error":"config_not_writable"})`. Testes: `test_patch_risk_config_permission_error_returns_503`, `test_patch_risk_config_os_error_returns_503`.
+  ✅ `commit d68e2fa` (PR #33) — `_save_yaml()` envolto em `try/except (PermissionError, FileNotFoundError, OSError)` → `HTTPException(503, detail={"error":"config_not_writable"})`. Testes: `test_patch_risk_config_permission_error_returns_503`, `test_patch_risk_config_os_error_returns_503`.
 
 - [x] **P1-3 — Paginar `GET /v1/orders`** (`orders.py`, `hitl/orders.py`)  
-  ✅ `commit d68e2fa` (PR #34) — `?limit` (1–500, default 50) e `?offset` (≥0). `OrderStore.count()` para `Meta.total` preciso. Dashboard e Console React passam `limit` explícito. Testes: `test_list_orders_default_limit_caps_at_50`, `test_list_orders_offset_advances_page`, `test_list_orders_custom_limit_respected`, `test_list_orders_limit_above_500_returns_422`.
+  ✅ `commit d68e2fa` (PR #33) — `?limit` (1–500, default 50) e `?offset` (≥0). `OrderStore.count()` para `Meta.total` preciso. Dashboard e Console React passam `limit` explícito. Testes: `test_list_orders_default_limit_caps_at_50`, `test_list_orders_offset_advances_page`, `test_list_orders_custom_limit_respected`, `test_list_orders_limit_above_500_returns_422`.
 
 - [x] **P1-4 — Kelly com dados insuficientes** (`risk.py`, `schemas.py`, `screen_risk.jsx`)  
   ✅ `commit 9adbc00` (PR #32) — `{data_quality:"insufficient", trades:N, full_kelly:null}` quando `trades < 10`. Testes: `test_kelly_empty_ledger_returns_insufficient`, `test_kelly_below_threshold_returns_insufficient`, `test_kelly_sufficient_trades_returns_ok`.
@@ -461,7 +461,7 @@ Além dos critérios do ADR-001 (Sharpe > 1.5, DD < 10%, Win Rate > 55%, 100 tra
 Branches remotas mescladas no master — podem ser apagadas:
 
 - `origin/remediacao/p1-baixo-risco` (PR #32, conteúdo em master desde `9adbc00`)
-- `origin/remediacao/p1-confiabilidade` (PR #34, conteúdo em master desde `980c562`)
+- `origin/remediacao/p1-confiabilidade` (PRs #33+#34, conteúdo em master desde `d68e2fa`)
 - `origin/remediacao/p1-7-hotfix` (PR #35, conteúdo em master desde `5ce8283`)
 
 ---
