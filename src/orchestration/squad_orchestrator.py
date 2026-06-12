@@ -4,7 +4,8 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Awaitable, Callable
-from typing import Any
+from datetime import UTC, datetime
+from typing import Any, Optional
 
 from src.agents.execution_agent import ExecutionAgent
 from src.agents.risk_agent import RiskAgent
@@ -123,6 +124,8 @@ class SquadOrchestrator:
         # OrderStore order completes approved -> filled (the manual HITL path).
         self.fill_callback = fill_callback
         self._last_order_ref: str | None = None
+        # Paper position book: tracks open fills so stop/TP exits can be logged.
+        self._open_positions: dict[str, dict[str, Any]] = {}
         # Wire the RiskAgent's guardrails to publish each violation as an alert.
         if alert_store is not None:
             from src.core.alerts import make_guardrail_sink
@@ -160,6 +163,16 @@ class SquadOrchestrator:
         # Ensure the signal carries the symbol so the order records the real pair
         # (the demo strategy stub omits it) — fixes orders showing pair="UNKNOWN".
         strategy_result["signal"].setdefault("symbol", symbol)
+
+        # Check open paper positions against current price on every cycle, even
+        # when this cycle generates no new trade (fail-safe: wrap so a close error
+        # never blocks the trading pipeline).
+        current_price = float(strategy_result["signal"].get("entry_price") or 0.0)
+        if current_price > 0:
+            try:
+                self._check_open_positions(current_price, symbol)
+            except Exception:
+                logger.warning("Position check failed for %s", symbol, exc_info=True)
 
         self.ledger.log_signal(agent="strategy", signal=strategy_result["signal"])
 
@@ -241,15 +254,81 @@ class SquadOrchestrator:
             if price <= 0 or size_pct <= 0:
                 return
             quantity = (self.initial_capital * size_pct / 100.0) / price
+            order_id = execution.get("order_id", "UNKNOWN")
             self.ledger.log_fill(
-                order_id=execution.get("order_id", "UNKNOWN"),
+                order_id=order_id,
                 symbol=signal.get("symbol", symbol),
                 side=signal.get("action", "buy"),
                 price=price,
                 quantity=quantity,
             )
+            # Track in the paper position book so the next cycle can close it
+            # at stop-loss or take-profit.
+            sl = signal.get("stop_loss")
+            tp = signal.get("take_profit")
+            self._open_positions[order_id] = {
+                "symbol": signal.get("symbol", symbol),
+                "side": signal.get("action", "buy").lower(),
+                "entry_price": price,
+                "quantity": quantity,
+                "stop_loss": float(sl) if sl is not None else None,
+                "take_profit": float(tp) if tp is not None else None,
+                "opened_at": datetime.now(UTC).isoformat(),
+            }
         except (TypeError, ValueError):  # pragma: no cover - defensive
             logger.warning("Could not record fill for %s", symbol, exc_info=True)
+
+    def _check_open_positions(self, current_price: float, symbol: str) -> None:
+        """Close any paper positions whose stop-loss or take-profit has been reached.
+
+        Called once per cycle, before deciding on a new trade. Writes a
+        ``position_closed`` ledger event and feeds the circuit breaker for each
+        exit so Kelly / consecutive-loss counters stay accurate.
+        """
+        to_close = [
+            (oid, pos)
+            for oid, pos in list(self._open_positions.items())
+            if pos["symbol"] == symbol and self._exit_price(pos, current_price) is not None
+        ]
+        for oid, pos in to_close:
+            exit_price = self._exit_price(pos, current_price)
+            del self._open_positions[oid]
+            self.ledger.log_position_closed(
+                order_id=oid,
+                symbol=pos["symbol"],
+                side=pos["side"],
+                entry_price=pos["entry_price"],
+                exit_price=exit_price,
+                quantity=pos["quantity"],
+                opened_at=pos.get("opened_at"),
+            )
+            direction = 1.0 if pos["side"] == "buy" else -1.0
+            pnl = direction * (exit_price - pos["entry_price"]) * pos["quantity"]
+            entry_notional = pos["entry_price"] * pos["quantity"]
+            pnl_pct = pnl / entry_notional * 100 if entry_notional else 0.0
+            self.circuit_breaker.record_trade_result(pnl_pct)
+            logger.info(
+                "Position closed %s %s at %.2f (entry %.2f, pnl %.2f%%)",
+                pos["side"], pos["symbol"], exit_price, pos["entry_price"], pnl_pct,
+            )
+
+    @staticmethod
+    def _exit_price(pos: dict[str, Any], current_price: float) -> Optional[float]:
+        """Return the exit price if ``current_price`` triggers stop or TP, else None."""
+        sl = pos.get("stop_loss")
+        tp = pos.get("take_profit")
+        side = (pos.get("side") or "buy").lower()
+        if side == "buy":
+            if sl is not None and current_price <= sl:
+                return sl
+            if tp is not None and current_price >= tp:
+                return tp
+        else:  # sell / short
+            if sl is not None and current_price >= sl:
+                return sl
+            if tp is not None and current_price <= tp:
+                return tp
+        return None
 
     async def _emit_alert(self, symbol: str, issues: Any) -> None:
         """Emit a guardrail alert when risk rejects a signal (no-op without a sink)."""
