@@ -5,6 +5,7 @@ Candles are fetched from ExchangeClient (dry-run = synthetic, live = CCXT).
 """
 from __future__ import annotations
 
+import os
 import urllib.parse
 from typing import Any, List
 
@@ -28,6 +29,13 @@ from src.api.schemas import (
 )
 router = APIRouter(prefix="/market", tags=["market"])
 
+_DEFAULT_PAIRS = "BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT,XRP/USDT"
+_ALLOWED_PAIRS: frozenset[str] = frozenset(
+    p.strip().upper()
+    for p in os.getenv("MARKET_PAIRS", _DEFAULT_PAIRS).split(",")
+    if p.strip()
+)
+
 _REGIME_LABELS = {
     "strong_uptrend": "Alta forte",
     "strong_downtrend": "Baixa forte",
@@ -40,7 +48,19 @@ _REGIME_LABELS = {
 def _decode_pair(raw: str) -> str:
     decoded = urllib.parse.unquote(raw)
     # Accept "BTC-USDT" (dash) as well as "BTC/USDT" (slash or %2F)
-    return decoded.replace("-", "/") if "/" not in decoded else decoded
+    symbol = decoded.replace("-", "/") if "/" not in decoded else decoded
+    symbol = symbol.upper()
+    if symbol not in _ALLOWED_PAIRS:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "invalid_pair",
+                "message": f"Par '{symbol}' não permitido. Use um dos pares configurados.",
+                "valid": sorted(_ALLOWED_PAIRS),
+                "docs": "/v1/docs",
+            },
+        )
+    return symbol
 
 
 async def _fetch_candles(pair: str, tf: str, limit: int, client: Any) -> list:

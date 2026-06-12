@@ -2,13 +2,17 @@
 
 POST /run → retorna job_id + status "running"; UI faz polling em GET /jobs/{id}.
 POST /montecarlo e /walkforward são síncronos (rápidos).
+
+Jobs são persistidos em SQLite (tabela backtest_jobs) e sobrevivem a restarts.
+Jobs com status "running" ao startup são marcados "error" pelo reconcile no lifespan
+(ver _reconcile_orphans / src.api.main._lifespan) — não são auto-retomados.
 """
 from __future__ import annotations
 
 import asyncio
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
@@ -26,12 +30,59 @@ from src.api.schemas import (
 from src.backtest.engine import BacktestEngine, BacktestResult
 from src.backtest.monte_carlo import MonteCarloSimulator
 from src.backtest.validator import WalkForwardValidator
+from src.core.db import connection
 from src.core.metrics import PortfolioMetricsCalculator
 
 router = APIRouter(prefix="/backtest", tags=["backtest"])
 
-_jobs: Dict[str, Dict[str, Any]] = {}
 
+# ----------------------------------------------------------------- db helpers
+
+def _insert_running(job_id: str, config: BacktestConfigIn, db_path=None) -> None:
+    with connection(db_path) as conn:
+        conn.execute(
+            "INSERT INTO backtest_jobs(id, status, config_json, created_at) VALUES (?, 'running', ?, ?)",
+            (job_id, config.model_dump_json(), datetime.now(timezone.utc).isoformat()),
+        )
+
+
+def _mark_done(job_id: str, result: BacktestResultOut, db_path=None) -> None:
+    with connection(db_path) as conn:
+        conn.execute(
+            "UPDATE backtest_jobs SET status='done', result_json=?, completed_at=? WHERE id=?",
+            (result.model_dump_json(), datetime.now(timezone.utc).isoformat(), job_id),
+        )
+
+
+def _mark_error(job_id: str, msg: str, db_path=None) -> None:
+    with connection(db_path) as conn:
+        conn.execute(
+            "UPDATE backtest_jobs SET status='error', error=? WHERE id=?",
+            (msg, job_id),
+        )
+
+
+def _get_job(job_id: str, db_path=None) -> Optional[Dict[str, Any]]:
+    with connection(db_path) as conn:
+        row = conn.execute("SELECT * FROM backtest_jobs WHERE id=?", (job_id,)).fetchone()
+    if row is None:
+        return None
+    d = dict(row)
+    if d.get("result_json"):
+        d["result"] = BacktestResultOut.model_validate_json(d["result_json"])
+    return d
+
+
+def _reconcile_orphans(db_path=None) -> None:
+    """Mark any jobs still 'running' at startup as errored (they were interrupted)."""
+    with connection(db_path) as conn:
+        conn.execute(
+            "UPDATE backtest_jobs SET status='error', error='interrupted by restart'"
+            " WHERE status='running'",
+        )
+
+
+# ----------------------------------------------------------------- strategy
 
 class _SimpleStrategy:
     """Minimal strategy adapter for the backtest engine — RSI + MACD signal."""
@@ -99,14 +150,12 @@ async def _run_job(job_id: str, config: BacktestConfigIn, client: Any, initial_c
             slippage_bps=config.slippage_bps,
         )
         result = await engine.run(_SimpleStrategy(), ohlcv)
-        _jobs[job_id] = {
-            "status": "done",
-            "result": _result_to_out(result, initial_capital),
-            "completed_at": datetime.now(timezone.utc).isoformat(),
-        }
+        _mark_done(job_id, _result_to_out(result, initial_capital))
     except Exception as exc:
-        _jobs[job_id] = {"status": "error", "error": str(exc)}
+        _mark_error(job_id, str(exc))
 
+
+# ----------------------------------------------------------------- routes
 
 @router.post(
     "/run",
@@ -120,7 +169,7 @@ async def run_backtest(
     calc: PortfolioMetricsCalculator = Depends(get_metrics_calculator),
 ) -> APIResponse[BacktestJobOut]:
     job_id = f"job_{uuid.uuid4().hex[:8]}"
-    _jobs[job_id] = {"status": "running"}
+    _insert_running(job_id, config)
     asyncio.create_task(_run_job(job_id, config, client, calc.initial_capital))
     return APIResponse(data=BacktestJobOut(job_id=job_id, status="running"))
 
@@ -131,9 +180,12 @@ async def run_backtest(
     summary="Polling do resultado de um job de backtest",
 )
 async def get_job(job_id: str) -> APIResponse[BacktestJobOut]:
-    job = _jobs.get(job_id)
+    job = _get_job(job_id)
     if job is None:
-        raise HTTPException(status_code=404, detail={"error": "job_not_found", "message": f"Job '{job_id}' não encontrado"})
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "job_not_found", "message": f"Job '{job_id}' não encontrado"},
+        )
     return APIResponse(data=BacktestJobOut(
         job_id=job_id,
         status=job["status"],

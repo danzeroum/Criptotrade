@@ -141,6 +141,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 async def _lifespan(app: FastAPI):
     # Apply pending SQLite migrations on startup (idempotent; both processes do it).
     init_db()
+    # Mark any backtest jobs still "running" at startup as errored — they were
+    # interrupted when the process died and will not be auto-retried.
+    from src.api.routes.backtest import _reconcile_orphans
+    _reconcile_orphans()
     yield
 
 
