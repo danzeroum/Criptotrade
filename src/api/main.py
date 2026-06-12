@@ -49,6 +49,33 @@ def _valid_keys() -> set[str]:
     return {k for k in (s.strip() for s in raw.split(",")) if k}
 
 
+def _enforce_prod_security() -> None:
+    """Fail-closed in production: refuse to boot with the security gate open.
+
+    ``APIKeyMiddleware``/CORS are intentionally lenient in dev — no ``API_KEYS``
+    means auth is open and ``CORS_ORIGINS`` defaults to ``*`` — so local work and
+    the dashboard stay frictionless (P0-1/P0-2). In production those same
+    defaults silently disable the protection, so when ``APP_ENV=production`` we
+    turn the silent fail-open into a loud fail-closed at startup, mirroring how
+    ``ExchangeClient`` refuses to run when ``EXCHANGE_DRY_RUN`` is unset.
+    """
+    if os.getenv("APP_ENV", "").strip().lower() != "production":
+        return
+    problems: list[str] = []
+    if not _valid_keys():
+        problems.append("API_KEYS must be a non-empty allowlist (auth is fail-open without it)")
+    origins = {o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",")}
+    if not origins - {""} or "*" in origins:
+        problems.append("CORS_ORIGINS must be an explicit origin allowlist, not '*'")
+    if problems:
+        raise RuntimeError(
+            "Refusing to start the API in production with an open security gate — "
+            + "; ".join(problems)
+            + ". Set these in the deploy env (see .env.prod.example), or unset "
+            "APP_ENV outside production."
+        )
+
+
 class APIKeyMiddleware(BaseHTTPMiddleware):
     """Require ``X-API-Key`` when keys are configured.
 
@@ -149,6 +176,7 @@ async def _lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
+    _enforce_prod_security()
     app = FastAPI(
         title="Criptotrade API",
         description="Gateway de orquestração de trading com agentes AI.",

@@ -113,6 +113,31 @@ docker compose up -d
 
 > ⚠️ **`EXCHANGE_DRY_RUN` é obrigatório** (sem default). `true` = dados de mercado sintéticos, **zero rede**; `false` = exchange real (apenas produção, decisão deliberada). Sem a variável, o cliente recusa iniciar.
 
+### Produção (TLS + reverse proxy)
+
+O `docker compose up -d` acima é o stack de **dev** (HTTP puro, portas expostas, auth/CORS abertos). Para produção use o arquivo dedicado **`docker-compose.prod.yml`**: nginx termina TLS (Let's Encrypt) e faz proxy reverso pra API — só `80/443` ficam expostos; app, orchestrator e prometheus ficam apenas na rede interna.
+
+```bash
+# 1) Segredos (a API recusa iniciar em prod sem isto):
+cp .env.prod.example .env
+#    edite .env → API_KEYS = valor forte (ex.: openssl rand -hex 32)
+
+# 2) Emitir o certificado (uma vez; exige DNS do domínio apontando pra cá + portas 80/443 abertas):
+./deploy/init-letsencrypt.sh
+
+# 3) Subir o stack de produção:
+docker compose -f docker-compose.prod.yml up -d
+```
+
+> **Não é overlay**: use `-f docker-compose.prod.yml` sozinho (o compose de dev publica `8000/8501` e o Compose *concatena* `ports`, então um overlay não conseguiria fechá-las).
+
+O que o modo produção endurece:
+- **TLS + HSTS reais** no nginx (`max-age=31536000`), redirect `80 → 443`, renovação automática via certbot.
+- **Rate-limit por-IP real**: `uvicorn --proxy-headers` confia no `X-Forwarded-For` só do nginx (IP fixo), então o limite por IP volta a valer atrás do proxy.
+- **Fail-closed**: com `APP_ENV=production` a API **recusa iniciar** se `API_KEYS` estiver vazio ou `CORS_ORIGINS` for `*` — mesma filosofia do `EXCHANGE_DRY_RUN`.
+- **Portas internas fechadas**: `8000/8501/9090` não são publicadas; só nginx (`80/443`).
+- Mantém `EXCHANGE_DRY_RUN=true` — endurecer o deploy é independente de ir a real.
+
 ### Uso programático (dry-run, offline)
 
 ```python
@@ -138,7 +163,9 @@ print(result["ran"])                     # ex.: ['strategy', 'risk', 'execution'
 | `ORCHESTRATOR_INTERVAL_SECONDS` | `60` | Intervalo do loop (validado 10–3600) |
 | `GOOGLE_API_KEY` / `OPENAI_API_KEY` | — | LLM (Gemini primário; OpenAI backup) |
 | `EXCHANGE` / `EXCHANGE_API_KEY` / `EXCHANGE_API_SECRET` / `EXCHANGE_TESTNET` | binance / … | Exchange (só usados quando `EXCHANGE_DRY_RUN=false`) |
-| `API_KEYS` | — | API keys do gateway (se vazio, API aberta em dev) |
+| `API_KEYS` | — | API keys do gateway (CSV; vazio = API aberta em dev). **Obrigatória em prod** (fail-closed) |
+| `APP_ENV` | — | `production` ativa o guard fail-closed (exige `API_KEYS` + `CORS_ORIGINS` explícito) |
+| `CORS_ORIGINS` | `*` | Allowlist de origens CORS (CSV). Em prod **não pode** ser `*` |
 | `API_URL` / `API_KEY` (dashboard) | `http://localhost:8000` / — | Dashboard → API |
 
 Veja `.env.example` para a lista completa.
