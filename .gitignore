@@ -41,6 +41,11 @@ htmlcov/
 node_modules/
 docs/design/pages/dist/
 
+# Playwright E2E artifacts (console)
+docs/design/pages/test-results/
+docs/design/pages/playwright-report/
+docs/design/pages/blob-report/
+
 # BuildToValue assets
 docs/UX/mockups.zip
 

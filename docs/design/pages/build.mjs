@@ -32,10 +32,14 @@ await rm(dist, { recursive: true, force: true });
 await mkdir(vendor, { recursive: true });
 
 // 2. Transpila + minifica os fontes.
-//    bundle:false => cada arquivo e' transpilado isoladamente, SEM resolver
-//    imports e SEM renomear identificadores top-level (tratados como globais),
-//    o que preserva exatamente a semantica de classic-script (refs bare como
-//    <Badge/> continuam resolvendo entre arquivos via escopo global).
+//    bundle:false => cada arquivo e' transpilado isoladamente (sem resolver
+//    imports). Cada saida e' embrulhada numa IIFE (banner/footer) para que as
+//    declaracoes top-level fiquem com escopo de ARQUIVO: os fontes sao classic
+//    scripts que redeclaram nomes no escopo global compartilhado (ex.: `const
+//    { useState } = React` em toda tela, ou STATUS_LABEL em duas telas), o que
+//    lanca "already declared" num browser real. Simbolos compartilhados entre
+//    arquivos (componentes, telas, CT, CT_API) sao expostos via window.* dentro
+//    de cada arquivo, entao isolar os locais nao quebra as refs bare (<Badge/>).
 const jsx = (await readdir(here)).filter((f) => f.endsWith(".jsx")).sort();
 const js = ["apiClient.js", "data.js"].filter((f) => existsSync(path.join(here, f)));
 log(`transpilando ${jsx.length} .jsx + ${js.length} .js (minify)`);
@@ -48,6 +52,8 @@ await build({
   jsxFactory: "React.createElement",
   jsxFragment: "React.Fragment",
   loader: { ".jsx": "jsx" },
+  banner: { js: "(()=>{" },
+  footer: { js: "})();" },
   logLevel: "warning",
 });
 

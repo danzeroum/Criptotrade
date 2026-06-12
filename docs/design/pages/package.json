@@ -6,9 +6,11 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
-    "gen:types": "openapi-typescript openapi.json -o openapi.d.ts"
+    "gen:types": "openapi-typescript openapi.json -o openapi.d.ts",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.0",
     "esbuild": "^0.25.0",
     "openapi-typescript": "^7.4.0",
     "react": "18.3.1",
