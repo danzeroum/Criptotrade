@@ -88,6 +88,7 @@ class AutonomyLevelPatch(BaseModel):
     level: int = Field(..., ge=0, le=3, description="Novo nível de autonomia (0-3)")
     reason: str = Field(..., min_length=5, description="Motivo da mudança de nível")
     operator: str = Field(default="operator", description="Quem alterou o nível")
+    confirm: bool = Field(default=False, description="Obrigatório confirm=true para escalar para autonomia total (nível 3)")
 
 
 # ----------------------------------------------------------------- orders
@@ -350,6 +351,7 @@ class RiskConfigPatch(BaseModel):
     max_weekly_loss_pct: Optional[float] = None
     max_monthly_loss_pct: Optional[float] = None
     kelly_fraction: Optional[float] = None
+    confirm: bool = Field(default=False, description="Obrigatório confirm=true para gravar alterações de risco")
 
 
 # ----------------------------------------------------------------- backtest

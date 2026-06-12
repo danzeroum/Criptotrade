@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import os
 import secrets
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
@@ -73,6 +74,69 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add OWASP-recommended security headers to every response (P0-5)."""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; script-src 'self'; object-src 'none'",
+        )
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "strict-origin"
+        # XSS auditor is deprecated; CSP is the modern replacement.
+        response.headers["X-XSS-Protection"] = "0"
+        # Short max-age here; nginx/load-balancer should set a longer value in prod.
+        response.headers["Strict-Transport-Security"] = "max-age=300"
+        return response
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """Per-IP sliding-window rate limiting (P0-3).
+
+    Write methods (POST, PATCH): 30 req/min.
+    All other requests: 200 req/min.
+    Limits are intentionally relaxed in tests by setting low _WRITE_LIMIT on
+    the class before creating the app (or by injecting a patched instance).
+    """
+
+    _WRITE_LIMIT: int = 30
+    _READ_LIMIT: int = 200
+    _WINDOW: float = 60.0
+
+    def __init__(self, app) -> None:
+        super().__init__(app)
+        self._buckets: dict[tuple, list[float]] = {}
+
+    async def dispatch(self, request: Request, call_next):
+        ip = request.client.host if request.client else "unknown"
+        is_write = request.method in ("POST", "PATCH", "PUT", "DELETE")
+        limit = self._WRITE_LIMIT if is_write else self._READ_LIMIT
+        key = (ip, "w" if is_write else "r")
+
+        now = time.monotonic()
+        cutoff = now - self._WINDOW
+        bucket = [t for t in self._buckets.get(key, []) if t > cutoff]
+
+        if len(bucket) >= limit:
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "error": "rate_limit_exceeded",
+                    "message": "Muitas requisições. Aguarde e tente novamente.",
+                    "retry_after": 60,
+                    "docs": "/v1/docs",
+                },
+                headers={"Retry-After": "60"},
+            )
+
+        bucket.append(now)
+        self._buckets[key] = bucket
+        return await call_next(request)
+
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     # Apply pending SQLite migrations on startup (idempotent; both processes do it).
@@ -98,6 +162,8 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST", "PATCH"],
         allow_headers=["X-API-Key", "Content-Type"],
     )
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(RateLimitMiddleware)
 
     app.include_router(metrics.router, prefix=PREFIX)
     app.include_router(hitl.router, prefix=PREFIX)

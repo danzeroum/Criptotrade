@@ -5,7 +5,7 @@ auto-approval thresholds (see :mod:`src.hitl.config`).
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, HTTPException
 
 from src.api.deps import get_hitl_store
 from src.api.schemas import APIResponse, AutonomyLevelPatch, HITLConfigOut
@@ -34,5 +34,14 @@ async def update_hitl_config(
     patch: AutonomyLevelPatch = Body(...),
     store: HITLConfigStore = Depends(get_hitl_store),
 ) -> APIResponse[HITLConfigOut]:
+    if patch.level == 3 and not patch.confirm:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "confirmation_required",
+                "message": "Defina confirm=true para escalar para autonomia total (nível 3).",
+                "docs": "/v1/docs",
+            },
+        )
     store.set_level(patch.level, patch.reason, operator=patch.operator)
     return APIResponse(data=HITLConfigOut(**store.snapshot()))
