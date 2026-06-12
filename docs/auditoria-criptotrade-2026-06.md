@@ -280,33 +280,33 @@ O sistema tem uma base sólida para um MVP de trading:
 
 ### P0 — Segurança / Bloqueantes Pré-Produção
 
-- [ ] **P0-0 — Verificar config real de produção** *(paralelo; não bloqueia P0-1..P0-5)*  
+- [ ] **P0-0 — Verificar config real de produção** *(ação do dono — ver `docs/acaoPendenteDono.md`)*  
   Confirmar na máquina com acesso real: `API_KEYS` setado? `EXCHANGE_DRY_RUN`? nginx proxia `/v1/*`? Headers de resposta? `CORS_ORIGINS` setado? ~15 min de sondagem.  
   **Aceite:** relatório curto com os fatos; qualquer item aberto vira bug de P0.  
   **Esforço:** P
 
-- [ ] **P0-1 — Auth fail-closed em prod** (`main.py:32-59`)  
+- [x] **P0-1 — Auth fail-closed em prod** (`main.py:32-59`)  
   Manter fail-open em dev (por design). Em prod, garantir que `API_KEYS` esteja setado — caso não esteja, documentar e setar. O middleware já implementa a lógica correta. Isso **gateia todas as mutações PATCH** e resolve o grosso do P0-4.  
   **Aceite:** prod recusa `401 {"error":"unauthorized"}` sem `X-API-Key` em rotas não-públicas; `API_KEYS` documentada no `.env.example`.  
   **Esforço:** P (infra + doc)
 
-- [ ] **P0-2 — Travar CORS** (`main.py:82`)  
+- [x] **P0-2 — Travar CORS** (`main.py:82`)  
   Setar `CORS_ORIGINS` no deploy para a origem real do console. Sem `*` em prod.  
   **Aceite:** `OPTIONS` de origem não autorizada retorna sem `Access-Control-Allow-Origin`.  
   **Esforço:** P
 
-- [ ] **P0-3 — Rate limiting** (sem implementação atual)  
+- [x] **P0-3 — Rate limiting** (sem implementação atual)  
   Adicionar `slowapi` com limites distintos: mutações (`POST`, `PATCH`) e mercado (dados ao vivo) mais restritivos; leitura menos restritiva.  
   **Aceite:** burst em mutações/mercado → `429 Too Many Requests`; leitura normal não afetada; limites documentados.  
   **Esforço:** M
 
-- [ ] **P0-4 — Confirmação explícita para mutações de alto impacto** (`hitl.py`, `risk.py`, `agents.py`)  
+- [x] **P0-4 — Confirmação explícita para mutações de alto impacto** (`hitl.py`, `risk.py`, `agents.py`)  
   *Nota: `PATCH /v1/config` não altera `dry_run` — campo não exposto. Risco real: mutações sem auth (resolvido por P0-1) + falta de confirmação para autonomia=3 e risk params.*  
   Adicionar campo `confirm: true` (ou escopo adicional no header) para: `PATCH /v1/hitl/config` (autonomia=3), `PATCH /v1/risk/config`, `PATCH /v1/agents/{id}/config`.  
   **Aceite:** mutação de alto impacto sem `confirm:true` → `400 {"error":"confirmation_required"}`; com P0-1 ativo, inacessível sem auth.  
   **Esforço:** M
 
-- [ ] **P0-5 — Headers de segurança HTTP**  
+- [x] **P0-5 — Headers de segurança HTTP**  
   Nginx e/ou middleware FastAPI: `Content-Security-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Strict-Transport-Security`, `Referrer-Policy: strict-origin`.  
   **Aceite:** headers presentes em toda resposta; verificado via `curl -I`.  
   **Esforço:** P (nginx config ou middleware)
@@ -340,22 +340,22 @@ O sistema tem uma base sólida para um MVP de trading:
 
 ### P2 — Produto / Conectar Backend Existente
 
-- [ ] **P2-1 — Persistir jobs de backtest** (`backtest.py:33`)  
+- [x] **P2-1 — Persistir jobs de backtest** (`backtest.py:33`)  
   Substituir `_jobs: Dict` por SQLite (tabela `backtest_jobs`, reutilizando camada `src/core/db.py`).  
   **Aceite:** job sobrevive a restart; `GET /v1/backtest/jobs/{id}` retorna `404` estruturado para job inexistente.  
   **Esforço:** M
 
-- [ ] **P2-2 — Validar par de mercado** (`market.py:40-43`)  
+- [x] **P2-2 — Validar par de mercado** (`market.py:40-43`)  
   Allowlist configurável (`ALLOWED_PAIRS` env var ou YAML). `_decode_pair()` valida e lança `HTTPException(422)` para símbolo não autorizado.  
   **Aceite:** `GET /v1/market/INVALID/candles` → `422 {"error":"invalid_pair"}`; `BTC/USDT` (e `BTC-USDT`) → dados normais.  
   **Esforço:** P
 
-- [ ] **P2-3 — Definir destino de `GET /v1/process/events`** (`process.py`)  
+- [x] **P2-3 — Definir destino de `GET /v1/process/events`** (`process.py`)  
   Duas opções: (a) expor no Console React como "Export XES"; (b) documentar como integração externa apenas.  
   **Aceite:** endpoint tem destino explícito documentado.  
   **Esforço:** P (decisão) a M (se console)
 
-- [ ] **P2-4 — Formalizar Streamlit × Console React no README** (`README.md`)  
+- [x] **P2-4 — Formalizar Streamlit × Console React no README** (`README.md`)  
   Corrigir "138 testes" (real ~121), documentar propósito de cada frontend, como rodar cada um.  
   **Aceite:** README condiz com a realidade; novo dev entende em <5 min.  
   **Esforço:** P
@@ -457,7 +457,8 @@ Além dos critérios do ADR-001 (Sharpe > 1.5, DD < 10%, Win Rate > 55%, 100 tra
 - [ ] P0-4: mutações de alto impacto protegidas
 - [ ] P0-5: headers de segurança presentes
 - [x] P1-1: sem 500 texto plano ✅ `commit 9adbc00`
-- [ ] P3-2: cola de deploy versionada (rastreabilidade)
+- [x] P3-2: cola de deploy versionada (rastreabilidade) ✅ #40
+- [ ] P0-0 / P0-1..P0-5 acima: **verificar ativos no host** após o deploy (impl. fail-closed pronta; ver `docs/acaoPendenteDono.md`)
 
 ### 7.4 Micro Follow-ups (baratos — junto do Sprint que tocar o arquivo)
 
