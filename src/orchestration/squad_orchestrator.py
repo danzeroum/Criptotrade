@@ -231,9 +231,9 @@ class SquadOrchestrator:
                         "fill_callback failed for %s", self._last_order_ref, exc_info=True
                     )
 
-        # TODO(5b): reset self._last_order_ref = None here so a stale id from this
-        # cycle can never leak into the next. Risk is low today (fill_callback only
-        # fires on execution success), but resetting is the hygienic close.
+        # Reset so a stale ref from this cycle can never leak into the next; the
+        # next cycle sets it fresh when it submits an order.
+        self._last_order_ref = None
         return {
             "success": execution_result["success"],
             "order_id": execution_result.get("order_id"),

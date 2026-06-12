@@ -192,14 +192,20 @@ _DOMAIN_LABEL = {
 if agents_err:
     st.warning(f"Não foi possível carregar agentes ({agents_err}).")
 elif agents and agents["data"]:
+    # Hide not-implemented stubs by default to declutter the operational view.
+    show_stubs = st.checkbox("Mostrar agentes não implementados (stubs)", value=False)
+    agent_list = [a for a in agents["data"] if show_stubs or a["implemented"]]
+    if not agent_list:
+        st.caption("Só há agentes stub no momento — marque a opção acima para vê-los.")
+
     # Fetch full config (params) for each agent upfront to avoid N+1 inside expanders.
     configs: dict = {}
-    for a in agents["data"]:
+    for a in agent_list:
         cfg, _ = _get(f"/v1/agents/{a['id']}/config")
         if cfg and cfg.get("data"):
             configs[a["id"]] = cfg["data"]
 
-    # Summary dataframe — one row per agent, all visible including stubs.
+    # Summary dataframe — one row per shown agent (stubs hidden unless toggled).
     st.dataframe(
         [
             {
@@ -211,14 +217,14 @@ elif agents and agents["data"]:
                 "Ciclos (hoje)": a["cycles"],
                 "Última ação": a["last_action_at"] or "—",
             }
-            for a in agents["data"]
+            for a in agent_list
         ],
         hide_index=True,
         use_container_width=True,
     )
 
     # Per-agent detail expanders.
-    for a in agents["data"]:
+    for a in agent_list:
         icon = _AGENT_ICON.get(a["status"], "⬜")
         stub_badge = " · [stub]" if not a["implemented"] else ""
         with st.expander(f"{icon} **{a['id']}**{stub_badge} — {a['description']}"):
