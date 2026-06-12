@@ -261,10 +261,11 @@ CI (GitHub Actions): `python-ci.yml` (suíte completa + ruff + docker build + se
 - [x] `cycles_today` cross-process · ADR-003 (persistência)
 - [x] Rate limiting (30 req/min escrita / 200 leitura), security headers, confirmação em mutações sensíveis (Sprint A / P0)
 
-### 🔜 Backlog (Fase 5b — janitorial/observabilidade)
-- [ ] Tech debts `TODO(5b)` (reset de `_last_order_ref`, `wait_for_decision` com id inexistente, etc.)
-- [ ] Pruning de `cycle_events`; migração de XES events → SQLite (fecha ADR-003)
-- [ ] Filtrar agentes `not_implemented` no dashboard; paginação em `/v1/orders`
+### Backlog (Fase 5b — janitorial/observabilidade)
+- [x] Tech debts `TODO(5b)` (reset de `_last_order_ref`, `wait_for_decision` com id inexistente, default de `position_size_pct`) — PR #48
+- [x] Pruning de `cycle_events` (`AgentRegistry.prune_cycle_events`, retenção 30d, no startup do loop e na virada do dia)
+- [x] Filtrar agentes `not_implemented` no dashboard (toggle, ocultos por padrão) — PR #48; paginação em `/v1/orders` já existia
+- [ ] **Migração XES events → SQLite (fecha ADR-003)** — **adiada deliberadamente**. O ADR-003 trata isso como decisão de planejamento (não de pressão de produção) e exige preservar o contrato `get_events`/`read_all` do ledger; na prática a maioria dos agentes são stubs, então o volume real fica bem abaixo do limiar de ~10k eventos/dia que justificaria a migração. Reabrir quando o volume sustentado passar do limiar.
 
 ---
 
