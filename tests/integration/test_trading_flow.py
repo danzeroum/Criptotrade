@@ -158,6 +158,59 @@ def test_check_open_positions_take_profit(tmp_path):
     assert closed[0]["data"]["pnl"] > 0
 
 
+# --- short (sell) positions: the else-branch of _exit_price + the pnl direction ---
+
+def test_exit_price_short_stop_loss_triggers():
+    from src.orchestration.squad_orchestrator import SquadOrchestrator
+    pos = {"side": "sell", "stop_loss": 52_000.0, "take_profit": 45_000.0}
+    # a short's stop sits above entry: triggered when price rises through it
+    assert SquadOrchestrator._exit_price(pos, 53_000.0) == 52_000.0
+
+
+def test_exit_price_short_take_profit_triggers():
+    from src.orchestration.squad_orchestrator import SquadOrchestrator
+    pos = {"side": "sell", "stop_loss": 52_000.0, "take_profit": 45_000.0}
+    # a short's target sits below entry: triggered when price falls through it
+    assert SquadOrchestrator._exit_price(pos, 44_000.0) == 45_000.0
+
+
+def test_check_open_positions_short_stop_loss(tmp_path):
+    orch, ledger = _make_orch(tmp_path)
+    orch._open_positions["ord_s1"] = {
+        "symbol": "BTC/USDT", "side": "sell",
+        "entry_price": 50_000.0, "quantity": 0.1,
+        "stop_loss": 52_000.0, "take_profit": 45_000.0,
+        "opened_at": "2026-01-01T00:00:00+00:00",
+    }
+    ledger.log_fill("ord_s1", "BTC/USDT", "sell", 50_000.0, 0.1)
+
+    orch._check_open_positions(53_000.0, "BTC/USDT")
+
+    assert len(orch._open_positions) == 0
+    closed = ledger.get_events("position_closed")
+    assert len(closed) == 1
+    assert closed[0]["data"]["exit_price"] == 52_000.0
+    assert closed[0]["data"]["pnl"] < 0  # short stopped out above entry => loss
+
+
+def test_check_open_positions_short_take_profit(tmp_path):
+    orch, ledger = _make_orch(tmp_path)
+    orch._open_positions["ord_s2"] = {
+        "symbol": "BTC/USDT", "side": "sell",
+        "entry_price": 50_000.0, "quantity": 0.1,
+        "stop_loss": 52_000.0, "take_profit": 45_000.0,
+        "opened_at": "2026-01-01T00:00:00+00:00",
+    }
+    ledger.log_fill("ord_s2", "BTC/USDT", "sell", 50_000.0, 0.1)
+
+    orch._check_open_positions(44_000.0, "BTC/USDT")
+
+    closed = ledger.get_events("position_closed")
+    assert len(closed) == 1
+    assert closed[0]["data"]["exit_price"] == 45_000.0
+    assert closed[0]["data"]["pnl"] > 0  # short hit target below entry => profit
+
+
 def test_check_open_positions_only_affects_matching_symbol(tmp_path):
     orch, ledger = _make_orch(tmp_path)
     orch._open_positions["ord_3"] = {

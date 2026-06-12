@@ -5,7 +5,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
-from typing import Any, Optional
+from typing import Any
 
 from src.agents.execution_agent import ExecutionAgent
 from src.agents.risk_agent import RiskAgent
@@ -313,7 +313,7 @@ class SquadOrchestrator:
             )
 
     @staticmethod
-    def _exit_price(pos: dict[str, Any], current_price: float) -> Optional[float]:
+    def _exit_price(pos: dict[str, Any], current_price: float) -> float | None:
         """Return the exit price if ``current_price`` triggers stop or TP, else None."""
         sl = pos.get("stop_loss")
         tp = pos.get("take_profit")
