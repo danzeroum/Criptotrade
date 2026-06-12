@@ -63,3 +63,32 @@ jobs:
         run: |
           cp .env.prod.example .env
           docker compose -f docker-compose.prod.yml config -q
+
+  # Production build of the React console (docs/design/pages): pre-transpiles JSX
+  # and minifies, replacing the dev-only Babel-in-browser setup. Locks build bitrot.
+  console-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs/design/pages
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: docs/design/pages/package-lock.json
+
+      - name: Install (clean)
+        run: npm ci
+
+      - name: Build console
+        run: npm run build
+
+      - name: Upload console dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: console-dist
+          path: docs/design/pages/dist
+          if-no-files-found: error
