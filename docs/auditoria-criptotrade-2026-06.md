@@ -364,36 +364,46 @@ O sistema tem uma base sólida para um MVP de trading:
 
 ### P3 — Build / Infra / Qualidade
 
-- [ ] **P3-1 — Build de produção do Console React** (`docs/design/index.html`)  
+- [x] **P3-1 — Build de produção do Console React** (`docs/design/index.html`)  
   **Opção A (Vite):** build gera `dist/` minificado; nginx serve static. Mais robusto.  
   **Opção B (Import Map ESM):** trocar Babel-no-browser por ESM minificado versionado. Zero toolchain, mas depende de CDN.  
   **Aceite:** prod serve JS minificado, sem transpile no browser.  
   **Esforço:** M (A) ou P (B)
 
-- [ ] **P3-2 — Versionar cola de deploy** (`infra/` ausente do repo)  
+- [x] **P3-2 — Versionar cola de deploy** (`infra/` ausente do repo)  
   Criar `infra/docker-compose.prod.yml` e `infra/nginx.conf` com: proxy `/v1/*` → API, `/v1/openapi.json` → API, servir static do console, gzip, timeouts, headers de segurança (P0-5).  
   **Aceite:** `infra/` no repo; divergência código↔prod torna-se auditável.  
   **Esforço:** M
 
-- [ ] **P3-3 — Monitoramento de erros (Sentry)**  
+- [x] **P3-3 — Monitoramento de erros (Sentry)**  
   SDK Python (captura 5xx) + SDK JS (erros de UI).  
   **Aceite:** erros 5xx aparecem no Sentry com contexto.  
   **Esforço:** P
 
-- [ ] **P3-4 — Cliente tipado gerado do OpenAPI** (Console React)  
+- [x] **P3-4 — Cliente tipado gerado do OpenAPI** (Console React)  
   `openapi-typescript` ou `orval` → gera tipos de `/v1/openapi.json`. Substitui chamadas manuais em `apiClient.js`.  
   **Aceite:** drift de contrato detectado em build.  
   **Esforço:** M
 
-- [ ] **P3-5 — Ampliar cobertura de testes**  
+- [x] **P3-5 — Ampliar cobertura de testes**  
   (a) Testes por-endpoint; (b) E2E Playwright para console (paginação, preço, Kelly, fluxo HITL); (c) testes de posição short no P1-5 (`_exit_price`/`_check_open_positions` — ramo `sell` sem cobertura); (d) gate de cobertura no CI.  
   **Aceite:** E2E no CI; nenhuma rota sem teste de contrato; cobertura mínima 80%.  
   **Esforço:** G
 
-- [ ] **P3-6 — Pipeline de deploy automatizado**  
+- [x] **P3-6 — Pipeline de deploy automatizado**  
   CI/CD no merge com validação de config pré-deploy (`API_KEYS` setado, `CORS_ORIGINS` ≠ `*`, `dry_run` intencional).  
   **Aceite:** deploy no merge; falha se config insegura.  
   **Esforço:** G
+
+> **✅ Sprint C (P3) concluída — 2026-06-12.** Tudo entregue e em `master`:
+> **P3-1** esbuild per-arquivo + IIFE, React self-hosted, servido pelo nginx (PRs #41, #46) ·
+> **P3-2** `docker-compose.prod.yml` + `deploy/nginx` (TLS/certbot) + guard fail-closed (PR #40) ·
+> **P3-3** Sentry SDK Python (5xx), inerte sem DSN (PR #43) ·
+> **P3-4** snapshot OpenAPI + `openapi-typescript` + gates de drift (PR #44) ·
+> **P3-5** ramo short do backtest + contratos de rota + gate de cobertura 66% + E2E Playwright (PRs #42, #46) ·
+> **P3-6** validação de config insegura na CI + template `deploy.yml.example` (PR #45).
+>
+> **Desvios/limites:** P3-1 usou esbuild (não Vite) pelo padrão de globais `window.*`; o E2E do P3-5 expôs e corrigiu um bug real de render do build (redeclaração global → IIFE). Itens que dependem do dono (DSN do Sentry, host/secrets de deploy, ir-a-real) e follow-ups (SDK JS de UI, tipagem da fachada `apiClient`, fluxos E2E profundos) estão em **`docs/acaoPendenteDono.md`**.
 
 ---
 
