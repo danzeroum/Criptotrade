@@ -127,7 +127,7 @@ def test_hitl_config_levels(client):
 
 
 def test_hitl_patch_changes_level(client):
-    r = client.patch("/v1/hitl/config", json={"level": 3, "reason": "subir autonomia"})
+    r = client.patch("/v1/hitl/config", json={"level": 3, "reason": "subir autonomia", "confirm": True})
     assert r.status_code == 200
     d = r.json()["data"]
     assert d["current_level"] == 3
@@ -491,7 +491,7 @@ def test_patch_risk_config_permission_error_returns_503(client, monkeypatch):
         raise PermissionError("read-only fs")
 
     monkeypatch.setattr(risk_module, "_save_yaml", _boom)
-    r = client.patch("/v1/risk/config", json={"max_position_size_pct": 3.0})
+    r = client.patch("/v1/risk/config", json={"max_position_size_pct": 3.0, "confirm": True})
     assert r.status_code == 503
     assert r.json()["error"] == "config_not_writable"
 
@@ -503,7 +503,7 @@ def test_patch_risk_config_os_error_returns_503(client, monkeypatch):
         raise OSError("disk full")
 
     monkeypatch.setattr(risk_module, "_save_yaml", _boom)
-    r = client.patch("/v1/risk/config", json={"max_daily_loss_pct": 6.0})
+    r = client.patch("/v1/risk/config", json={"max_daily_loss_pct": 6.0, "confirm": True})
     assert r.status_code == 503
     assert r.json()["error"] == "config_not_writable"
 
@@ -554,3 +554,100 @@ def test_list_orders_custom_limit_respected(client):
 def test_list_orders_limit_above_500_returns_422(client):
     r = client.get("/v1/orders?limit=501")
     assert r.status_code == 422
+
+# ================================================================ P0 Sprint A
+
+
+# -------------------------------------- P0-5: security headers
+def test_security_headers_present(client):
+    r = client.get("/health")
+    assert r.headers["X-Frame-Options"] == "DENY"
+    assert r.headers["X-Content-Type-Options"] == "nosniff"
+    assert r.headers["Referrer-Policy"] == "strict-origin"
+    assert r.headers["X-XSS-Protection"] == "0"
+    assert "Content-Security-Policy" in r.headers
+    assert "Strict-Transport-Security" in r.headers
+
+
+def test_security_headers_on_api_route(client):
+    r = client.get("/v1/metrics")
+    assert r.headers.get("X-Frame-Options") == "DENY"
+    assert r.headers.get("X-Content-Type-Options") == "nosniff"
+
+
+# -------------------------------------- P0-4: confirmation required
+def test_patch_risk_config_without_confirm_returns_400(client):
+    r = client.patch("/v1/risk/config", json={"max_position_size_pct": 3.0})
+    assert r.status_code == 400
+    assert r.json()["error"] == "confirmation_required"
+
+
+def test_patch_risk_config_with_confirm_succeeds(client, monkeypatch):
+    import src.api.routes.risk as risk_module
+    monkeypatch.setattr(risk_module, "_save_yaml", lambda _: None)
+    r = client.patch("/v1/risk/config", json={"max_position_size_pct": 3.0, "confirm": True})
+    assert r.status_code == 200
+    assert "max_position_size_pct" in r.json()["data"]
+
+
+def test_patch_hitl_level3_without_confirm_returns_400(client):
+    r = client.patch(
+        "/v1/hitl/config", json={"level": 3, "reason": "full autonomy test"}
+    )
+    assert r.status_code == 400
+    assert r.json()["error"] == "confirmation_required"
+
+
+def test_patch_hitl_level3_with_confirm_succeeds(client):
+    r = client.patch(
+        "/v1/hitl/config",
+        json={"level": 3, "reason": "full autonomy test", "confirm": True},
+    )
+    assert r.status_code == 200
+    assert r.json()["data"]["current_level"] == 3
+
+
+def test_patch_hitl_level2_without_confirm_succeeds(client):
+    r = client.patch(
+        "/v1/hitl/config", json={"level": 2, "reason": "scaling back autonomy"}
+    )
+    assert r.status_code == 200
+    assert r.json()["data"]["current_level"] == 2
+
+
+# -------------------------------------- P0-3: rate limiting
+def test_rate_limit_exceeded_returns_429_json(monkeypatch):
+    """Set _READ_LIMIT=1 on RateLimitMiddleware; second GET returns 429 JSON."""
+    from src.api.main import RateLimitMiddleware
+
+    monkeypatch.setattr(RateLimitMiddleware, "_READ_LIMIT", 1)
+    app = create_app()
+    c = TestClient(app, raise_server_exceptions=False)
+
+    r1 = c.get("/health")
+    assert r1.status_code == 200
+
+    r2 = c.get("/health")
+    assert r2.status_code == 429
+    body = r2.json()
+    assert body["error"] == "rate_limit_exceeded"
+    assert body["retry_after"] == 60
+    assert r2.headers["Retry-After"] == "60"
+
+
+def test_write_rate_limit_separate_from_read(monkeypatch):
+    """Write bucket is counted independently from read bucket."""
+    from src.api.main import RateLimitMiddleware
+
+    monkeypatch.setattr(RateLimitMiddleware, "_WRITE_LIMIT", 1)
+    monkeypatch.setattr(RateLimitMiddleware, "_READ_LIMIT", 100)
+    app = create_app()
+    c = TestClient(app, raise_server_exceptions=False)
+
+    # Two GETs should succeed (read limit=100)
+    assert c.get("/health").status_code == 200
+    assert c.get("/health").status_code == 200
+    # Two PATCHes — second should be throttled (write limit=1)
+    c.patch("/v1/hitl/config", json={"level": 1, "reason": "test"})
+    r = c.patch("/v1/hitl/config", json={"level": 1, "reason": "test"})
+    assert r.status_code == 429

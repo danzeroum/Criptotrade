@@ -252,6 +252,15 @@ async def get_risk_config() -> APIResponse[RiskConfigOut]:
 async def patch_risk_config(
     patch: RiskConfigPatch = Body(...),
 ) -> APIResponse[RiskConfigOut]:
+    if not patch.confirm:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "confirmation_required",
+                "message": "Defina confirm=true para alterar parâmetros de risco.",
+                "docs": "/v1/docs",
+            },
+        )
     cfg = _load_yaml()
 
     updates = patch.model_dump(exclude_none=True)
