@@ -1,7 +1,7 @@
 # Auditoria de Código & Plano de Remediação — CriptoTrade
-**Versão:** 1.0 · **Data:** 2026-06-11 · **Idioma:** pt-BR  
+**Versão:** 2.0 · **Data:** 2026-06-12 · **Idioma:** pt-BR  
 **Coordenador:** Agente AI (Claude) · **Repositório:** `danzeroum/criptotrade`  
-**Branch de dev (código):** `claude/youthful-gauss-r1fdwb`
+**Histórico:** v1.0 2026-06-11 (auditoria inicial) · v2.0 2026-06-12 (P1 concluído; roadmap P0→P2→P3)
 
 ---
 
@@ -20,7 +20,7 @@ Este documento consolida a auditoria do sistema CriptoTrade, cruza os laudos de 
 | Laudo 2º analista | Sondagem de endpoints em produção | Baixa-Média — condicionada ao ambiente |
 | ADRs | `docs/adr/001`, `002`, `003` | Alta — decisões formais registradas |
 
-As referências de código seguem o formato `arquivo:linha` e foram verificadas contra o HEAD do repositório em 2026-06-11.
+As referências de código seguem o formato `arquivo:linha` e foram verificadas contra o HEAD do repositório em 2026-06-11. Status de backlog verificado contra `git log origin/master` em 2026-06-12.
 
 ### 1.3 Limitação Central: Produção Inacessível do Sandbox
 
@@ -41,18 +41,18 @@ Consequências diretas:
 
 | Achado do 2º analista | Veredicto | Evidência no código |
 |-----------------------|-----------|---------------------|
-| Kelly degenera para `full_kelly=0` e `risk_of_ruin=100%` com ledger vazio | ✅ **Confirmado** | `risk.py:176-197` — `win_rate` default `0.5`, `avg_win/avg_loss` default `1.0`, matemática produz exatamente esses valores |
-| 500 em texto plano para exceções não tratadas | ✅ **Confirmado** | `main.py:103-139` — handlers apenas para `RequestValidationError` e `HTTPException`; sem catch-all `Exception`; Starlette retorna `"Internal Server Error"` plano |
-| `/openapi.json` 404 em produção | ✅ **Confirmado como risco** | `main.py:70-77` — `openapi_url` não setado → default FastAPI `/openapi.json` (sem prefixo `/v1`); se nginx só proxia `/v1/*`, a rota cai fora do proxy |
-| `GET /v1/orders` sem paginação real | ✅ **Confirmado** | `orders.py:42-45` — `store.list()` sem `limit`/`offset`; `Meta` retorna `page=1, per_page=total` — pseudo-meta, não paginação real |
-| Sem validação de par de mercado | ✅ **Confirmado** | `market.py:40-43` — `_decode_pair()` normaliza `BTC-USDT`→`BTC/USDT` mas sem whitelist; qualquer string decodificável é aceita |
+| Kelly degenera para `full_kelly=0` e `risk_of_ruin=100%` com ledger vazio | ✅ **Confirmado** | `risk.py:176-197` — **CORRIGIDO em P1-4** (`commit 9adbc00`) |
+| 500 em texto plano para exceções não tratadas | ✅ **Confirmado** | `main.py` — **CORRIGIDO em P1-1** (`commit 9adbc00`) + **P1-2** (`commit d68e2fa`) |
+| `/openapi.json` 404 em produção | ✅ **Confirmado como risco** | `main.py:70-77` — **CORRIGIDO em P1-6** (`commit 9adbc00`) |
+| `GET /v1/orders` sem paginação real | ✅ **Confirmado** | `orders.py:42-45` — **CORRIGIDO em P1-3** (`commit d68e2fa`) |
+| Sem validação de par de mercado | ✅ **Confirmado** | `market.py:40-43` — **ABERTO** (P2-2) |
 | Dados sintéticos (exchange simulada) | ✅ **Confirmado como by-design** | `docker-compose.yml` define `EXCHANGE_DRY_RUN=true`; ADR-001 documenta formalmente a estratégia Paper Trading First |
 | API aberta sem `API_KEYS` | ⚠️ **Não verificável aqui — deferido P0-0** | `main.py:46-48` confirma fail-open; estado real da variável em prod desconhecido |
-| `dry_run` desligável sem auth | ⚠️ **Não verificável aqui — deferido P0-0** | `config.py` expõe `PATCH /v1/config`; `main.py:46` é fail-open se `API_KEYS` vazio |
-| CORS `*` em produção | ⚠️ **Código confirma, prod não verificada** | `main.py:82` — `CORS_ORIGINS` default `"*"` |
-| `open_positions` com contagem crescente | ⚠️ **Não verificável aqui — deferido P0-0** | Requer inspeção do SQLite de prod + ciclo do orquestrador |
-| "`GET /v1/orders` congela a conexão com a exchange" | ⚠️ **Corrigido/discordância técnica** | `orders.py:42` — `store.list()` lê SQLite local, não acessa a exchange; causa real: resultado ilimitado + possível contenção de lock WAL |
-| Console React = protótipo sem valor de produção | ❌ **Discordância** | `index.html` + `app.jsx` usam `API_BASE=""` (relativo, sem mock); PRs #25–30 integrados; `USE_MOCK_DATA` é flag de fallback, não default ativo |
+| `dry_run` desligável sem auth | ⚠️ **Parcialmente improcedente** | `PATCH /v1/config` só altera `initial_capital` + `orchestrator_interval_seconds` — **`dry_run` não é mutável via API**. Risco real: mutações sem auth quando `API_KEYS` vazio (coberto por P0-1/P0-4) |
+| CORS `*` em produção | ⚠️ **Código confirma, prod não verificada** | `main.py:82` — **ABERTO** (P0-2) |
+| `open_positions` com contagem crescente | ✅ **Causa-raiz confirmada no código** | `log_position_closed` nunca era chamado — **CORRIGIDO em P1-5** (`commit 980c562`) |
+| "`GET /v1/orders` congela a conexão com a exchange" | ⚠️ **Corrigido/discordância técnica** | `orders.py:42` — `store.list()` lê SQLite local; **causa real**: resultado ilimitado + lock WAL — **CORRIGIDO em P1-3** |
+| Console React = protótipo sem valor de produção | ❌ **Discordância** | `index.html` + `app.jsx` usam `API_BASE=""` (relativo, sem mock); PRs #25–35 integrados; `USE_MOCK_DATA` é flag de fallback, não default ativo |
 
 ### 2.2 Crítica do 1º Analista × Plano
 
@@ -66,7 +66,7 @@ Consequências diretas:
 | `/process/events` é feature de PM, não bug | ✅ Aceito | P2-3 (requalificado) |
 | Streamlit como dev-tool, não frontend de produção | ✅ Aceito | P2-4 (documentar separação) |
 | Verificação pós-push necessária | ✅ Aceito | Critério de aceite em cada item |
-| Cobertura "inflada por skips" | ❌ Rejeitado | Sem marcadores `skip`/`xfail` no código; testes rodam com `DummyExchange`; contagem exata a verificar (README cita 138 — ver G-17/P2-4) |
+| Cobertura "inflada por skips" | ❌ Rejeitado | Sem marcadores `skip`/`xfail` no código; testes rodam com `DummyExchange`; contagem real ~121 (README cita 138 — ver P2-4) |
 
 ---
 
@@ -87,12 +87,12 @@ Consequências diretas:
 | `agents.py` | `/v1/agents` | `GET /`, `GET /{id}`, `GET /{id}/config`, `PATCH /{id}/config` |
 | `alerts.py` | `/v1/alerts` | `GET /history`, `GET /config`, `PATCH /config`, `GET /` (SSE) |
 | `backtest.py` | `/v1/backtest` | `POST /run`, `POST /montecarlo`, `POST /walkforward`, `GET /jobs/{id}` |
-| `config.py` | `/v1/config` | `GET /`, `PATCH /` |
+| `config.py` | `/v1/config` | `GET /`, `PATCH /` (`initial_capital`, `orchestrator_interval_seconds` — `dry_run` **não mutável**) |
 | `hitl.py` | `/v1/hitl` | `GET /config`, `PATCH /config` |
 | `journal.py` | `/v1/journal` | `GET /`, `POST /`, `GET /metrics` |
 | `market.py` | `/v1/market` | `GET /{pair}/candles`, `/{pair}/indicators`, `/{pair}/regime`, `/{pair}/levels`, `/{pair}/volume-profile`, `/{pair}/patterns`, `/{pair}/signal` |
 | `metrics.py` | `/v1/metrics` | `GET /`, `GET /equity` |
-| `orders.py` | `/v1/orders` | `GET /`, `POST /`, `PATCH /{id}/status` |
+| `orders.py` | `/v1/orders` | `GET /?limit&offset` *(paginado desde P1-3)*, `POST /`, `PATCH /{id}/status` |
 | `process.py` | `/v1/process` | `GET /events` |
 | `risk.py` | `/v1/risk` | `GET /protections`, `GET /circuit-breaker`, `GET /kelly`, `GET /config`, `PATCH /config` |
 | `main.py` | `/` | `GET /health` |
@@ -106,7 +106,7 @@ Consequências diretas:
 | `GET /v1/metrics/equity` | `getEquity(p)` | — |
 | `GET /v1/hitl/config` | `getHITL()` | ✅ linha 75 |
 | `PATCH /v1/hitl/config` | `patchHITL(body)` | ✅ linha 132 |
-| `GET /v1/orders` | `getOrders(q)` | ✅ linhas 144, 282 |
+| `GET /v1/orders?limit&offset` | `getOrders(limit, offset, q)` | ✅ linhas 144, 282 |
 | `PATCH /v1/orders/{id}/status` | `decideOrder(id, body)` | ✅ linhas 159, 169 |
 | `GET /v1/agents` | `getAgents()` | ✅ linha 183 |
 | `GET /v1/agents/{id}/config` | `getAgentConfig(id)` | ✅ linha 198 |
@@ -143,89 +143,78 @@ Consequências diretas:
 
 ## 4. Bugs Confirmados no Código-Fonte
 
-Os bugs a seguir foram confirmados por leitura direta do código. Não são hipóteses.
+Os bugs a seguir foram confirmados por leitura direta do código. Bugs resolvidos indicam o commit de correção.
 
-### Bug 1 — Kelly degenera para valores enganosos com ledger vazio
-**Arquivo:** `src/api/routes/risk.py:162-208`
+### Bug 1 — Kelly degenera para valores enganosos com ledger vazio ✅ CORRIGIDO (P1-4)
+**Arquivo:** `src/api/routes/risk.py` · **Corrigido em:** `commit 9adbc00` (PR #32)
 
-Com zero trades no ledger (`position_closed` entries = 0):
-- **Linha 176:** `win_rate = 0.5` (default hardcoded)
-- **Linha 177:** `avg_win = 1.0` (default hardcoded)
-- **Linha 178:** `avg_loss = 1.0` (default hardcoded)
-- **Linha 182:** `full_kelly = max(0.0, 0.5 − 0.5/1.0) = 0.0`
-- **Linhas 190–195:** condição `win_rate > 0 and < 1 and avg_win > 0 and avg_loss > 0` → verdadeira; `risk_of_ruin = ((0.5/0.5)^(1.0/1.0)) × 100 = 100.0`
+Com zero trades no ledger (`position_closed` entries = 0), o código original retornava `{full_kelly:0.0, risk_of_ruin:100.0}` sem nenhuma operação realizada — alarme falso. A tela de Risco tornava-se inoperável no estado inicial do sistema.
 
-**Resposta atual:** `{full_kelly: 0.0, fractional_kelly: 0.0, risk_of_ruin: 100.0, trades: 0}`  
-**Impacto:** Operador vê "Risco de Ruína 100%" sem nenhuma operação realizada — alarme falso. A tela de Risco torna-se inoperável no estado inicial do sistema.
+**Correção:** `risk.py` retorna `{data_quality:"insufficient", trades:N, full_kelly:null, risk_of_ruin:null}` quando `trades < _MIN_KELLY_TRADES (10)`. `KellyOut` com campos opcionais. `screen_risk.jsx` exibe `EmptyState` com contagem real.
 
 ---
 
-### Bug 2 — 500 em texto plano para exceções não tratadas
-**Arquivo:** `src/api/main.py:103-139`
+### Bug 2 — 500 em texto plano para exceções não tratadas ✅ CORRIGIDO (P1-1 + P1-2)
+**Arquivo:** `src/api/main.py` · **Corrigido em:** `commit 9adbc00` (PR #32) + `commit d68e2fa` (PR #34)
 
-Os handlers registrados cobrem apenas:
-- **Linha 103:** `RequestValidationError` → JSON 422
-- **Linha 118:** `HTTPException` / `StarletteHTTPException` → JSON 4xx/5xx
+Exceções Python não tratadas retornavam `500 Internal Server Error` em texto plano. `PATCH /v1/risk/config` com FS read-only lançava `PermissionError` sem tratamento.
 
-Exceções Python comuns (`PermissionError`, `AttributeError`, `KeyError`, etc.) não são capturadas por nenhum handler e retornam a resposta padrão do Starlette: `500 Internal Server Error` em texto plano, sem envelope JSON.
-
-**Exemplo concreto:** `PATCH /v1/risk/config` (`risk.py:266`) chama `_save_yaml()` (`risk.py:38-40`) que abre `_RISK_PARAMS_PATH` para escrita. Se o sistema de arquivos do container for read-only nesse ponto, uma `PermissionError` não tratada retorna 500 em texto plano.
+**Correção P1-1:** `@app.exception_handler(Exception)` em `main.py` retorna `{"error":"internal_error","docs":"/v1/docs"}` com log interno de traceback.  
+**Correção P1-2:** `_save_yaml()` em `risk.py` envolto em `try/except (PermissionError, FileNotFoundError, OSError)` → `HTTPException(503, detail={"error":"config_not_writable"})`.
 
 ---
 
-### Bug 3 — `GET /v1/orders` sem paginação real
-**Arquivo:** `src/api/routes/orders.py:37-46`
+### Bug 3 — `GET /v1/orders` sem paginação real ✅ CORRIGIDO (P1-3)
+**Arquivo:** `src/api/routes/orders.py` · **Corrigido em:** `commit d68e2fa` (PR #34)
 
-```python
-orders = store.list(status=status, pair=pair)  # linha 42 — sem limit/offset
-return APIResponse(
-    data=[_order_to_out(o) for o in orders],
-    meta=Meta(total=len(orders), page=1, per_page=len(orders) or 1),  # linha 45
-)
-```
+Rota retornava todas as ordens em uma página (pseudo-meta). Com ~10k ordens, resposta podia atingir dezenas de MB.
 
-Embora o objeto `Meta` exista, ele é preenchido com `per_page=total` — semântica de "tudo numa página". A rota aceita apenas `status` e `pair` como filtros; sem parâmetros `limit`/`offset`. Com ~10k ordens, a resposta pode atingir dezenas de MB e degradar (ou travar) o SQLite por lock WAL.
+**Correção:** `limit: int = Query(50, ge=1, le=500)` e `offset: int = Query(0, ge=0)`. `OrderStore.count()` para `Meta.total` preciso. Dashboard e Console React atualizados com `limit` explícito.
 
 ---
 
-### Bug 4 — Schema OpenAPI inacessível em produção (nginx)
-**Arquivo:** `src/api/main.py:69-77`
+### Bug 4 — Schema OpenAPI inacessível em produção (nginx) ✅ CORRIGIDO (P1-6)
+**Arquivo:** `src/api/main.py` · **Corrigido em:** `commit 9adbc00` (PR #32)
 
-```python
-app = FastAPI(
-    docs_url="/v1/docs",
-    redoc_url="/v1/redoc",
-    # openapi_url NÃO definido → default FastAPI = "/openapi.json"
-)
-```
+`openapi_url` não definido → default FastAPI `/openapi.json` (sem prefixo). Nginx que só proxia `/v1/*` retornava 404 no browser ao carregar `/v1/docs`.
 
-O FastAPI serve o schema em `/openapi.json` (sem prefixo). A página `/v1/docs` carrega o schema via fetch para `/openapi.json`. Se o nginx de produção apenas proxia `/v1/*`, a requisição a `/openapi.json` não chega ao container — `404` no browser.
-
-`PUBLIC_PATHS` inclui `/openapi.json` (`main.py:28`), então não há bloqueio de auth — o problema é infraestrutura (nginx).
+**Correção:** `openapi_url="/v1/openapi.json"` em `create_app()`; `PUBLIC_PATHS` atualizado.
 
 ---
 
-### Bug 5 — Sem validação de par de mercado
+### Bug 5 — Sem validação de par de mercado ⚠️ ABERTO (P2-2)
 **Arquivo:** `src/api/routes/market.py:40-43`
 
-```python
-def _decode_pair(raw: str) -> str:
-    decoded = urllib.parse.unquote(raw)
-    return decoded.replace("-", "/") if "/" not in decoded else decoded
-```
-
-Qualquer string URL-decodificável é aceita como par (`BTC/USDT`, `INVALID/FOO`, `../../etc`). Sem whitelist, a exchange sintética retorna dados para qualquer símbolo passado — enganando o usuário ou causando comportamento indefinido com symbols não reconhecidos pela exchange real no futuro.
+Qualquer string URL-decodificável é aceita como par. Sem whitelist, a exchange sintética retorna dados para qualquer símbolo — enganando o usuário.
 
 ---
 
-### Bug 6 — Jobs de backtest perdidos em restart
+### Bug 6 — Jobs de backtest perdidos em restart ⚠️ ABERTO (P2-1)
 **Arquivo:** `src/api/routes/backtest.py:33`
 
 ```python
 _jobs: Dict[str, Dict[str, Any]] = {}
 ```
 
-Dicionário global em memória de módulo Python. Qualquer restart do processo API (deploy, crash, escalonamento horizontal) apaga todos os jobs em andamento e seus resultados. O cliente recebe `404` ao consultar um job que existia antes do restart, sem explicação.
+Dicionário global em memória de módulo Python. Qualquer restart apaga todos os jobs.
+
+---
+
+### Bug 7 — `open_positions` cresce indefinidamente ✅ CORRIGIDO (P1-5)
+**Arquivo:** `src/orchestration/squad_orchestrator.py` · **Corrigido em:** `commit 980c562` (PR #34)
+
+`log_position_closed` existia (`ledger.py:149`) mas nunca era chamado. Todo `order_fill` sem `position_closed` correspondente contava como posição aberta para sempre — invalidando Kelly, win_rate, circuit breaker e `open_positions`.
+
+**Correção:** `_open_positions` dict rastreia cada fill com `entry_price`, `stop_loss`, `take_profit`. `_check_open_positions(price, symbol)` chamado a cada ciclo — fecha posições que atingiram stop/TP, chama `log_position_closed` e `circuit_breaker.record_trade_result()`.
+
+---
+
+### Bug 8 — Tela de Mercado usava preço mock em vez de dado live ✅ CORRIGIDO (P1-7)
+**Arquivo:** `docs/design/pages/screen_market.jsx` · **Corrigido em:** `commit a1e677f` + `commit 5ce8283` (PRs #34 + #35)
+
+KPI "Preço atual" usava `CT.symbol.price` (mock) enquanto o gráfico buscava candles da API. Fibonacci usava `CT.sr.fib` (mock) em vez de `levels.fib` da API.
+
+**Correção:** `lastClose = candles[lastIndex].c` para "Preço atual"; `levels.fib[]` para Fibonacci; `ind.macd` para dados MACD. Hotfix PR #35 restaurou `const sym = CT.symbol` (declaração removida acidentalmente no commit inicial causava `ReferenceError`).
 
 ---
 
@@ -235,35 +224,36 @@ Dicionário global em memória de módulo Python. Qualquer restart do processo A
 
 #### 🔴 Crítico / Bloqueante para produção real
 
-| ID | Descrição | Evidência |
-|----|-----------|-----------|
-| G-01 | Autenticação fail-open: sem `API_KEYS`, a API é pública | `main.py:46-48` |
-| G-02 | CORS `*` por default: qualquer origem pode chamar a API | `main.py:82` |
-| G-03 | `PATCH /v1/config` permite desligar `dry_run` sem auth | `config.py` + `main.py:46` |
-| G-04 | Ausência de rate limiting: sem throttle em mutações ou mercado | Nenhum middleware |
-| G-05 | Guardrails não eram chamados até 2026-06-04 (ADR-003): auditoria retroativa de conformidade é impossível | ADR-003 + `src/core/guardrails.py` |
+| ID | Descrição | Estado | Evidência |
+|----|-----------|--------|-----------|
+| G-01 | Autenticação fail-open: sem `API_KEYS`, a API é pública | **ABERTO** (P0-1) | `main.py:46-48` |
+| G-02 | CORS `*` por default: qualquer origem pode chamar a API | **ABERTO** (P0-2) | `main.py:82` |
+| G-03 | Mutações sem auth quando `API_KEYS` vazio | **ABERTO** (P0-4; resolvido por P0-1) | `config.py` + `hitl.py` |
+| G-04 | Ausência de rate limiting: sem throttle em mutações ou mercado | **ABERTO** (P0-3) | Nenhum middleware |
+| G-05 | Guardrails não eram chamados até 2026-06-04 (ADR-003): auditoria retroativa impossível | Histórico | ADR-003 |
 
 #### 🟡 Importante / Deve corrigir antes de ampliar usuários
 
-| ID | Descrição | Evidência |
-|----|-----------|-----------|
-| G-06 | Sem headers de segurança HTTP (CSP, HSTS, X-Frame-Options) | Nenhum middleware/nginx config no repo |
-| G-07 | Kelly enganoso com ledger vazio (Bug 1 acima) | `risk.py:176-197` |
-| G-08 | 500 texto plano para exceções não tratadas (Bug 2) | `main.py:103-139` |
-| G-09 | `GET /v1/orders` sem paginação real (Bug 3) | `orders.py:42-45` |
-| G-10 | `_jobs` backtest em memória — volátil (Bug 6) | `backtest.py:33` |
-| G-11 | Cola de deploy (nginx/compose) ausente do repo — divergência código↔prod inevitável | Nenhum `infra/` no repo |
+| ID | Descrição | Estado | Evidência |
+|----|-----------|--------|-----------|
+| G-06 | Sem headers de segurança HTTP (CSP, HSTS, X-Frame-Options) | **ABERTO** (P0-5) | Nenhum middleware/nginx config no repo |
+| G-07 | Kelly enganoso com ledger vazio (Bug 1) | ✅ **RESOLVIDO** P1-4 | `commit 9adbc00` |
+| G-08 | 500 texto plano para exceções não tratadas (Bug 2) | ✅ **RESOLVIDO** P1-1+P1-2 | `commit 9adbc00` + `d68e2fa` |
+| G-09 | `GET /v1/orders` sem paginação real (Bug 3) | ✅ **RESOLVIDO** P1-3 | `commit d68e2fa` |
+| G-10 | `_jobs` backtest em memória — volátil (Bug 6) | **ABERTO** (P2-1) | `backtest.py:33` |
+| G-11 | Cola de deploy (nginx/compose) ausente do repo | **ABERTO** (P3-2) | Nenhum `infra/` no repo |
+| G-16 | `open_positions` crescia indefinidamente (Bug 7) | ✅ **RESOLVIDO** P1-5 | `commit 980c562` |
 
 #### 🟢 Menor / Melhorias de qualidade
 
-| ID | Descrição | Evidência |
-|----|-----------|-----------|
-| G-12 | Sem validação de par de mercado (Bug 5) | `market.py:40-43` |
-| G-13 | `openapi.json` inacessível via nginx (Bug 4) | `main.py:70` |
-| G-14 | Console React usa Babel no browser em dev (`react.development.js`) | `index.html` |
-| G-15 | `GET /v1/process/events` sem consumidor conhecido | `process.py` |
-| G-16 | `open_positions` fantasma não confirmado (depende de dados de prod) | — |
-| G-17 | README cita "138 testes" e não documenta separação Streamlit×Console | `README.md` |
+| ID | Descrição | Estado | Evidência |
+|----|-----------|--------|-----------|
+| G-12 | Sem validação de par de mercado (Bug 5) | **ABERTO** (P2-2) | `market.py:40-43` |
+| G-13 | `openapi.json` inacessível via nginx (Bug 4) | ✅ **RESOLVIDO** P1-6 | `commit 9adbc00` |
+| G-14 | Console React usa Babel no browser em dev | **ABERTO** (P3-1) | `index.html` |
+| G-15 | `GET /v1/process/events` sem consumidor conhecido | **ABERTO** (P2-3) | `process.py` |
+| G-17 | README cita "138 testes" e não documenta separação Streamlit×Console | **ABERTO** (P2-4) | `README.md` |
+| G-18 | Tela de Mercado misturava dados mock e API (Bug 8) | ✅ **RESOLVIDO** P1-7 | `commit a1e677f`+`5ce8283` |
 
 ### 5.2 O Que Está Bem
 
@@ -280,143 +270,129 @@ O sistema tem uma base sólida para um MVP de trading:
 - **Progressive Autonomy** (`hitl.py`): níveis 0-3 de autonomia configuráveis.
 - **Envelope de resposta consistente** `APIResponse<T>` com `data` + `meta`: contrato de API estável.
 - **Tratamento gracioso de falhas no Dashboard** (`app.py:27-48`): degrada para "API offline" sem travar.
+- **P1 integralmente concluído** (7 itens, 4 PRs, ~180 linhas de prod + 91 testes passando).
 
 ---
 
 ## 6. Backlog de Remediação Priorizado
 
-> Formato: `[ ]` = a fazer · `[x]` = concluído · evidência (arquivo:linha) · critério de aceite · esforço estimado (P=pequeno <4h, M=médio 4-8h, G=grande >8h).
+> Formato: `[ ]` = a fazer · `[x]` = concluído · evidência (arquivo:linha ou commit) · critério de aceite · esforço (P=pequeno <4h, M=médio 4-8h, G=grande >8h).
 
 ### P0 — Segurança / Bloqueantes Pré-Produção
 
-- [ ] **P0-0 — Verificar config real de produção** *(dev executa primeiro; destrava P0-1..P0-5)*  
-  Confirmar na máquina com acesso real: `API_KEYS` setado? `EXCHANGE_DRY_RUN`? nginx proxia `/v1/*` e `/openapi.json`? Headers de resposta? Variável `CORS_ORIGINS` setada?  
+- [ ] **P0-0 — Verificar config real de produção** *(paralelo; não bloqueia P0-1..P0-5)*  
+  Confirmar na máquina com acesso real: `API_KEYS` setado? `EXCHANGE_DRY_RUN`? nginx proxia `/v1/*`? Headers de resposta? `CORS_ORIGINS` setado? ~15 min de sondagem.  
   **Aceite:** relatório curto com os fatos; qualquer item aberto vira bug de P0.  
-  **Esforço:** P (sondagem, não implementação)
+  **Esforço:** P
 
-- [ ] **P0-1 — Exigir auth em produção** (`main.py:32-59`)  
-  `API_KEYS` está configurada no deploy? Se não: garantir que seja setada E documentar o processo. O middleware já implementa a lógica correta — é uma questão de configuração de infra.  
+- [ ] **P0-1 — Auth fail-closed em prod** (`main.py:32-59`)  
+  Manter fail-open em dev (por design). Em prod, garantir que `API_KEYS` esteja setado — caso não esteja, documentar e setar. O middleware já implementa a lógica correta. Isso **gateia todas as mutações PATCH** e resolve o grosso do P0-4.  
   **Aceite:** prod recusa `401 {"error":"unauthorized"}` sem `X-API-Key` em rotas não-públicas; `API_KEYS` documentada no `.env.example`.  
   **Esforço:** P (infra + doc)
 
 - [ ] **P0-2 — Travar CORS** (`main.py:82`)  
-  Setar `CORS_ORIGINS` no deploy para a origem do console React (ex.: `https://criptotrade.buildtovalue.cloud`). Sem `*` em prod.  
-  **Aceite:** resposta a `OPTIONS` de origem não autorizada retorna sem `Access-Control-Allow-Origin`.  
-  **Esforço:** P (variável de env + teste)
+  Setar `CORS_ORIGINS` no deploy para a origem real do console. Sem `*` em prod.  
+  **Aceite:** `OPTIONS` de origem não autorizada retorna sem `Access-Control-Allow-Origin`.  
+  **Esforço:** P
 
 - [ ] **P0-3 — Rate limiting** (sem implementação atual)  
-  Adicionar `slowapi` (ou similar) com limites distintos: mutações (`POST`, `PATCH`) e rotas de mercado (dados ao vivo) mais restritivas; leitura menos restritiva.  
+  Adicionar `slowapi` com limites distintos: mutações (`POST`, `PATCH`) e mercado (dados ao vivo) mais restritivos; leitura menos restritiva.  
   **Aceite:** burst em mutações/mercado → `429 Too Many Requests`; leitura normal não afetada; limites documentados.  
   **Esforço:** M
 
-- [ ] **P0-4 — Proteger mutações perigosas** (`config.py`, `hitl.py`, `risk.py:242`, `agents.py`)  
-  Rotas `PATCH /v1/config` (desliga `dry_run`), `PATCH /v1/hitl/config` (autonomia=3), `PATCH /v1/risk/config`, `PATCH /v1/agents/{id}/config` devem exigir auth independentemente de `API_KEYS` estar setado (considerar escopo adicional). Alterar `dry_run=false` pode exigir confirmação explícita/flag no body.  
-  **Aceite:** inacessíveis sem `X-API-Key` válida; `dry_run=false` exige campo `confirm: true` no body.  
+- [ ] **P0-4 — Confirmação explícita para mutações de alto impacto** (`hitl.py`, `risk.py`, `agents.py`)  
+  *Nota: `PATCH /v1/config` não altera `dry_run` — campo não exposto. Risco real: mutações sem auth (resolvido por P0-1) + falta de confirmação para autonomia=3 e risk params.*  
+  Adicionar campo `confirm: true` (ou escopo adicional no header) para: `PATCH /v1/hitl/config` (autonomia=3), `PATCH /v1/risk/config`, `PATCH /v1/agents/{id}/config`.  
+  **Aceite:** mutação de alto impacto sem `confirm:true` → `400 {"error":"confirmation_required"}`; com P0-1 ativo, inacessível sem auth.  
   **Esforço:** M
 
 - [ ] **P0-5 — Headers de segurança HTTP**  
-  No nginx e/ou middleware FastAPI: `Content-Security-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Strict-Transport-Security`, `Referrer-Policy: strict-origin`.  
+  Nginx e/ou middleware FastAPI: `Content-Security-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Strict-Transport-Security`, `Referrer-Policy: strict-origin`.  
   **Aceite:** headers presentes em toda resposta; verificado via `curl -I`.  
-  **Esforço:** P (nginx config)
+  **Esforço:** P (nginx config ou middleware)
 
 ---
 
-### P1 — Correção / Confiabilidade (Confirmados no Código)
+### P1 — Correção / Confiabilidade ✅ CONCLUÍDO INTEGRALMENTE
 
-- [x] **P1-1 — Handler catch-all `Exception` → JSON 500** (`main.py:103-139`)  
-  ✅ `commit 9adbc00` — `@app.exception_handler(Exception)` em `main.py` registrado em `ServerErrorMiddleware`; loga traceback internamente; retorna `{"error":"internal_error","docs":"/v1/docs"}`. Teste: `test_unhandled_exception_returns_json_500`.  
-  **Aceite:** ✅ qualquer exceção Python não tratada retorna JSON 500; stacktrace nos logs do container, não na resposta HTTP.
+- [x] **P1-1 — Handler catch-all `Exception` → JSON 500** (`main.py`)  
+  ✅ `commit 9adbc00` (PR #32) — `@app.exception_handler(Exception)` retorna `{"error":"internal_error","docs":"/v1/docs"}`; loga traceback internamente. Teste: `test_unhandled_exception_returns_json_500`.
 
-- [ ] **P1-2 — Corrigir `PATCH /v1/risk/config` em FS read-only** (`risk.py:38-40`, `risk.py:247-267`)  
-  `_save_yaml()` abre `_RISK_PARAMS_PATH` para escrita sem tratar `PermissionError` ou `FileNotFoundError`. Resolver: (a) tratar exceção e retornar `503 {"error":"config_not_writable"}` estruturado, ou (b) mover config para banco de dados/variável de ambiente.  
-  **Aceite:** `PATCH /v1/risk/config` em container read-only retorna 4xx/5xx estruturado JSON, não plain-text 500; + teste unitário cobrindo o caso de falha de escrita.  
-  **Esforço:** M
+- [x] **P1-2 — `PATCH /v1/risk/config` em FS read-only** (`risk.py`)  
+  ✅ `commit d68e2fa` (PR #34) — `_save_yaml()` envolto em `try/except (PermissionError, FileNotFoundError, OSError)` → `HTTPException(503, detail={"error":"config_not_writable"})`. Testes: `test_patch_risk_config_permission_error_returns_503`, `test_patch_risk_config_os_error_returns_503`.
 
-- [ ] **P1-3 — Paginar `GET /v1/orders`** (`orders.py:37-46`)  
-  Adicionar parâmetros `limit: int = Query(50, ge=1, le=500)` e `offset: int = Query(0, ge=0)`. Atualizar `store.list()` para aceitar `limit`/`offset`. Atualizar `Meta` com `page` calculado. Atualizar Console React e Streamlit para consumir paginação.  
-  **Aceite:** `GET /v1/orders?limit=50&offset=0` retorna ≤ 50 ordens + `Meta` correto; com ~10k ordens, resposta < 1s e sem crescimento de memória; console e dashboard paginam.  
-  **Esforço:** M
+- [x] **P1-3 — Paginar `GET /v1/orders`** (`orders.py`, `hitl/orders.py`)  
+  ✅ `commit d68e2fa` (PR #34) — `?limit` (1–500, default 50) e `?offset` (≥0). `OrderStore.count()` para `Meta.total` preciso. Dashboard e Console React passam `limit` explícito. Testes: `test_list_orders_default_limit_caps_at_50`, `test_list_orders_offset_advances_page`, `test_list_orders_custom_limit_respected`, `test_list_orders_limit_above_500_returns_422`.
 
-- [x] **P1-4 — Kelly com dados insuficientes** (`risk.py:162-208`)  
-  ✅ `commit 9adbc00` — `risk.py` retorna cedo quando `trades < _MIN_KELLY_TRADES (10)` com `{data_quality:"insufficient"}`. `schemas.py:KellyOut` com campos opcionais. `screen_risk.jsx` exibe `EmptyState "Dados insuficientes (N trades — mínimo 10)"` e KPI de ruína mostra "Dados insuficientes". Testes: `test_kelly_empty_ledger_returns_insufficient`, `test_kelly_below_threshold_returns_insufficient`, `test_kelly_sufficient_trades_returns_ok`.  
-  **Aceite:** ✅ ledger vazio → `{data_quality:"insufficient", trades:0, full_kelly:null, risk_of_ruin:null}`; tela exibe "Dados insuficientes".
+- [x] **P1-4 — Kelly com dados insuficientes** (`risk.py`, `schemas.py`, `screen_risk.jsx`)  
+  ✅ `commit 9adbc00` (PR #32) — `{data_quality:"insufficient", trades:N, full_kelly:null}` quando `trades < 10`. Testes: `test_kelly_empty_ledger_returns_insufficient`, `test_kelly_below_threshold_returns_insufficient`, `test_kelly_sufficient_trades_returns_ok`.
 
-- [ ] **P1-5 — Investigar `open_positions` fantasma** (a confirmar em P0-0)  
-  Mapear ciclo completo: `position_opened` → `position_closed` no ledger; verificar se ordens sintéticas são fechadas corretamente pelo orquestrador. Requer dados de prod (P0-0).  
-  **Aceite:** contador `open_positions` reflete posições reais; sem crescimento ilimitado entre restarts; teste de integração cobrindo o ciclo completo.  
-  **Esforço:** G (investigação + fix dependente de dados de prod)
+- [x] **P1-5 — Fechar posições paper (ligar `log_position_closed`)** (`squad_orchestrator.py`)  
+  ✅ `commit 980c562` (PR #34) — `_open_positions` rastreia cada fill; `_check_open_positions(price, symbol)` a cada ciclo; `log_position_closed` + `circuit_breaker.record_trade_result()` em stop/TP. 8 testes de integração em `tests/integration/test_trading_flow.py`.
 
-- [x] **P1-6 — `openapi_url` para o prefixo `/v1`** (`main.py:70-77`)  
-  ✅ `commit 9adbc00` — `openapi_url="/v1/openapi.json"` em `create_app()`; `PUBLIC_PATHS` atualizado. Teste: `test_openapi_schema_served_at_v1_path`.  
-  **Aceite:** ✅ `/v1/docs` carrega o schema sem 404; `/v1/redoc` funciona igualmente.
+- [x] **P1-6 — `openapi_url` para o prefixo `/v1`** (`main.py`)  
+  ✅ `commit 9adbc00` (PR #32) — `openapi_url="/v1/openapi.json"` em `create_app()`; `PUBLIC_PATHS` atualizado. Teste: `test_openapi_schema_served_at_v1_path`.
 
-- [ ] **P1-7 — Conflito de preço no Console React** (`docs/design/pages/screen_market.jsx`)  
-  Header do console usa dado mock/hardcoded enquanto gráfico busca da API — fonte dupla. Unificar: header lê o mesmo dado do `apiClient.js`.  
-  **Aceite:** preço no header == último candle do gráfico; sem discrepância visual.  
-  **Esforço:** P
+- [x] **P1-7 — Conflito de preço no Console React** (`screen_market.jsx`)  
+  ✅ `commit a1e677f` (PR #34) + **hotfix** `commit 5ce8283` (PR #35) — `lastClose = candles[-1].c` para "Preço atual"; `levels.fib[]` para Fibonacci; `ind.macd` para MACD. Hotfix restaurou `const sym = CT.symbol` que causava `ReferenceError` em "Variação 24h" e título do gráfico.
 
 ---
 
 ### P2 — Produto / Conectar Backend Existente
 
 - [ ] **P2-1 — Persistir jobs de backtest** (`backtest.py:33`)  
-  Substituir `_jobs: Dict` por persistência em SQLite (tabela `backtest_jobs`) ou Redis. Mínimo viável: SQLite com `CREATE TABLE IF NOT EXISTS backtest_jobs (id TEXT PRIMARY KEY, status TEXT, result TEXT, error TEXT, created_at TEXT, completed_at TEXT)`.  
-  **Aceite:** job sobrevive a restart do processo API; múltiplos workers não perdem estado; `GET /v1/backtest/jobs/{id}` retorna `404` estruturado para job inexistente.  
+  Substituir `_jobs: Dict` por SQLite (tabela `backtest_jobs`, reutilizando camada `src/core/db.py`).  
+  **Aceite:** job sobrevive a restart; `GET /v1/backtest/jobs/{id}` retorna `404` estruturado para job inexistente.  
   **Esforço:** M
 
 - [ ] **P2-2 — Validar par de mercado** (`market.py:40-43`)  
-  Implementar allowlist de símbolos configurável (carregada de env var ou YAML, ex.: `ALLOWED_PAIRS=BTC/USDT,ETH/USDT,SOL/USDT`). `_decode_pair()` valida contra a lista e lança `HTTPException(422)` para símbolo não autorizado.  
-  **Aceite:** `GET /v1/market/INVALID/candles` → `422 {"error":"invalid_pair"}`; `BTC/USDT` (e `BTC-USDT`) → dados normais; allowlist documentada.  
+  Allowlist configurável (`ALLOWED_PAIRS` env var ou YAML). `_decode_pair()` valida e lança `HTTPException(422)` para símbolo não autorizado.  
+  **Aceite:** `GET /v1/market/INVALID/candles` → `422 {"error":"invalid_pair"}`; `BTC/USDT` (e `BTC-USDT`) → dados normais.  
   **Esforço:** P
 
-- [ ] **P2-3 — Definir destino de `GET /v1/process/events`** (`src/api/routes/process.py`)  
-  Único endpoint sem consumidor frontend conhecido. Duas opções:  
-  (a) Expor no Console React como "Export de Eventos XES" (Process Mining);  
-  (b) Documentar como API de integração externa apenas, com nota no README.  
-  **Aceite:** endpoint tem destino explícito documentado; se exposto no console, existe botão de download.  
-  **Esforço:** P (decisão de PM) a M (se implementar no console)
+- [ ] **P2-3 — Definir destino de `GET /v1/process/events`** (`process.py`)  
+  Duas opções: (a) expor no Console React como "Export XES"; (b) documentar como integração externa apenas.  
+  **Aceite:** endpoint tem destino explícito documentado.  
+  **Esforço:** P (decisão) a M (se console)
 
-- [ ] **P2-4 — Formalizar Streamlit (dev-tool) × Console React (produção) no README** (`README.md`)  
-  Atualizar README para: (a) distinguir claramente os dois frontends e seus propósitos; (b) corrigir contagem de testes (verificar número real vs "138"); (c) documentar como rodar cada frontend.  
-  **Aceite:** README condiz com a realidade; novo dev entende em < 5 min qual frontend usar em cada contexto.  
+- [ ] **P2-4 — Formalizar Streamlit × Console React no README** (`README.md`)  
+  Corrigir "138 testes" (real ~121), documentar propósito de cada frontend, como rodar cada um.  
+  **Aceite:** README condiz com a realidade; novo dev entende em <5 min.  
   **Esforço:** P
 
 ---
 
 ### P3 — Build / Infra / Qualidade
 
-- [ ] **P3-1 — Build de produção do Console React** (`docs/design/pages/index.html`)  
-  **Opção A (Vite):** adicionar `package.json` + `vite.config.ts`; build gera `dist/` minificado; nginx serve static. Mais robusto, requer configurar CI.  
-  **Opção B (Import Map ESM):** trocar `react.development.js` + Babel-no-browser por import map com versões ESM minificadas fixas (`esm.sh` ou CDN versionado). Zero toolchain, mas depende de CDN externo.  
-  **Tradeoff:** Opção A = zero dependência de CDN em runtime, mais complexo. Opção B = simples, mas CDN é ponto de falha/supply chain.  
-  **Aceite:** prod serve JS minificado, sem transpile no browser; LCP melhora; nenhum `react.development.js` em prod.  
+- [ ] **P3-1 — Build de produção do Console React** (`docs/design/index.html`)  
+  **Opção A (Vite):** build gera `dist/` minificado; nginx serve static. Mais robusto.  
+  **Opção B (Import Map ESM):** trocar Babel-no-browser por ESM minificado versionado. Zero toolchain, mas depende de CDN.  
+  **Aceite:** prod serve JS minificado, sem transpile no browser.  
   **Esforço:** M (A) ou P (B)
 
-- [ ] **P3-2 — Versionar cola de deploy** (nginx + compose ausentes do repo)  
-  Criar `infra/docker-compose.prod.yml` e `infra/nginx.conf` com: proxy `/v1/*` → API, `/openapi.json` → API, servir static do console, gzip, timeouts, headers de segurança.  
-  **Aceite:** `infra/` no repo; `README` explica como deployer; divergência código↔prod torna-se auditável.  
+- [ ] **P3-2 — Versionar cola de deploy** (`infra/` ausente do repo)  
+  Criar `infra/docker-compose.prod.yml` e `infra/nginx.conf` com: proxy `/v1/*` → API, `/v1/openapi.json` → API, servir static do console, gzip, timeouts, headers de segurança (P0-5).  
+  **Aceite:** `infra/` no repo; divergência código↔prod torna-se auditável.  
   **Esforço:** M
 
-- [ ] **P3-3 — Monitoramento de erros (Sentry)** (API + Console React)  
-  Integrar Sentry SDK: Python para a API (captura 5xx + unhandled exceptions), JS para o console (captura erros de UI).  
-  **Aceite:** erros 5xx aparecem no Sentry com contexto; alertas configurados para erros novos.  
+- [ ] **P3-3 — Monitoramento de erros (Sentry)**  
+  SDK Python (captura 5xx) + SDK JS (erros de UI).  
+  **Aceite:** erros 5xx aparecem no Sentry com contexto.  
   **Esforço:** P
 
 - [ ] **P3-4 — Cliente tipado gerado do OpenAPI** (Console React)  
-  Usar `openapi-typescript` ou `orval` para gerar tipos TypeScript a partir do `/v1/openapi.json`. Substituir chamadas manuais em `apiClient.js` pelo cliente gerado.  
-  **Aceite:** drift de contrato (ex.: par `/`↔`-`) detectado em build; nenhuma string de endpoint manual no frontend.  
+  `openapi-typescript` ou `orval` → gera tipos de `/v1/openapi.json`. Substitui chamadas manuais em `apiClient.js`.  
+  **Aceite:** drift de contrato detectado em build.  
   **Esforço:** M
 
 - [ ] **P3-5 — Ampliar cobertura de testes**  
-  (a) Testes por-endpoint da API: arquivo de teste por rota (`test_orders.py`, `test_risk.py`, etc.) — hoje ~1 arquivo para ~37 endpoints.  
-  (b) E2E com Playwright: console React — paginação de ordens, preço consistente, Kelly sem dados, fluxo HITL.  
-  (c) Testes unitários para `strategies/`, `chains/`, `memory/`.  
-  **Aceite:** gate de cobertura mínima (ex. 80%); E2E no CI; nenhuma rota sem teste de contrato.  
+  (a) Testes por-endpoint; (b) E2E Playwright para console (paginação, preço, Kelly, fluxo HITL); (c) testes de posição short no P1-5 (`_exit_price`/`_check_open_positions` — ramo `sell` sem cobertura); (d) gate de cobertura no CI.  
+  **Aceite:** E2E no CI; nenhuma rota sem teste de contrato; cobertura mínima 80%.  
   **Esforço:** G
 
 - [ ] **P3-6 — Pipeline de deploy automatizado**  
-  CI/CD: no merge em `main`, deploy automático com validação de config pré-deploy (assert `API_KEYS` setado, `CORS_ORIGINS` não é `*`, `dry_run` intencional e documentado).  
-  **Aceite:** deploy no merge; falha se config insegura; história de deploys auditável.  
+  CI/CD no merge com validação de config pré-deploy (`API_KEYS` setado, `CORS_ORIGINS` ≠ `*`, `dry_run` intencional).  
+  **Aceite:** deploy no merge; falha se config insegura.  
   **Esforço:** G
 
 ---
@@ -427,35 +403,66 @@ O sistema tem uma base sólida para um MVP de trading:
 
 | Papel | Responsabilidade |
 |-------|-----------------|
-| **Coordenador** (este agente) | Mantém este documento versionado; prioriza backlog; revisa PRs do dev via `/code-review`; atualiza checkboxes conforme conclusão |
-| **Dev** | Implementa item a item; abre PR contra `claude/youthful-gauss-r1fdwb` (ou branch derivada); não muda o documento de coordenação |
+| **Coordenador** (este agente) | Mantém este documento versionado; prioriza backlog; revisa PRs pós-merge; atualiza checkboxes |
+| **Dev** | Implementa item a item; abre PR contra `master`; não muda o documento de coordenação |
 | **Fonte de verdade do progresso** | Checkboxes neste arquivo (versionado em git) |
 
-### 7.2 Sequência Recomendada
+### 7.2 Sequência Recomendada (Roadmap pós-P1)
 
 ```
-P0-0 (verificar prod)
-  ↓ resultados informam
-P0-1 + P0-2 (auth + CORS) → P0-3 (rate limit) → P0-4 (proteger mutações) → P0-5 (headers)
-  ↓ segurança resolvida
-P1-1 (catch-all exception) → P1-4 (Kelly) → P1-6 (openapi_url) → P1-3 (paginação) → P1-2 (save_yaml)
-  ↓ confiabilidade
-P2-2 (validar par) → P2-4 (README) → P2-1 (persistir jobs) → P2-3 (process/events)
-  ↓ produto
-P3-2 (infra/cola) → P3-1 (build) → P3-3 (Sentry) → P3-5 (testes) → P3-4 (cliente tipado) → P3-6 (CI/CD)
+P0-0 (verificar prod — paralelo, não bloqueia)
+  ↓
+Sprint A — P0 (bloqueantes pré-produção)
+  P0-1 (auth fail-closed)
+  P0-2 (travar CORS)          ← pode ser feito juntos com P0-1 num PR único
+  P0-3 (rate limiting)
+  P0-4 (confirmação mutações)
+  P0-5 (headers segurança)    ← junto de P3-2 (nginx) se possível
+  ↓
+Sprint B — P2 (produto / fechar lacunas)
+  P2-2 (validar par — quick win)
+  P2-4 (README — quick win)
+  P2-1 (persistir jobs backtest)
+  P2-3 (process/events — decisão PM)
+  ↓
+Sprint C — P3 (build / infra / qualidade)
+  P3-2 (infra/cola de deploy) ← move headers P0-5 para nginx aqui se não feito em Sprint A
+  P3-1 (build do console)
+  P3-5 (testes — E2E + short coverage P1-5)
+  P3-6 (pipeline de deploy)
+  P3-3 (Sentry) + P3-4 (cliente tipado) — conforme capacidade
 ```
+
+**Sprint A** concentra-se em `main.py` (middleware) — pouca interdependência, entregável como 1–2 PRs.  
+**Sprint B** são itens independentes, podem ser PRs paralelos.  
+**Sprint C** tem dependência: P3-2 (infra) deve preceder P3-1 (build) e P3-6 (deploy).
 
 ### 7.3 Critério de "Pronto para Live" (ADR-001 + gaps de segurança)
 
-Além dos critérios do ADR-001 (Sharpe > 1.5, DD < 10%, Win Rate > 55%, 100 trades mínimos), os seguintes itens de segurança são **pré-requisitos técnicos** independentes de performance:
+Além dos critérios do ADR-001 (Sharpe > 1.5, DD < 10%, Win Rate > 55%, 100 trades mínimos), os seguintes itens são **pré-requisitos técnicos** independentes de performance:
 
 - [ ] P0-1: auth habilitada em prod
 - [ ] P0-2: CORS travado
 - [ ] P0-3: rate limiting ativo
-- [ ] P0-4: mutações perigosas protegidas
+- [ ] P0-4: mutações de alto impacto protegidas
 - [ ] P0-5: headers de segurança presentes
-- [ ] P1-1: sem 500 texto plano
+- [x] P1-1: sem 500 texto plano ✅ `commit 9adbc00`
 - [ ] P3-2: cola de deploy versionada (rastreabilidade)
+
+### 7.4 Micro Follow-ups (baratos — junto do Sprint que tocar o arquivo)
+
+- `screen_market.jsx`: remover `macdData` morto (declarado na linha ~151, nunca renderizado).
+- `squad_orchestrator.py`: `Optional[float]` → `float | None`, dropar import `Optional` (convenção do repo; ruff UP é informativo, não bloqueante).
+- (Produto) "Variação 24h" e título do gráfico: dar fonte real (ticker ou derivado de candles) → remover dependência de `CT.symbol`.
+- Teste de posição **short** (`sell`) para `_exit_price` / `_check_open_positions` — ramo sell está sem cobertura em `tests/integration/test_trading_flow.py`.
+
+### 7.5 Housekeeping de Branches
+
+Branches remotas mescladas no master — podem ser apagadas:
+
+- `origin/remediacao/p1-baixo-risco` (PR #32, conteúdo em master desde `9adbc00`)
+- `origin/remediacao/p1-confiabilidade` (PR #34, conteúdo em master desde `980c562`)
+- `origin/remediacao/p1-7-hotfix` (PR #35, conteúdo em master desde `5ce8283`)
 
 ---
 
@@ -474,20 +481,19 @@ curl -si -X OPTIONS https://criptotrade.buildtovalue.cloud/v1/metrics \
   -H "Origin: https://evil.com" \
   -H "Access-Control-Request-Method: GET" | grep -i "access-control"
 
-# C. Verificar openapi.json
-curl -si https://criptotrade.buildtovalue.cloud/openapi.json | head -5
+# C. Verificar openapi.json (deve retornar 200 agora em /v1/openapi.json)
 curl -si https://criptotrade.buildtovalue.cloud/v1/openapi.json | head -5
 
 # D. Verificar headers de segurança
 curl -si https://criptotrade.buildtovalue.cloud/health | grep -iE "x-frame|x-content|strict-transport|content-security"
 
-# E. Verificar Kelly com ledger vazio (ou pouco preenchido)
+# E. Verificar Kelly (deve retornar data_quality:"insufficient" se < 10 trades)
 curl -s https://criptotrade.buildtovalue.cloud/v1/risk/kelly | jq .data
 
-# F. Verificar paginação de ordens
+# F. Verificar paginação de ordens (deve ter meta.per_page=50 agora)
 curl -s "https://criptotrade.buildtovalue.cloud/v1/orders" | jq '.meta'
 
-# G. Verificar 500 texto plano (forçar erro de escrita)
+# G. Verificar PATCH /v1/risk/config (deve retornar JSON 503 se FS read-only, não plain-text 500)
 curl -s -X PATCH https://criptotrade.buildtovalue.cloud/v1/risk/config \
   -H "Content-Type: application/json" \
   -d '{"max_position_size_pct": 99.9}' | head -20
@@ -495,7 +501,7 @@ curl -s -X PATCH https://criptotrade.buildtovalue.cloud/v1/risk/config \
 # H. Verificar dry_run e config atual
 curl -s https://criptotrade.buildtovalue.cloud/v1/config | jq .
 
-# I. Verificar open_positions (possível fantasma)
+# I. Verificar open_positions (deve ser 0 ou baixo se P1-5 aplicado corretamente)
 curl -s https://criptotrade.buildtovalue.cloud/v1/metrics | jq '.data.open_positions'
 
 # J. Verificar process/events
@@ -504,19 +510,20 @@ curl -si https://criptotrade.buildtovalue.cloud/v1/process/events | head -5
 
 ### Anexo B — Mapa Rápido de Criticidade por Arquivo
 
-| Arquivo | Criticidade | Itens do backlog |
-|---------|-------------|-----------------|
-| `src/api/main.py` | 🔴 Alta | P0-1, P0-2, P0-4, P1-1, P1-6 |
-| `src/api/routes/risk.py` | 🟡 Média | P1-2, P1-4 |
-| `src/api/routes/orders.py` | 🟡 Média | P1-3 |
-| `src/api/routes/backtest.py` | 🟡 Média | P2-1 |
-| `src/api/routes/market.py` | 🟢 Baixa | P2-2 |
-| `src/api/routes/config.py` | 🔴 Alta | P0-4 |
-| `src/api/routes/process.py` | 🟢 Baixa | P2-3 |
-| `docs/design/pages/` | 🟡 Média | P1-7, P3-1, P3-4 |
-| `infra/` (ausente) | 🔴 Alta | P0-5, P3-2, P3-6 |
-| `README.md` | 🟢 Baixa | P2-4 |
+| Arquivo | Criticidade | Itens do backlog | Estado |
+|---------|-------------|-----------------|--------|
+| `src/api/main.py` | 🔴 Alta | P0-1, P0-2, P0-4 | P1-1+P1-6 ✅ |
+| `src/api/routes/risk.py` | 🟡 Média | — | P1-2+P1-4 ✅ |
+| `src/api/routes/orders.py` | 🟢 Baixa | — | P1-3 ✅ |
+| `src/api/routes/backtest.py` | 🟡 Média | P2-1 | Aberto |
+| `src/api/routes/market.py` | 🟢 Baixa | P2-2 | Aberto |
+| `src/api/routes/config.py` | 🟡 Média | P0-4 (residual) | Aberto |
+| `src/api/routes/process.py` | 🟢 Baixa | P2-3 | Aberto |
+| `src/orchestration/squad_orchestrator.py` | 🟢 Baixa | Micro follow-up | P1-5 ✅ |
+| `docs/design/pages/` | 🟢 Baixa | P3-1, P3-4, micro follow-ups | P1-7 ✅ |
+| `infra/` (ausente) | 🔴 Alta | P0-5, P3-2, P3-6 | Aberto |
+| `README.md` | 🟢 Baixa | P2-4 | Aberto |
 
 ---
 
-*Documento mantido pelo Coordenador. Para atualizar checkboxes: editar este arquivo e fazer commit/push na branch de trabalho. Para implementações: abrir PR contra `claude/youthful-gauss-r1fdwb`.*
+*Documento mantido pelo Coordenador. Última atualização: 2026-06-12 (v2.0 — P1 concluído; Sprint A/B/C definidos). Para atualizar checkboxes: editar e fazer commit/push. Para implementações: abrir PR contra `master`.*
