@@ -4,8 +4,9 @@ testpaths = ["tests"]
 # Allow `import src...` without per-file sys.path hacks.
 pythonpath = ["."]
 asyncio_mode = "strict"
-# Coverage is informational (no fail-under gate yet — baseline is ~20-30%).
-addopts = "-q --cov=src --cov-report=term-missing"
+# Coverage gate (P3-5): ratchet floor to prevent regression. Actual is ~67%;
+# raise this over time toward the 80% target. Baseline before P3-5 was 65%.
+addopts = "-q --cov=src --cov-report=term-missing --cov-fail-under=66"
 
 [tool.coverage.run]
 source = ["src"]
