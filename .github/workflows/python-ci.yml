@@ -56,3 +56,10 @@ jobs:
 
       - name: Build Python image
         run: docker build -t criptotrade:ci .
+
+      - name: Validate prod compose (nginx/certbot overlay)
+        # Catches syntax/reference errors in docker-compose.prod.yml. The throwaway
+        # .env just satisfies the env_file reference; real secrets live on the host.
+        run: |
+          cp .env.prod.example .env
+          docker compose -f docker-compose.prod.yml config -q
