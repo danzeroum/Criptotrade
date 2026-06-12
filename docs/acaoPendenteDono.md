@@ -27,7 +27,10 @@
 ## 🟡 Contas / credenciais externas (desbloqueiam itens do roadmap)
 
 - [ ] **Sentry DSN (P3-3)**: crie um projeto no Sentry e forneça o **DSN** (uma env, ex.: `SENTRY_DSN`). O agente vai deixar o SDK wired e inerte sem DSN; com o DSN, os 5xx passam a ser reportados.
-- [ ] **Pipeline de deploy / CD (P3-6)**: para "deploy no merge" é preciso que você proveja **host de deploy + forma de acesso** (chave SSH ou registry de imagens) e cadastre os **GitHub Secrets** correspondentes. O agente faz a parte de **validação de config pré-deploy** na CI; o passo que efetivamente publica no seu host depende desses segredos.
+- [ ] **Pipeline de deploy / CD (P3-6)**: a **validação de config insegura já está ativa** (CI roda `scripts/validate_deploy_config.py` no job `test`: rejeita `CORS_ORIGINS=*`, `APP_ENV` ≠ `production`, serviço interno publicando porta, etc.). Para ligar o **deploy no merge**:
+  1. Provisione o host (seção 🔴 acima).
+  2. Cadastre os GitHub Secrets `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` (Settings → Secrets and variables → Actions).
+  3. Renomeie `.github/workflows/deploy.yml.example` → `deploy.yml` e ajuste o passo de `rsync`/`ssh` ao seu host (o template assume `/opt/criptotrade` e mantém o `.env`/certbot do host).
 
 ---
 

@@ -1,0 +1,53 @@
+# Continuous deployment to the production host (P3-6) — TEMPLATE, inactive.
+#
+# GitHub only runs *.yml / *.yaml under .github/workflows, so this .example file
+# never executes. To enable deploy-on-merge:
+#   1. Provision the host (see the 🔴 section of docs/acaoPendenteDono.md).
+#   2. Add the repo secrets referenced below
+#      (Settings > Secrets and variables > Actions): DEPLOY_HOST, DEPLOY_USER,
+#      DEPLOY_SSH_KEY.
+#   3. Rename this file to deploy.yml and commit.
+#
+# The validate-config job is the "falha se config insegura" gate and runs with no
+# secrets; the deploy job is the "deploy no merge" step gated on the secrets above.
+name: Deploy (prod)
+
+on:
+  workflow_dispatch: {}            # manual run; for deploy-on-merge use: push: { branches: [master] }
+
+jobs:
+  validate-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pyyaml
+      - name: Reject insecure prod config
+        run: python scripts/validate_deploy_config.py
+
+  deploy:
+    needs: validate-config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy over SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DEPLOY_HOST:-}" ]; then
+            echo "DEPLOY_* secrets not set — see docs/acaoPendenteDono.md"; exit 1
+          fi
+          install -m 600 /dev/stdin key <<< "$DEPLOY_SSH_KEY"
+          # Sync the repo and (re)build the stack on the host. The host keeps the
+          # real .env (with API_KEYS) and the certbot volumes; this only ships code.
+          rsync -az --delete --exclude='.git' --exclude='.env' \
+            -e "ssh -i key -o StrictHostKeyChecking=accept-new" \
+            ./ "$DEPLOY_USER@$DEPLOY_HOST:/opt/criptotrade/"
+          ssh -i key -o StrictHostKeyChecking=accept-new "$DEPLOY_USER@$DEPLOY_HOST" \
+            'cd /opt/criptotrade && python scripts/validate_deploy_config.py && \
+             docker compose -f docker-compose.prod.yml up -d --build'
