@@ -260,8 +260,11 @@ CI (GitHub Actions): `python-ci.yml` (suíte completa + ruff + docker build + se
 - [x] Bridge HITL cross-process via SQLite WAL (auto + manual, `approved→filled`)
 - [x] `cycles_today` cross-process · ADR-003 (persistência)
 - [x] Rate limiting (30 req/min escrita / 200 leitura), security headers, confirmação em mutações sensíveis (Sprint A / P0)
+- [x] Validação de par de mercado (allowlist `MARKET_PAIRS`), backtest jobs persistidos em SQLite, doc de integração PM4Py (Sprint B / P2)
+- [x] Console React (esbuild), nginx TLS/certbot, Sentry, OpenAPI snapshot, E2E Playwright, pipeline de deploy (Sprint C / P3)
+- [x] Tech-debts 5b (`_last_order_ref`, `wait_for_decision`, stubs, pruning de `cycle_events`), ledger JSONL→SQLite WAL (Fase 5b)
 
-### Backlog (Fase 5b — janitorial/observabilidade)
+### 🔜 Pendente (ação do dono — ver `docs/acaoPendenteDono.md`)
 - [x] Tech debts `TODO(5b)` (reset de `_last_order_ref`, `wait_for_decision` com id inexistente, default de `position_size_pct`) — PR #48
 - [x] Pruning de `cycle_events` (`AgentRegistry.prune_cycle_events`, retenção 30d, no startup do loop e na virada do dia)
 - [x] Filtrar agentes `not_implemented` no dashboard (toggle, ocultos por padrão) — PR #48; paginação em `/v1/orders` já existia
