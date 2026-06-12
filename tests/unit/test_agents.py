@@ -2,6 +2,7 @@
 import pytest
 
 from src.agents.execution_agent import ExecutionAgent
+from src.agents.ops_agent import OpsAgent
 from src.agents.risk_agent import RiskAgent
 from src.agents.strategy_agent import StrategyAgent
 
@@ -70,3 +71,46 @@ async def test_execution_agent_simulates_order(dummy_exchange):
     })
     assert result["success"] is True
     assert result["order_id"].startswith("PAPER_")
+
+
+# ── OpsAgent ──────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_ops_agent_returns_success():
+    agent = OpsAgent()
+    result = await agent.execute({"environment": "staging", "strategy": "blue-green"})
+    assert result["success"] is True
+    assert result["agent"] == "ops"
+    assert result["confidence"] == pytest.approx(0.9)
+
+
+@pytest.mark.asyncio
+async def test_ops_agent_defaults_unknown_strategy():
+    agent = OpsAgent()
+    result = await agent.execute({"environment": "production", "strategy": "unknown"})
+    assert result["deployment"]["strategy"] == "blue-green"
+
+
+@pytest.mark.asyncio
+async def test_ops_agent_known_strategy_is_preserved():
+    agent = OpsAgent()
+    result = await agent.execute({"environment": "staging", "strategy": "canary"})
+    assert result["deployment"]["strategy"] == "canary"
+
+
+@pytest.mark.asyncio
+async def test_ops_agent_monitoring_has_required_keys():
+    agent = OpsAgent()
+    result = await agent.execute({"environment": "staging"})
+    mon = result["monitoring"]
+    assert "metrics" in mon
+    assert "alerts" in mon
+    assert "dashboards" in mon
+    assert "logging" in mon
+
+
+@pytest.mark.asyncio
+async def test_ops_agent_invalid_input_raises():
+    agent = OpsAgent()
+    with pytest.raises(ValueError, match="Invalid ops task payload"):
+        await agent.execute(None)
