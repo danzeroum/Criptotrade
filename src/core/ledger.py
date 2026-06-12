@@ -1,4 +1,11 @@
-"""Immutable audit ledger for all trading decisions."""
+"""Immutable audit ledger for all trading decisions (SQLite/WAL — ADR-003).
+
+Writes funnel through :meth:`log_decision`; reads (:meth:`read_all`,
+:meth:`get_events`, :meth:`get_process_events`, :meth:`get_recent_trades`)
+preserve the historical ``{"timestamp", "event_type", "data"}`` entry shape, so
+callers are unaffected by the JSONL→SQLite migration. ``event_type`` is indexed,
+so ``get_events`` no longer scans the whole log.
+"""
 from __future__ import annotations
 
 import json
@@ -7,6 +14,8 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
+
+from src.core.db import connection
 
 logger = logging.getLogger(__name__)
 
@@ -22,65 +31,61 @@ def _ledger_dir() -> Path:
 
 
 class TradingLedger:
-    """Append-only ledger for audit trail."""
+    """Append-only audit trail, backed by SQLite (WAL) for indexed reads."""
 
     def __init__(self, ledger_path: Path | None = None) -> None:
+        # ``ledger_path`` keeps its historical meaning/name (the legacy JSONL
+        # location); events now live in a sibling SQLite db so the two loop
+        # processes share them with WAL concurrency. A legacy trades.jsonl can be
+        # imported once with scripts/migrate_ledger.py.
         self.ledger_path = ledger_path or _ledger_dir() / "trades.jsonl"
         self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        self.db_path = self.ledger_path.with_suffix(".db")
+        self._ensure_schema()
 
-    def log_decision(self, event_type: str, data: Dict[str, Any]) -> None:
-        """Log a trading decision to the ledger."""
-        entry = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "event_type": event_type,
-            "data": data,
-        }
+    def _ensure_schema(self) -> None:
+        with connection(self.db_path) as conn:
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS ledger_events ("
+                "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "  timestamp TEXT NOT NULL,"
+                "  event_type TEXT NOT NULL,"
+                "  data TEXT NOT NULL"  # JSON payload
+                ")"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_ledger_events_type ON ledger_events(event_type)"
+            )
 
-        with self.ledger_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
-
+    def log_decision(
+        self, event_type: str, data: Dict[str, Any], timestamp: str | None = None
+    ) -> None:
+        """Append a trading decision/event. ``timestamp`` defaults to now (UTC);
+        pass an explicit ISO value to preserve a historical event's time (used by
+        the migration script and time-sensitive tests)."""
+        ts = timestamp or datetime.now(timezone.utc).isoformat()
+        with connection(self.db_path) as conn:
+            conn.execute(
+                "INSERT INTO ledger_events(timestamp, event_type, data) VALUES (?, ?, ?)",
+                (ts, event_type, json.dumps(data, ensure_ascii=False)),
+            )
         logger.info("Ledger entry recorded", extra={"event_type": event_type})
 
     def log_signal(self, agent: str, signal: Dict[str, Any]) -> None:
         """Log a trading signal."""
-        self.log_decision(
-            "signal_generated",
-            {
-                "agent": agent,
-                "signal": signal,
-            },
-        )
+        self.log_decision("signal_generated", {"agent": agent, "signal": signal})
 
     def log_validation(self, agent: str, validation: Dict[str, Any]) -> None:
         """Log a risk validation."""
-        self.log_decision(
-            "risk_validation",
-            {
-                "agent": agent,
-                "validation": validation,
-            },
-        )
+        self.log_decision("risk_validation", {"agent": agent, "validation": validation})
 
     def log_execution(self, agent: str, execution: Dict[str, Any]) -> None:
         """Log an order execution."""
-        self.log_decision(
-            "order_executed",
-            {
-                "agent": agent,
-                "execution": execution,
-            },
-        )
+        self.log_decision("order_executed", {"agent": agent, "execution": execution})
 
     def log_hitl_approval(self, approved: bool, order: Dict[str, Any], user: str = "default") -> None:
         """Log human-in-the-loop approval decision."""
-        self.log_decision(
-            "hitl_approval",
-            {
-                "approved": approved,
-                "order": order,
-                "user": user,
-            },
-        )
+        self.log_decision("hitl_approval", {"approved": approved, "order": order, "user": user})
 
     def log_process_event(
         self,
@@ -98,12 +103,7 @@ class TradingLedger:
         """
         self.log_decision(
             "process_event",
-            {
-                "case_id": case_id,
-                "activity": activity,
-                "actor": actor,
-                "attributes": attributes or {},
-            },
+            {"case_id": case_id, "activity": activity, "actor": actor, "attributes": attributes or {}},
         )
 
     def get_process_events(self, case_id: str | None = None) -> List[Dict[str, Any]]:
@@ -185,22 +185,32 @@ class TradingLedger:
             },
         )
 
-    def read_all(self) -> List[Dict[str, Any]]:
-        """Return every ledger entry in chronological (append) order."""
-        if not self.ledger_path.exists():
-            return []
+    @staticmethod
+    def _row_to_entry(row: Any) -> Dict[str, Any]:
+        return {"timestamp": row["timestamp"], "event_type": row["event_type"], "data": json.loads(row["data"])}
 
-        entries: List[Dict[str, Any]] = []
-        with self.ledger_path.open("r", encoding="utf-8") as handle:
-            for line in handle:
-                if line.strip():
-                    entries.append(json.loads(line))
-        return entries
+    def read_all(self) -> List[Dict[str, Any]]:
+        """Return every ledger entry in chronological (insertion) order."""
+        with connection(self.db_path) as conn:
+            rows = conn.execute(
+                "SELECT timestamp, event_type, data FROM ledger_events ORDER BY id"
+            ).fetchall()
+        return [self._row_to_entry(r) for r in rows]
 
     def get_events(self, event_type: str) -> List[Dict[str, Any]]:
-        """Return all entries matching ``event_type`` (chronological order)."""
-        return [e for e in self.read_all() if e.get("event_type") == event_type]
+        """Return all entries matching ``event_type`` (chronological order, indexed)."""
+        with connection(self.db_path) as conn:
+            rows = conn.execute(
+                "SELECT timestamp, event_type, data FROM ledger_events WHERE event_type=? ORDER BY id",
+                (event_type,),
+            ).fetchall()
+        return [self._row_to_entry(r) for r in rows]
 
     def get_recent_trades(self, limit: int = 100) -> List[Dict[str, Any]]:
-        """Retrieve recent trades from ledger."""
-        return self.read_all()[-limit:]
+        """Retrieve the most recent entries (chronological order)."""
+        with connection(self.db_path) as conn:
+            rows = conn.execute(
+                "SELECT timestamp, event_type, data FROM ledger_events ORDER BY id DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [self._row_to_entry(r) for r in reversed(rows)]

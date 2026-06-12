@@ -26,8 +26,7 @@ async def test_analyze_and_trade_success(tmp_path):
 
     assert result["success"] is True
     assert result["order_id"].startswith("PAPER_")
-    assert ledger_path.exists()
-    entries = ledger_path.read_text(encoding="utf-8").strip().splitlines()
+    entries = orchestrator.ledger.read_all()
     assert len(entries) >= 3  # signal, validation, execution
 
 

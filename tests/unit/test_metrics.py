@@ -1,7 +1,6 @@
 """Unit tests for the portfolio metrics engine and enriched ledger."""
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -17,9 +16,7 @@ def ledger(tmp_path) -> TradingLedger:
 
 def _append(led: TradingLedger, event_type: str, data: dict, ts: datetime) -> None:
     """Append an entry with an explicit timestamp (bypasses 'now')."""
-    entry = {"timestamp": ts.isoformat(), "event_type": event_type, "data": data}
-    with led.ledger_path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(entry) + "\n")
+    led.log_decision(event_type, data, timestamp=ts.isoformat())
 
 
 # ----------------------------------------------------------------- ledger API
@@ -50,10 +47,9 @@ def test_log_position_closed_short_pnl(ledger):
     assert closed["pnl"] == 10.0
 
 
-def test_read_all_missing_file_returns_empty(tmp_path):
+def test_read_all_empty_ledger_returns_empty(tmp_path):
+    # Fresh ledger: schema is created at init, but nothing has been logged yet.
     led = TradingLedger(tmp_path / "does_not_exist" / "trades.jsonl")
-    # Parent is created on init, but file does not exist until first write.
-    led.ledger_path.unlink(missing_ok=True)
     assert led.read_all() == []
 
 
