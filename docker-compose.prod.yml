@@ -8,7 +8,7 @@
 #
 #   1. cp .env.prod.example .env        # then set API_KEYS to a strong secret
 #   2. ./deploy/init-letsencrypt.sh     # one-time cert bootstrap (HTTP-01)
-#   3. docker compose -f docker-compose.prod.yml up -d
+#   3. docker compose -f docker-compose.prod.yml up -d --build  (--build bakes the console)
 #
 services:
   app:
@@ -83,7 +83,10 @@ services:
     restart: unless-stopped
 
   nginx:
-    image: nginx:stable
+    # Custom image: stock nginx + the built React console baked in (deploy/console.Dockerfile).
+    build:
+      context: .
+      dockerfile: deploy/console.Dockerfile
     ports:
       - "80:80"
       - "443:443"
