@@ -37,6 +37,10 @@ htmlcov/
 # Node/Streamlit caches
 .streamlit/
 
+# Node deps & Console build output (docs/design/pages — built in CI/deploy)
+node_modules/
+docs/design/pages/dist/
+
 # BuildToValue assets
 docs/UX/mockups.zip
 

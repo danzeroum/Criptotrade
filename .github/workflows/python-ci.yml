@@ -63,3 +63,49 @@ jobs:
         run: |
           cp .env.prod.example .env
           docker compose -f docker-compose.prod.yml config -q
+
+      - name: Build console image (nginx + baked console)
+        run: docker build -f deploy/console.Dockerfile -t criptotrade-console:ci .
+
+      - name: Validate nginx config (throwaway self-signed certs)
+        # nginx -t needs the ssl_certificate files to exist; generate ephemeral
+        # ones. proxy_pass upstream DNS (app) is resolved at request time, not here.
+        run: |
+          CERT_DIR=certs/live/criptotrade.buildtovalue.cloud
+          mkdir -p "$CERT_DIR"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -keyout "$CERT_DIR/privkey.pem" -out "$CERT_DIR/fullchain.pem" \
+            -subj "/CN=criptotrade.buildtovalue.cloud"
+          docker run --rm \
+            -v "$PWD/deploy/nginx/criptotrade.conf:/etc/nginx/conf.d/default.conf:ro" \
+            -v "$PWD/certs:/etc/letsencrypt:ro" \
+            nginx:stable nginx -t
+
+  # Production build of the React console (docs/design/pages): pre-transpiles JSX
+  # and minifies, replacing the dev-only Babel-in-browser setup. Locks build bitrot.
+  console-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs/design/pages
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: docs/design/pages/package-lock.json
+
+      - name: Install (clean)
+        run: npm ci
+
+      - name: Build console
+        run: npm run build
+
+      - name: Upload console dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: console-dist
+          path: docs/design/pages/dist
+          if-no-files-found: error
