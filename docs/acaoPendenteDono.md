@@ -17,6 +17,7 @@
 - [ ] **Emitir certificado** (uma vez): `./deploy/init-letsencrypt.sh` (precisa do DNS já propagado + portas abertas).
 - [ ] **Subir a stack**: `docker compose -f docker-compose.prod.yml up -d --build` (`--build` embute o console).
 - [ ] **Smoke test** (no host): `curl -I https://criptotrade.buildtovalue.cloud/health` → 200 + header `Strict-Transport-Security`; `http://…` deve dar **301**; portas internas (8000/8501/9090) **não** acessíveis de fora.
+- [ ] **(Só se já rodou uma versão antiga com dados)** o event log do ledger migrou de JSONL para SQLite (ADR-003). Antes de subir a nova versão, importe o histórico **uma vez**: `LEDGER_DIR=/app/data/ledger python scripts/migrate_ledger.py` (preserva timestamps; idempotente — recusa se já migrado). Deploy novo/limpo não precisa.
 
 ## 🟠 Decisões de produto
 

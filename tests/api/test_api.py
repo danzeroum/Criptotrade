@@ -1,7 +1,6 @@
 """API tests for the Phase 1 surface (/v1/metrics, /v1/hitl, /v1/alerts)."""
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
 
 import pytest
@@ -72,10 +71,11 @@ _VALID_ORDER = {
 
 
 def _append_closed(ledger: TradingLedger, pnl: float, ts: datetime, order_id: str) -> None:
-    entry = {"timestamp": ts.isoformat(), "event_type": "position_closed",
-             "data": {"order_id": order_id, "pnl": pnl}}
-    with ledger.ledger_path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(entry) + "\n")
+    ledger.log_decision(
+        "position_closed",
+        {"order_id": order_id, "pnl": pnl},
+        timestamp=ts.isoformat(),
+    )
 
 
 # ----------------------------------------------------------------- health

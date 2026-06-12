@@ -2,7 +2,13 @@
 
 ## Status
 
-Aceito — 2026-06-04
+Aceito — 2026-06-04. **Atualizado 2026-06-12:** o event log do ledger
+(`src/core/ledger.py`) foi migrado de JSONL para **SQLite/WAL** (tabela
+`ledger_events`, com `event_type` indexado — `get_events` deixa de varrer o log
+inteiro), fechando o gatilho de migração descrito abaixo. O contrato de leitura
+(`read_all`/`get_events`/`get_process_events`/`get_recent_trades`) foi preservado.
+Dados legados em `trades.jsonl` são importados uma vez com
+`scripts/migrate_ledger.py`. `alerts.py` permanece em JSONL (baixo volume).
 
 ## Contexto
 

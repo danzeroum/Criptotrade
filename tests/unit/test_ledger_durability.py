@@ -11,7 +11,7 @@ def test_ledger_uses_ledger_dir_env(tmp_path, monkeypatch):
     led = TradingLedger()
     led.log_signal(agent="strategy", signal={"action": "BUY"})
     assert led.ledger_path.parent == tmp_path / "vol" / "ledger"
-    assert led.ledger_path.exists()
+    assert led.db_path.exists()  # events now persist to the sibling SQLite db
 
 
 def test_alert_store_uses_ledger_dir_env(tmp_path, monkeypatch):
