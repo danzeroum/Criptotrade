@@ -146,11 +146,9 @@ function ScreenMarket() {
   if (loading) return <LoadingState label="Carregando análise de mercado…" />;
   if (error)   return <ErrorState message="Erro ao carregar mercado" onRetry={() => { setError(null); load(); }} />;
 
-  const sym = CT.symbol;
+  const lastClose = candles?.length ? candles[candles.length - 1].c : null;
   const ind = indicators;
-  const macdData = ind ? [
-    ...CT.indicators.macdHist.map((h, i) => ({ i, macd: 0, signal: 0, hist: h }))
-  ] : [];
+  const macdData = ind?.macd ? [{ i: 0, ...ind.macd }] : [];
 
   const patternVariant = (d) => d === 'bullish' ? 'ok' : d === 'bearish' ? 'down' : 'neutral';
   const patternLabel = (d) => d === 'bullish' ? '↑' : d === 'bearish' ? '↓' : '→';
@@ -188,7 +186,7 @@ function ScreenMarket() {
       {/* Price KPIs */}
       <div className="grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)', marginBottom: 20 }}>
         <div className="card">
-          <KPI label="Preço atual" value={sym?.price} format="usd" icon="dollar" />
+          <KPI label="Preço atual" value={lastClose} format="usd" icon="dollar" />
         </div>
         <div className="card">
           <KPI label="Variação 24h" value={sym?.change24h} format="pct_direct" delta={sym?.change24h} icon="trending" />
@@ -305,15 +303,19 @@ function ScreenMarket() {
                 {(levels.support ?? []).map((s, i) => (
                   <SRLevelRow key={i} label={`S${i + 1}`} price={s.price} strength={s.strength} color="var(--up)" />
                 ))}
-                {(CT.sr.fib ?? []).length > 0 && (
+                {(levels?.fib ?? []).length > 0 && (
                   <>
                     <div className="label-xs" style={{ margin: '14px 0 8px' }}>Fibonacci</div>
-                    {CT.sr.fib.map((f, i) => (
-                      <div key={i} className="stat-row">
-                        <span className="stat-k" style={{ fontFamily: 'var(--mono)', fontSize: 11.5 }}>{f.level}%</span>
-                        <span className="stat-v">${Math.round(f.price).toLocaleString('en')}</span>
-                      </div>
-                    ))}
+                    {[0, 23.6, 38.2, 50, 61.8, 78.6, 100].map((pct, i) => {
+                      const price = (levels.fib ?? [])[i];
+                      if (price == null) return null;
+                      return (
+                        <div key={i} className="stat-row">
+                          <span className="stat-k" style={{ fontFamily: 'var(--mono)', fontSize: 11.5 }}>{pct}%</span>
+                          <span className="stat-v">${Math.round(price).toLocaleString('en')}</span>
+                        </div>
+                      );
+                    })}
                   </>
                 )}
               </>
