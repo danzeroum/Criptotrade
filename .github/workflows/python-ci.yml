@@ -103,6 +103,13 @@ jobs:
       - name: Build console
         run: npm run build
 
+      - name: Typed client in sync with the OpenAPI schema (P3-4 drift gate)
+        # Regenerate the TS types from the committed schema; fail if they differ
+        # from what's committed. (The schema-vs-live drift is checked by pytest.)
+        run: |
+          npm run gen:types
+          git diff --exit-code openapi.d.ts
+
       - name: Upload console dist
         uses: actions/upload-artifact@v4
         with:

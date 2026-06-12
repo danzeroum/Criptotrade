@@ -5,11 +5,14 @@
   "description": "Build de producao do Console React: pre-transpila JSX e minifica os fontes, e self-hosta o React de producao. Remove o @babel/standalone e o React 'development' por CDN, sem transpilar no browser.",
   "type": "module",
   "scripts": {
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "gen:types": "openapi-typescript openapi.json -o openapi.d.ts"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",
+    "openapi-typescript": "^7.4.0",
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "typescript": "^5.6.0"
   }
 }

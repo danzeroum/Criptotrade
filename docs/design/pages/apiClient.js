@@ -7,6 +7,9 @@
      window.API_BASE = 'http://localhost:8000'  (default)
      window.API_KEY  = 'your-key'               (optional)
      window.USE_MOCK_DATA = true                (fallback to CT.*)
+
+   Request/response shapes are generated from the API's OpenAPI schema into
+   ./openapi.d.ts (`npm run gen:types`). CI fails if either drifts (P3-4).
    ============================================================ */
 const CT_API = (() => {
   const base = window.API_BASE ?? 'http://localhost:8000';
