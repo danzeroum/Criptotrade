@@ -175,7 +175,32 @@ async def _lifespan(app: FastAPI):
     yield
 
 
+def _init_sentry() -> None:
+    """Initialize Sentry error monitoring when SENTRY_DSN is set (no-op otherwise).
+
+    Sentry's FastAPI integration auto-captures unhandled 5xx exceptions with
+    request context. Without a DSN this does nothing — the owner provides
+    SENTRY_DSN in production (see docs/acaoPendenteDono.md).
+    """
+    dsn = os.getenv("SENTRY_DSN", "").strip()
+    if not dsn:
+        return
+    try:
+        import sentry_sdk
+    except ImportError:  # pragma: no cover - sentry-sdk is a declared dependency
+        _log.warning("SENTRY_DSN is set but sentry-sdk is not installed; skipping.")
+        return
+    sentry_sdk.init(
+        dsn=dsn,
+        environment=os.getenv("APP_ENV", "development"),
+        traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.0")),
+        send_default_pii=False,
+    )
+    _log.info("Sentry initialized (environment=%s)", os.getenv("APP_ENV", "development"))
+
+
 def create_app() -> FastAPI:
+    _init_sentry()
     _enforce_prod_security()
     app = FastAPI(
         title="Criptotrade API",
