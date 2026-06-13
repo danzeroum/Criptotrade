@@ -297,6 +297,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/market/{pair}/confluence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Confluência multi-timeframe (1h/4h/1d) + divergências RSI/MACD */
+        get: operations["get_confluence_v1_market__pair__confluence_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/market/{pair}/indicators": {
         parameters: {
             query?: never;
@@ -603,6 +620,12 @@ export interface components {
         APIResponse_ConfigOut_: {
             _links?: components["schemas"]["Links"] | null;
             data: components["schemas"]["ConfigOut"];
+            meta?: components["schemas"]["Meta"] | null;
+        };
+        /** APIResponse[ConfluenceOut] */
+        APIResponse_ConfluenceOut_: {
+            _links?: components["schemas"]["Links"] | null;
+            data: components["schemas"]["ConfluenceOut"];
             meta?: components["schemas"]["Meta"] | null;
         };
         /** APIResponse[Dict[str, float]] */
@@ -982,6 +1005,28 @@ export interface components {
             /** Triggers */
             triggers: string[];
         };
+        /**
+         * ConfidenceFactor
+         * @description One component of the signal's confidence score (M6).
+         *
+         *     Faithfully structures the factors the /signal scorer already computes —
+         *     not the agent's separate 5-factor model.
+         */
+        ConfidenceFactor: {
+            /** Contribution */
+            contribution: number;
+            /** Name */
+            name: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Score */
+            score: number;
+            /** Weight */
+            weight: number;
+        };
         /** ConfigOut */
         ConfigOut: {
             /** App Env */
@@ -1003,6 +1048,20 @@ export interface components {
             initial_capital?: number | null;
             /** Orchestrator Interval Seconds */
             orchestrator_interval_seconds?: number | null;
+        };
+        /** ConfluenceOut */
+        ConfluenceOut: {
+            /** Aligned */
+            aligned: boolean;
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of?: string;
+            /** Direction */
+            direction?: string | null;
+            /** Timeframes */
+            timeframes: components["schemas"]["TFSnapshot"][];
         };
         /** EmotionBand */
         EmotionBand: {
@@ -1054,6 +1113,11 @@ export interface components {
         };
         /** IndicatorsOut */
         IndicatorsOut: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of?: string;
             /** Atr */
             atr: number | null;
             /** Atr Pct */
@@ -1416,12 +1480,25 @@ export interface components {
         RegimeOut: {
             /** Active Strategies */
             active_strategies: string[];
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of?: string;
+            /** Bars In Regime */
+            bars_in_regime?: number | null;
             /** Confidence */
             confidence: number;
+            /** Extreme */
+            extreme?: string | null;
             /** Label */
             label: string;
+            /** Last Transition */
+            last_transition?: string | null;
             /** Regime */
             regime: string;
+            /** Since */
+            since?: string | null;
         };
         /** RiskConfigOut */
         RiskConfigOut: {
@@ -1488,8 +1565,15 @@ export interface components {
         SignalOut: {
             /** Action */
             action: string;
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of?: string;
             /** Confidence */
             confidence: number;
+            /** Confidence Factors */
+            confidence_factors?: components["schemas"]["ConfidenceFactor"][];
             /** Entry */
             entry: number;
             /** Position Size Pct */
@@ -1504,6 +1588,8 @@ export interface components {
             strategy: string;
             /** Take Profit */
             take_profit: number | null;
+            /** Valid Until */
+            valid_until?: string | null;
         };
         /** StochOut */
         StochOut: {
@@ -1511,6 +1597,26 @@ export interface components {
             d: number;
             /** K */
             k: number;
+        };
+        /**
+         * TFSnapshot
+         * @description One timeframe's reading for the multi-timeframe confluence strip (M12).
+         */
+        TFSnapshot: {
+            /** Macd Divergence */
+            macd_divergence?: string | null;
+            /** Macd Hist */
+            macd_hist?: number | null;
+            /** Regime */
+            regime: string;
+            /** Rsi */
+            rsi?: number | null;
+            /** Rsi Divergence */
+            rsi_divergence?: string | null;
+            /** Tf */
+            tf: string;
+            /** Trend */
+            trend: string;
         };
         /**
          * TickerOut
@@ -2189,6 +2295,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["APIResponse_List_CandleOut__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_confluence_v1_market__pair__confluence_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                pair: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_ConfluenceOut_"];
                 };
             };
             /** @description Validation Error */

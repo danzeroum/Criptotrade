@@ -6,6 +6,37 @@
 
 const { useState, useEffect, useRef } = React;
 
+// ---- Number formatting (M7) — single source of truth, en-US convention ----
+// Charts used bare toLocaleString() (locale-dependent); screens forced 'en'.
+// These helpers canonicalise on 'en' so every price/number matches.
+function fmtNum(v, dp = 2) {
+  if (v === null || v === undefined || Number.isNaN(+v)) return '—';
+  return (+v).toLocaleString('en', { minimumFractionDigits: dp, maximumFractionDigits: dp });
+}
+function fmtUsd(v, dp = 2) {
+  if (v === null || v === undefined || Number.isNaN(+v)) return '—';
+  return `$${fmtNum(v, dp)}`;
+}
+function fmtPrice(v) {
+  // Majors render as integers; sub-$10 coins (e.g. XRP) keep precision.
+  if (v === null || v === undefined || Number.isNaN(+v)) return '—';
+  return +v >= 10
+    ? Math.round(+v).toLocaleString('en')
+    : (+v).toLocaleString('en', { maximumFractionDigits: 4 });
+}
+function fmtCompact(v) {
+  // Dense axis labels: 3.4M / 67,667 / 12.34.
+  if (v === null || v === undefined || Number.isNaN(+v)) return '–';
+  const n = +v;
+  if (Math.abs(n) >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+  if (Math.abs(n) >= 1e3) return Math.round(n).toLocaleString('en');
+  return n.toFixed(2);
+}
+window.fmtNum = fmtNum;
+window.fmtUsd = fmtUsd;
+window.fmtPrice = fmtPrice;
+window.fmtCompact = fmtCompact;
+
 // ---- Icon (inline SVG paths via name) ----
 const ICONS = {
   alert:     'M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z',
@@ -83,10 +114,11 @@ function Badge({ variant = 'neutral', dot = true, children }) {
 window.Badge = Badge;
 
 // ---- Btn ----
-function Btn({ variant = '', size = '', onClick, disabled, children, style }) {
+function Btn({ variant = '', size = '', onClick, disabled, children, style, ...rest }) {
   const cls = ['btn', variant ? `btn-${variant}` : '', size ? `btn-${size}` : ''].filter(Boolean).join(' ');
+  // ...rest forwards aria-pressed / aria-label / title for accessible toggles (M8).
   return (
-    <button className={cls} onClick={onClick} disabled={disabled} style={style}>
+    <button className={cls} onClick={onClick} disabled={disabled} style={style} {...rest}>
       {children}
     </button>
   );
@@ -249,6 +281,54 @@ function ErrorState({ message = 'API offline', onRetry }) {
   );
 }
 window.ErrorState = ErrorState;
+
+// ---- Freshness badge (M3) ----
+// Shows "atualizado há Xs" from a server `as_of` timestamp; turns amber and
+// reads "desatualizado" once the data age passes `staleSec`. Ticks every second.
+function FreshnessBadge({ asOf, staleSec = 120 }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  if (!asOf) return null;
+  const ts = new Date(asOf).getTime();
+  if (Number.isNaN(ts)) return null;
+  const ageSec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+  const stale = ageSec > staleSec;
+  const rel = ageSec < 60 ? `${ageSec}s`
+    : ageSec < 3600 ? `${Math.floor(ageSec / 60)}min`
+    : `${Math.floor(ageSec / 3600)}h`;
+  return (
+    <span className={`badge badge-${stale ? 'warn' : 'neutral'}`}
+      title={`Dados de ${new Date(asOf).toLocaleString('pt-BR')}`}>
+      <Icon name="clock" size={11} />
+      {stale ? 'desatualizado há ' : 'atualizado há '}{rel}
+    </span>
+  );
+}
+window.FreshnessBadge = FreshnessBadge;
+
+// ---- DataState (S1): one wrapper for loading / empty / error / stale ----
+// Composes the honest-state components above so every data panel behaves the
+// same. Reusable across screens (orders, risk, backtest…), not just Mercado.
+// Pass children guarded (e.g. {data && <>…</>}) so they don't evaluate when empty.
+function DataState({ loading, error, empty, stale, onRetry, emptyLabel = 'Sem dados', children }) {
+  if (error) return <ErrorState message={typeof error === 'string' ? error : 'Erro ao carregar'} onRetry={onRetry} />;
+  if (loading) return <LoadingState />;
+  if (empty) return <EmptyState label={emptyLabel} />;
+  return (
+    <>
+      {stale && (
+        <div style={{ fontSize: 11, color: 'var(--warn)', padding: '0 0 8px' }}>
+          ⚠ dados possivelmente desatualizados
+        </div>
+      )}
+      {children}
+    </>
+  );
+}
+window.DataState = DataState;
 
 // ---- Global pair scope (store lives on window.CT_PAIR, set in apiClient.js) ----
 // 'ALL' = portfólio consolidado; senão um par concreto (ex.: 'BTC/USDT').

@@ -249,6 +249,8 @@ class IndicatorsOut(BaseModel):
     obv_trend: Optional[int]
     volume_ratio: Optional[float]
     current_price: Optional[float]
+    # Freshness anchor (last candle time, UTC) so the UI can show "atualizado há Xs".
+    as_of: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class RegimeOut(BaseModel):
@@ -256,6 +258,12 @@ class RegimeOut(BaseModel):
     confidence: float
     label: str
     active_strategies: List[str]
+    # Temporal context (M11): how long the current regime has held + last switch.
+    bars_in_regime: Optional[int] = None
+    since: Optional[datetime] = None
+    last_transition: Optional[str] = None  # e.g. "sideways→strong_uptrend"
+    extreme: Optional[str] = None          # euphoria/panic flag (detect_market_extreme)
+    as_of: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class SRLevelOut(BaseModel):
@@ -291,6 +299,20 @@ class PatternOut(BaseModel):
     description: str = ""
 
 
+class ConfidenceFactor(BaseModel):
+    """One component of the signal's confidence score (M6).
+
+    Faithfully structures the factors the /signal scorer already computes —
+    not the agent's separate 5-factor model.
+    """
+
+    name: str
+    weight: float        # max points this factor can add to the aggregate
+    score: float         # 0..1 normalized contribution toward the chosen action
+    contribution: float  # signed points added (+ favors action, − against, 0 neutral)
+    note: str = ""       # human-readable rationale (the existing reasons[] text)
+
+
 class SignalOut(BaseModel):
     action: str
     entry: float
@@ -301,6 +323,29 @@ class SignalOut(BaseModel):
     strategy: str
     confidence: float
     reason: str
+    # Transparency (M6): per-factor breakdown + freshness/validity window.
+    confidence_factors: List[ConfidenceFactor] = Field(default_factory=list)
+    valid_until: Optional[datetime] = None
+    as_of: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class TFSnapshot(BaseModel):
+    """One timeframe's reading for the multi-timeframe confluence strip (M12)."""
+
+    tf: str
+    trend: str                              # "bullish" | "bearish" | "unknown"
+    rsi: Optional[float] = None
+    macd_hist: Optional[float] = None
+    regime: str
+    rsi_divergence: Optional[str] = None    # "bullish_divergence" | "bearish_divergence" | None
+    macd_divergence: Optional[str] = None
+
+
+class ConfluenceOut(BaseModel):
+    aligned: bool                           # all timeframes agree on direction
+    direction: Optional[str] = None         # "bullish" | "bearish" | None (mixed)
+    timeframes: List[TFSnapshot]
+    as_of: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # ----------------------------------------------------------------- risk
@@ -496,7 +541,8 @@ __all__ = [
     # market
     "CandleOut", "MacdOut", "StochOut", "BollingerOut", "IndicatorsOut",
     "RegimeOut", "SRLevelOut", "LevelsOut",
-    "VolumeProfileBin", "VolumeProfileOut", "PatternOut", "SignalOut",
+    "VolumeProfileBin", "VolumeProfileOut", "PatternOut",
+    "ConfidenceFactor", "SignalOut", "TFSnapshot", "ConfluenceOut",
     # risk
     "ProtectionOut", "CircuitBreakerOut", "KellyOut",
     "RiskConfigOut", "RiskConfigPatch",

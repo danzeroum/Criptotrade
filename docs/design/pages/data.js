@@ -152,6 +152,17 @@
     rr: 2.6, notional: 1240, at: '14:32:08',
   };
 
+  // ---- multi-timeframe confluence ----
+  CT.confluence = {
+    aligned: false,
+    direction: null,
+    timeframes: [
+      { tf: '1h', trend: 'bullish', rsi: 48.6, macd_hist: -14.5, regime: 'sideways', rsi_divergence: null, macd_divergence: null },
+      { tf: '4h', trend: 'bullish', rsi: 55.2, macd_hist: 8.1, regime: 'strong_uptrend', rsi_divergence: null, macd_divergence: 'bullish_divergence' },
+      { tf: '1d', trend: 'bearish', rsi: 61.0, macd_hist: 3.2, regime: 'strong_uptrend', rsi_divergence: 'bearish_divergence', macd_divergence: null },
+    ],
+  };
+
   // ---- confidence breakdown (5 factors) ----
   CT.confidenceBreakdown = [
     { key: 'Alinhamento de tendência', weight: 0.25, score: 0.58 },

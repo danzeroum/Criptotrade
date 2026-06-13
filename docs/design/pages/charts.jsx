@@ -4,7 +4,7 @@
    MACDChart, BarChart, ScatterChart, Heatmap, MonteCarloChart
    ============================================================ */
 
-const { useMemo } = React;
+const { useMemo, useState } = React;
 
 // ---- helpers ----
 function _range(arr) {
@@ -21,69 +21,159 @@ function _fmt(n) {
   return n.toFixed(2);
 }
 
-// ---- CandleChart (OHLCV + optional Bollinger) ----
-function CandleChart({ candles = [], bb = [], width = 680, height = 260 }) {
-  const PAD = { t: 12, r: 16, b: 24, l: 54 };
-  const w = width - PAD.l - PAD.r;
-  const h = height - PAD.t - PAD.b;
+// ---- computeBB: 20-period Bollinger Bands from a candle array (M4) ----
+// The /indicators endpoint only returns the latest BB point — insufficient for a
+// polyline — so we derive the full series client-side from the fetched candles.
+function computeBB(candles = [], period = 20, mult = 2) {
+  const closes = candles.map(c => (c.c !== undefined ? c.c : c.close));
+  return candles.map((c, idx) => {
+    if (idx < period - 1) return { mid: null, up: null, low: null };
+    const slice = closes.slice(idx - period + 1, idx + 1);
+    const mean = slice.reduce((a, b) => a + b, 0) / period;
+    const sd = Math.sqrt(slice.reduce((a, b) => a + (b - mean) ** 2, 0) / period);
+    return { mid: mean, up: mean + mult * sd, low: mean - mult * sd };
+  });
+}
+window.computeBB = computeBB;
+
+// ---- CandleChart (OHLCV + Bollinger, crosshair, time axis, volume panel) ----
+// Interactive, dependency-free SVG: hover snaps to a candle and shows OHLCV +
+// time; an X axis renders real timestamps; a volume histogram sits below price.
+function CandleChart({ candles = [], bb = [], width = 680, height = 280, tf = '1h', pair = '' }) {
+  const [hover, setHover] = useState(null);
 
   const visible = (candles ?? []).slice(-70);
   const bbv = (bb ?? []).slice(-70);
+  const n = visible.length;
 
-  const allPrices = visible.flatMap(c => [c.h || c.high, c.lo ?? c.l ?? c.low]);
-  const bbPrices = bbv.flatMap(b => [b.up, b.low].filter(Boolean));
-  const { min: pMin, max: pMax } = _range([...allPrices, ...bbPrices]);
-  const pad = (pMax - pMin) * 0.05;
+  const PAD = { t: 12, r: 16, b: 30, l: 56 };
+  const w = width - PAD.l - PAD.r;
+  const totalH = height - PAD.t - PAD.b;
+  const volH = Math.round(totalH * 0.24);
+  const gap = 10;
+  const priceH = totalH - volH - gap;
+
+  const get = (c, k1, k2) => (c[k1] !== undefined ? c[k1] : c[k2]);
+  const lowOf = (c) => (c.lo !== undefined ? c.lo : c.l !== undefined ? c.l : c.low);
+
+  const allPrices = visible.flatMap(c => [get(c, 'h', 'high'), lowOf(c)]);
+  const bbPrices = bbv.flatMap(b => [b.up, b.low].filter(v => v != null));
+  const { min: pMin, max: pMax } = _range([...allPrices, ...bbPrices].filter(v => v != null));
+  const pad = (pMax - pMin) * 0.05 || 1;
   const lo = pMin - pad, hi = pMax + pad;
 
-  const cw = w / Math.max(visible.length, 1);
+  const vols = visible.map(c => c.v ?? c.volume ?? 0);
+  const vMax = Math.max(...vols, 1);
+
+  const cw = w / Math.max(n, 1);
   const sx = (i) => PAD.l + (i + 0.5) * cw;
-  const sy = (p) => PAD.t + _scale(p, hi, lo, 0, h);
+  const sy = (p) => PAD.t + _scale(p, hi, lo, 0, priceH);
+  const volBase = PAD.t + priceH + gap + volH;
+  const syVol = (v) => volBase - (v / vMax) * volH;
 
-  const bullColor = 'var(--up)';
-  const bearColor = 'var(--down)';
-
+  const bull = 'var(--up)', bear = 'var(--down)';
   const gridYs = [0, 0.25, 0.5, 0.75, 1].map(f => lo + f * (hi - lo));
 
+  const fmtTime = (t) => {
+    const d = new Date(t);
+    if (Number.isNaN(d.getTime())) return '';
+    return (tf === '1d' || tf === '4h')
+      ? d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+      : d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const tickIdx = [];
+  const step = Math.max(1, Math.floor(n / 6));
+  for (let i = 0; i < n; i += step) tickIdx.push(i);
+
+  const onMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (width / rect.width);
+    let i = Math.round((x - PAD.l) / cw - 0.5);
+    setHover(Math.max(0, Math.min(n - 1, i)));
+  };
+
+  const last = visible[n - 1];
+  const hc = hover != null ? visible[hover] : null;
+
   return (
-    <svg width="100%" viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}>
+    <svg width="100%" viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}
+      role="img"
+      aria-label={`Gráfico de candles ${pair} ${tf}, ${n} períodos${last ? `, último fechamento ${fmtPrice(get(last, 'c', 'close'))}` : ''}.`}
+      onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
+      <title>{`Candles ${pair} · ${tf}`}</title>
+
       {gridYs.map((p, i) => (
         <g key={i}>
           <line x1={PAD.l} y1={sy(p)} x2={PAD.l + w} y2={sy(p)} stroke="var(--border)" strokeWidth="0.5" />
-          <text x={PAD.l - 6} y={sy(p) + 4} fontSize="10" fill="var(--ink-4)" textAnchor="end">
-            {Math.round(p).toLocaleString()}
-          </text>
+          <text x={PAD.l - 6} y={sy(p) + 4} fontSize="10" fill="var(--ink-3)" textAnchor="end">{fmtPrice(p)}</text>
         </g>
       ))}
 
       {bbv.length > 1 && (
         <>
           <polyline fill="none" stroke="rgba(37,99,235,.25)" strokeWidth="1"
-            points={bbv.map((b, i) => b.up ? `${sx(i)},${sy(b.up)}` : '').filter(Boolean).join(' ')} />
+            points={bbv.map((b, i) => b.up != null ? `${sx(i)},${sy(b.up)}` : '').filter(Boolean).join(' ')} />
           <polyline fill="none" stroke="rgba(37,99,235,.25)" strokeWidth="1"
-            points={bbv.map((b, i) => b.low ? `${sx(i)},${sy(b.low)}` : '').filter(Boolean).join(' ')} />
+            points={bbv.map((b, i) => b.low != null ? `${sx(i)},${sy(b.low)}` : '').filter(Boolean).join(' ')} />
           <polyline fill="none" stroke="rgba(37,99,235,.5)" strokeWidth="1" strokeDasharray="3,2"
-            points={bbv.map((b, i) => b.mid ? `${sx(i)},${sy(b.mid)}` : '').filter(Boolean).join(' ')} />
+            points={bbv.map((b, i) => b.mid != null ? `${sx(i)},${sy(b.mid)}` : '').filter(Boolean).join(' ')} />
         </>
       )}
 
       {visible.map((c, i) => {
-        const open = c.o !== undefined ? c.o : c.open;
-        const close = c.c !== undefined ? c.c : c.close;
-        const high = c.h !== undefined ? c.h : c.high;
-        const low = c.lo !== undefined ? c.lo : c.l !== undefined ? c.l : c.low;
-        const bull = close >= open;
-        const color = bull ? bullColor : bearColor;
+        const open = get(c, 'o', 'open'), close = get(c, 'c', 'close');
+        const high = get(c, 'h', 'high'), low = lowOf(c);
+        const color = close >= open ? bull : bear;
         const bodyY = sy(Math.max(open, close));
         const bodyH = Math.max(1, Math.abs(sy(open) - sy(close)));
         return (
           <g key={i}>
             <line x1={sx(i)} y1={sy(high)} x2={sx(i)} y2={sy(low)} stroke={color} strokeWidth="1" />
-            <rect x={sx(i) - cw * 0.35} y={bodyY} width={cw * 0.7} height={bodyH}
-              fill={color} rx="1" />
+            <rect x={sx(i) - cw * 0.35} y={bodyY} width={cw * 0.7} height={bodyH} fill={color} rx="1" />
           </g>
         );
       })}
+
+      {/* volume sub-panel */}
+      {visible.map((c, i) => {
+        const v = c.v ?? c.volume ?? 0;
+        const color = get(c, 'c', 'close') >= get(c, 'o', 'open') ? bull : bear;
+        return (
+          <rect key={i} x={sx(i) - cw * 0.35} y={syVol(v)} width={cw * 0.7}
+            height={Math.max(0.5, volBase - syVol(v))} fill={color} opacity="0.4" />
+        );
+      })}
+      <line x1={PAD.l} y1={volBase} x2={PAD.l + w} y2={volBase} stroke="var(--border)" strokeWidth="0.5" />
+
+      {tickIdx.map(i => (
+        <text key={i} x={sx(i)} y={height - 8} fontSize="9.5" fill="var(--ink-3)" textAnchor="middle">
+          {fmtTime(get(visible[i], 't', 't'))}
+        </text>
+      ))}
+
+      {hc && (() => {
+        const open = get(hc, 'o', 'open'), close = get(hc, 'c', 'close');
+        const high = get(hc, 'h', 'high'), low = lowOf(hc);
+        const vol = hc.v ?? hc.volume ?? 0;
+        const cx = sx(hover);
+        const boxW = 138, boxH = 90;
+        const bx = cx + boxW + 12 < width - PAD.r ? cx + 10 : cx - boxW - 10;
+        const rows = [['O', fmtPrice(open)], ['H', fmtPrice(high)], ['L', fmtPrice(low)], ['C', fmtPrice(close)], ['Vol', fmtCompact(vol)]];
+        return (
+          <g style={{ pointerEvents: 'none' }}>
+            <line x1={cx} y1={PAD.t} x2={cx} y2={volBase} stroke="var(--ink-4)" strokeWidth="0.6" strokeDasharray="3,2" />
+            <line x1={PAD.l} y1={sy(close)} x2={PAD.l + w} y2={sy(close)} stroke="var(--ink-4)" strokeWidth="0.6" strokeDasharray="3,2" />
+            <rect x={bx} y={PAD.t} width={boxW} height={boxH} rx="6" fill="var(--surface)" stroke="var(--border)" />
+            <text x={bx + 10} y={PAD.t + 15} fontSize="10" fontFamily="var(--mono)" fill="var(--ink-3)">{fmtTime(get(hc, 't', 't'))}</text>
+            {rows.map((row, k) => (
+              <text key={k} x={bx + 10} y={PAD.t + 31 + k * 12} fontSize="10.5" fontFamily="var(--mono)" fill="var(--ink-2)">
+                <tspan fill="var(--ink-4)">{row[0]} </tspan>{row[1]}
+              </text>
+            ))}
+          </g>
+        );
+      })()}
     </svg>
   );
 }
@@ -106,12 +196,12 @@ function EquityChart({ points = [], width = 680, height = 200 }) {
   const polyPts = points.map((p, i) => `${sx(i)},${sy(p.equity)}`).join(' ');
   const areaPath = `M${sx(0)},${sy(eMin)} ` + points.map((p, i) => `${sx(i)},${sy(p.equity)}`).join(' ') + ` L${sx(points.length - 1)},${sy(eMin)} Z`;
 
-  const labels = [eMin, (eMin + eMax) / 2, eMax].map(v =>
-    `$${Math.round(v).toLocaleString()}`
-  );
+  const labels = [eMin, (eMin + eMax) / 2, eMax].map(v => fmtUsd(v, 0));
 
   return (
-    <svg width="100%" viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}>
+    <svg width="100%" viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}
+      role="img" aria-label="Curva de patrimônio (equity)">
+      <title>Curva de patrimônio</title>
       <defs>
         <linearGradient id="eq-grad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="var(--up)" stopOpacity="0.2" />
@@ -144,7 +234,9 @@ function Gauge({ value, min = 0, max = 100, label, unit = '', size = 120 }) {
   const start = toXY(-180), end = toXY(angle);
   const large = angle - -180 > 180 ? 1 : 0;
   return (
-    <svg width={size} height={size * 0.7} viewBox={`0 0 ${size} ${size * 0.7}`}>
+    <svg width={size} height={size * 0.7} viewBox={`0 0 ${size} ${size * 0.7}`}
+      role="img" aria-label={`${label || 'Medidor'}: ${value}${unit}`}>
+      <title>{`${label || 'Medidor'}: ${value}${unit}`}</title>
       <path d={`M${toXY(-180).x},${toXY(-180).y} A${r},${r} 0 0,1 ${toXY(0).x},${toXY(0).y}`}
         fill="none" stroke="var(--surface-3)" strokeWidth="8" strokeLinecap="round" />
       <path d={`M${start.x},${start.y} A${r},${r} 0 ${large},1 ${end.x},${end.y}`}
@@ -194,7 +286,9 @@ function MACDChart({ macdLine = [], signalLine = [], hist = [], width = 400, hei
   const sy = (v) => PAD.t + ((max - v) / range) * h;
   const barW = w / hist.length;
   return (
-    <svg width="100%" viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}>
+    <svg width="100%" viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}
+      role="img" aria-label="Histograma MACD">
+      <title>MACD</title>
       <line x1={PAD.l} y1={sy(0)} x2={PAD.l + w} y2={sy(0)} stroke="var(--border)" strokeWidth="0.5" />
       {hist.map((v, i) => (
         <rect key={i} x={sx(i) - barW * 0.4} y={v >= 0 ? sy(v) : sy(0)}

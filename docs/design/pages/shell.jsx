@@ -46,10 +46,7 @@ function Sidebar({ active, onNavigate, pendingCount }) {
 }
 window.Sidebar = Sidebar;
 
-function fmtPrice(p) {
-  // Majors render as integers; sub-$10 coins (e.g. XRP) keep precision.
-  return p >= 10 ? Math.round(p).toLocaleString('en') : p.toLocaleString('en', { maximumFractionDigits: 4 });
-}
+// fmtPrice now lives in components.jsx (window.fmtPrice) — single source of truth (M7).
 
 function Header({ onToggleAlerts, alertCount }) {
   const mock = !!window.USE_MOCK_DATA;
