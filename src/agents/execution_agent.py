@@ -1,4 +1,6 @@
 """Execution agent for order management."""
+from __future__ import annotations
+
 from typing import Any, Dict
 from src.agents.base_agent import BaseAgent
 from src.core.exchange_client import ExchangeClient
@@ -24,6 +26,7 @@ class ExecutionAgent(BaseAgent):
 
         signal = task.get("signal", {})
         human_approved = task.get("human_approved", False)
+        quantity = task.get("quantity")
 
         if not human_approved:
             return {
@@ -34,7 +37,7 @@ class ExecutionAgent(BaseAgent):
             }
 
         # ReAct loop for execution
-        result = await self._react_execution(signal)
+        result = await self._react_execution(signal, quantity)
 
         decision = {
             "task": task,
@@ -48,31 +51,26 @@ class ExecutionAgent(BaseAgent):
             "success": result["success"],
             "agent": self.agent_type,
             "order_id": result.get("order_id"),
+            "executed_price": result.get("executed_price"),
+            "fee": result.get("fee", 0.0),
             "confidence": result.get("confidence", 0.0)
         }
 
-    async def _react_execution(self, signal: Dict[str, Any]) -> Dict[str, Any]:
+    async def _react_execution(
+        self, signal: Dict[str, Any], quantity: float | None = None
+    ) -> Dict[str, Any]:
         """ReAct pattern for order execution."""
         # Thought
         thought = f"Need to execute {signal['action']} order for {signal.get('symbol')}"
         logger.info(f"[THOUGHT] {thought}")
 
         # Action
-        if self.paper_trading:
-            action = "simulate_order"
-        else:
-            action = "place_real_order"
-
+        action = "simulate_order" if self.paper_trading else "place_real_order"
         logger.info(f"[ACTION] {action}")
 
         # Observation
         if action == "simulate_order":
-            observation = {
-                "success": True,
-                "order_id": "PAPER_" + str(uuid.uuid4())[:8],
-                "status": "filled",
-                "message": "Paper trade simulated successfully"
-            }
+            observation = await self._simulate_order(signal, quantity)
         else:
             # TODO: Implement real order placement
             observation = {"success": False, "error": "Real trading not implemented"}
@@ -82,3 +80,40 @@ class ExecutionAgent(BaseAgent):
         # Answer
         confidence = 1.0 if observation["success"] else 0.0
         return {**observation, "confidence": confidence}
+
+    async def _simulate_order(
+        self, signal: Dict[str, Any], quantity: float | None
+    ) -> Dict[str, Any]:
+        """Place a paper order through the exchange so slippage + fee apply.
+
+        Routes through ``ExchangeClient.create_order`` (which always runs
+        ``_create_paper_order`` because ``paper_trading`` is True) instead of
+        fabricating a fill, so the recorded price/fee are economically real.
+        Falls back to a synthetic id when the task carries no sizing, so an
+        approved trade is never silently dropped.
+        """
+        symbol = signal.get("symbol")
+        side = str(signal.get("action", "buy")).lower()
+        amount = float(quantity) if quantity else 0.0
+
+        if not symbol or amount <= 0:
+            logger.warning("No sizing for %s order; recording synthetic paper fill", symbol)
+            return {
+                "success": True,
+                "order_id": "PAPER_" + str(uuid.uuid4())[:8],
+                "status": "filled",
+                "message": "Paper trade simulated (no sizing)",
+            }
+
+        order = await self.exchange.create_order(symbol, "market", side, amount)
+        executed_price = order.get("average") or order.get("price")
+        fee = (order.get("fee") or {}).get("cost", 0.0)
+        status = order.get("status", "filled")
+        return {
+            "success": status in ("filled", "closed", "open"),
+            "order_id": order.get("id"),
+            "executed_price": executed_price,
+            "fee": fee,
+            "status": status,
+            "message": "Paper trade executed via exchange",
+        }

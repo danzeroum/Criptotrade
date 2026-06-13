@@ -215,6 +215,9 @@ class SquadOrchestrator:
         execution_result = await self.execution_agent.execute({
             "signal": strategy_result["signal"],
             "human_approved": human_approved,
+            # Size here so the execution agent can place a real paper order
+            # (slippage + fee applied) instead of fabricating a fill.
+            "quantity": self._position_quantity(strategy_result["signal"]),
         })
 
         self.ledger.log_execution(agent="execution", execution=execution_result)
@@ -241,19 +244,40 @@ class SquadOrchestrator:
             "confidence": strategy_result["confidence"],
         }
 
-    def _log_fill(self, symbol: str, signal: dict[str, Any], execution: dict[str, Any]) -> None:
-        """Record the economic facts of a fill so metrics can value the position.
+    def _position_quantity(self, signal: dict[str, Any]) -> float:
+        """Quantity for a paper fill: ``capital * position_size_pct / entry price``.
 
-        Quantity is derived from the signal's ``position_size_pct`` and the
-        configured capital. Best-effort: a malformed signal must not break the
-        trade that already executed.
+        Sizing uses the signal's intended entry price (the market order then
+        fills at a slipped price). A malformed signal yields ``0`` so the caller
+        skips it rather than crashing a trade that already executed.
         """
         try:
             price = float(signal.get("entry_price") or 0.0)
             size_pct = float(signal.get("position_size_pct") or 0.0)
-            if price <= 0 or size_pct <= 0:
+        except (TypeError, ValueError):
+            return 0.0
+        if price <= 0 or size_pct <= 0:
+            return 0.0
+        return (self.initial_capital * size_pct / 100.0) / price
+
+    def _log_fill(self, symbol: str, signal: dict[str, Any], execution: dict[str, Any]) -> None:
+        """Record the economic facts of a fill so metrics can value the position.
+
+        Prefers the exchange's **executed price + fee** (slippage/fee applied)
+        for honest paper P&L, falling back to the signal's entry price for test
+        doubles that return a bare order. Best-effort: a malformed signal must
+        not break the trade that already executed.
+        """
+        try:
+            quantity = self._position_quantity(signal)
+            if quantity <= 0:
                 return
-            quantity = (self.initial_capital * size_pct / 100.0) / price
+            signal_price = float(signal.get("entry_price") or 0.0)
+            executed = execution.get("executed_price")
+            price = float(executed) if executed else signal_price
+            fee = float(execution.get("fee") or 0.0)
+            if price <= 0:
+                return
             order_id = execution.get("order_id", "UNKNOWN")
             self.ledger.log_fill(
                 order_id=order_id,
@@ -261,9 +285,11 @@ class SquadOrchestrator:
                 side=signal.get("action", "buy"),
                 price=price,
                 quantity=quantity,
+                fee=fee,
             )
             # Track in the paper position book so the next cycle can close it
-            # at stop-loss or take-profit.
+            # at stop-loss or take-profit. Entry basis is the executed price so
+            # realised P&L reflects entry slippage.
             sl = signal.get("stop_loss")
             tp = signal.get("take_profit")
             self._open_positions[order_id] = {
