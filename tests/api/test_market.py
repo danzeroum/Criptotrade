@@ -95,6 +95,68 @@ def test_decode_pair_rejects_unknown_percent_encoded():
     assert exc_info.value.detail["error"] == "invalid_pair"
 
 
+# ----------------------------------------------------- M3/M6/M11 enrichments
+def test_indicators_include_as_of(client):
+    r = client.get("/v1/market/BTC-USDT/indicators")
+    assert r.status_code == 200
+    assert "as_of" in r.json()["data"]
+
+
+def test_regime_includes_temporal_context(client):
+    """M11: regime carries duration, last transition and an extreme flag."""
+    r = client.get("/v1/market/BTC-USDT/regime")
+    assert r.status_code == 200
+    d = r.json()["data"]
+    for key in ("bars_in_regime", "since", "last_transition", "extreme", "as_of"):
+        assert key in d, f"missing {key}"
+    assert isinstance(d["bars_in_regime"], int) and d["bars_in_regime"] >= 1
+
+
+def test_signal_exposes_confidence_factors(client):
+    """M6: the signal structures the factors its scorer already computes."""
+    r = client.get("/v1/market/BTC-USDT/signal")
+    assert r.status_code == 200
+    d = r.json()["data"]
+    assert "as_of" in d and "valid_until" in d
+    factors = d["confidence_factors"]
+    assert [f["name"] for f in factors] == ["RSI", "MACD", "Regime"]
+    for f in factors:
+        assert 0.0 <= f["score"] <= 1.0
+        assert "weight" in f and "contribution" in f
+
+
+class _UptrendClient:
+    """Monotonic ~1.5%/candle uptrend -> strong_uptrend + bullish MACD -> buy."""
+
+    async def fetch_ohlcv(self, pair, timeframe="1h", limit=100):
+        ts = 1_700_000_000_000
+        rows = []
+        price = 30_000.0
+        for i in range(limit):
+            o = price
+            price *= 1.015
+            c = price
+            rows.append([ts + i * 3_600_000, o, c * 1.003, o * 0.997, c, 100.0 + i])
+        return rows
+
+
+@pytest.fixture
+def uptrend_client():
+    app = create_app()
+    app.dependency_overrides[deps.get_exchange_client] = lambda: _UptrendClient()
+    return TestClient(app)
+
+
+def test_signal_confidence_factors_reconcile_with_aggregate(uptrend_client):
+    """Sum of positive factor contributions equals the reported confidence."""
+    r = uptrend_client.get("/v1/market/BTC-USDT/signal")
+    assert r.status_code == 200
+    d = r.json()["data"]
+    assert d["action"] in ("buy", "sell")
+    positive = sum(max(0.0, f["contribution"]) for f in d["confidence_factors"])
+    assert round(positive, 2) == round(d["confidence"], 2)
+
+
 def test_custom_market_pairs_env_restricts_allowlist(monkeypatch):
     """MARKET_PAIRS env var restricts the validation allowlist."""
     import importlib

@@ -250,6 +250,33 @@ function ErrorState({ message = 'API offline', onRetry }) {
 }
 window.ErrorState = ErrorState;
 
+// ---- Freshness badge (M3) ----
+// Shows "atualizado há Xs" from a server `as_of` timestamp; turns amber and
+// reads "desatualizado" once the data age passes `staleSec`. Ticks every second.
+function FreshnessBadge({ asOf, staleSec = 120 }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  if (!asOf) return null;
+  const ts = new Date(asOf).getTime();
+  if (Number.isNaN(ts)) return null;
+  const ageSec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+  const stale = ageSec > staleSec;
+  const rel = ageSec < 60 ? `${ageSec}s`
+    : ageSec < 3600 ? `${Math.floor(ageSec / 60)}min`
+    : `${Math.floor(ageSec / 3600)}h`;
+  return (
+    <span className={`badge badge-${stale ? 'warn' : 'neutral'}`}
+      title={`Dados de ${new Date(asOf).toLocaleString('pt-BR')}`}>
+      <Icon name="clock" size={11} />
+      {stale ? 'desatualizado há ' : 'atualizado há '}{rel}
+    </span>
+  );
+}
+window.FreshnessBadge = FreshnessBadge;
+
 // ---- Global pair scope (store lives on window.CT_PAIR, set in apiClient.js) ----
 // 'ALL' = portfólio consolidado; senão um par concreto (ex.: 'BTC/USDT').
 let _pairsPromise = null;

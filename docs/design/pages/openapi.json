@@ -1580,6 +1580,40 @@
         "title": "CircuitBreakerOut",
         "type": "object"
       },
+      "ConfidenceFactor": {
+        "description": "One component of the signal's confidence score (M6).\n\nFaithfully structures the factors the /signal scorer already computes \u2014\nnot the agent's separate 5-factor model.",
+        "properties": {
+          "contribution": {
+            "title": "Contribution",
+            "type": "number"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "weight": {
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "weight",
+          "score",
+          "contribution"
+        ],
+        "title": "ConfidenceFactor",
+        "type": "object"
+      },
       "ConfigOut": {
         "properties": {
           "app_env": {
@@ -1788,6 +1822,11 @@
       },
       "IndicatorsOut": {
         "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
           "atr": {
             "anyOf": [
               {
@@ -2941,17 +2980,67 @@
             "title": "Active Strategies",
             "type": "array"
           },
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "bars_in_regime": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bars In Regime"
+          },
           "confidence": {
             "title": "Confidence",
             "type": "number"
+          },
+          "extreme": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extreme"
           },
           "label": {
             "title": "Label",
             "type": "string"
           },
+          "last_transition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Transition"
+          },
           "regime": {
             "title": "Regime",
             "type": "string"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
           }
         },
         "required": [
@@ -3154,9 +3243,21 @@
             "title": "Action",
             "type": "string"
           },
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
           "confidence": {
             "title": "Confidence",
             "type": "number"
+          },
+          "confidence_factors": {
+            "items": {
+              "$ref": "#/components/schemas/ConfidenceFactor"
+            },
+            "title": "Confidence Factors",
+            "type": "array"
           },
           "entry": {
             "title": "Entry",
@@ -3206,6 +3307,18 @@
               }
             ],
             "title": "Take Profit"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
           }
         },
         "required": [

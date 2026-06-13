@@ -67,12 +67,18 @@ function ScreenMarket() {
       sma200: CT.indicators.sma200,
       obv_trend: CT.indicators.obvTrend,
       volume_ratio: CT.indicators.volumeRatio,
+      as_of: new Date().toISOString(),
     },
     regime: {
       regime: CT.regime.current,
       confidence: CT.regime.confidence,
       label: CT.regime.label,
       active_strategy: CT.regime.strategy,
+      bars_in_regime: 6,
+      since: new Date(Date.now() - 6 * 3600e3).toISOString(),
+      last_transition: 'strong_uptrend→sideways',
+      extreme: CT.regime.extreme,
+      as_of: new Date().toISOString(),
     },
     levels: {
       support: CT.sr.support.map(s => ({ price: s.price, strength: s.strength })),
@@ -102,6 +108,12 @@ function ScreenMarket() {
       strategy: CT.signal.strategy,
       confidence: CT.signal.confidence,
       reason: 'RSI saindo de sobrevendido + suporte forte confirmado por volume.',
+      confidence_factors: (CT.confidenceBreakdown || []).map(f => ({
+        name: f.key, weight: f.weight, score: f.score,
+        contribution: +(f.weight * f.score).toFixed(4), note: '',
+      })),
+      valid_until: new Date(Date.now() + 3600e3).toISOString(),
+      as_of: new Date().toISOString(),
     },
   }), []);
 
@@ -116,6 +128,8 @@ function ScreenMarket() {
   const [ticker,        setTicker]        = useState(null);
   const [loading,       setLoading]       = useState(!mock);
   const [error,         setError]         = useState(null);
+  const [auto,          setAuto]          = useState(false);   // M3: auto-refresh
+  const [showFactors,   setShowFactors]   = useState(false);   // M6: confidence breakdown
 
   // Mercado exige um par concreto; se o escopo global for 'ALL', usa o default.
   const effPair = effectivePair(pair, pairs);
@@ -156,7 +170,15 @@ function ScreenMarket() {
 
   useEffect(() => { load(); }, [effPair, tf]);
 
-  if (loading) return <LoadingState label="Carregando análise de mercado…" />;
+  // M3: auto-refresh on an interval, without flashing the full-screen spinner.
+  useEffect(() => {
+    if (mock || !auto) return;
+    const id = setInterval(load, 30000);
+    return () => clearInterval(id);
+  }, [auto, effPair, tf]);
+
+  // Full-screen spinner only on the first load; refreshes keep the cards visible.
+  if (loading && !candles) return <LoadingState label="Carregando análise de mercado…" />;
   if (error)   return <ErrorState message="Erro ao carregar mercado" onRetry={() => { setError(null); load(); }} />;
 
   const sym = CT.symbol;
@@ -191,6 +213,9 @@ function ScreenMarket() {
             value={tf}
             onChange={setTf}
           />
+          <Btn variant={auto ? '' : 'ghost'} size="sm" onClick={() => setAuto(a => !a)}>
+            {auto ? 'Auto · on' : 'Auto'}
+          </Btn>
           <Btn variant="ghost" size="sm" onClick={load}>
             <Icon name="refresh" size={13} />
           </Btn>
@@ -221,6 +246,7 @@ function ScreenMarket() {
         <div className="card">
           <div className="card-head">
             <span className="card-title"><Icon name="candle" />{effPair} · {tf}</span>
+            <FreshnessBadge asOf={signal?.as_of ?? indicators?.as_of ?? regime?.as_of} />
           </div>
           <div className="card-pad" style={{ padding: '14px 12px' }}>
             {candles && candles.length > 0 ? (
@@ -274,6 +300,45 @@ function ScreenMarket() {
               </div>
               {signal.reason && (
                 <p style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.55 }}>{signal.reason}</p>
+              )}
+              {Array.isArray(signal.confidence_factors) && signal.confidence_factors.length > 0 && (
+                <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+                  <button
+                    onClick={() => setShowFactors(v => !v)}
+                    aria-expanded={showFactors}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 4, width: '100%',
+                      background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer',
+                      color: 'var(--ink-2)', fontSize: 11.5, fontWeight: 600,
+                    }}
+                  >
+                    <Icon name={showFactors ? 'chevdown' : 'chevright'} size={12} />
+                    Como calculamos a confiança
+                  </button>
+                  {showFactors && (
+                    <div style={{ marginTop: 8 }}>
+                      {signal.confidence_factors.map((f, i) => (
+                        <div key={i} style={{ marginBottom: 9 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 3 }}>
+                            <span>{f.name}</span>
+                            <span style={{ color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>
+                              peso {Math.round((f.weight ?? 0) * 100)}%
+                            </span>
+                          </div>
+                          <Meter value={(f.score ?? 0) * 100} max={100} warn={101} crit={101} />
+                          {f.note && (
+                            <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>{f.note}</div>
+                          )}
+                        </div>
+                      ))}
+                      {signal.valid_until && (
+                        <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>
+                          válido até {new Date(signal.valid_until).toLocaleTimeString('pt-BR')}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -401,11 +466,31 @@ function ScreenMarket() {
         <div className="card">
           <div className="card-head">
             <span className="card-title"><Icon name="activity" />Regime de Mercado</span>
-            <Badge variant={REGIME_VARIANT[regime.regime] ?? 'neutral'}>
-              {regime.label ?? REGIME_LABEL[regime.regime] ?? regime.regime}
-            </Badge>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {regime.extreme && (
+                <Badge variant={/EUFORIA/i.test(regime.extreme) ? 'warn' : 'down'}>
+                  {regime.extreme}
+                </Badge>
+              )}
+              <Badge variant={REGIME_VARIANT[regime.regime] ?? 'neutral'}>
+                {regime.label ?? REGIME_LABEL[regime.regime] ?? regime.regime}
+              </Badge>
+            </div>
           </div>
           <div className="card-pad">
+            {(regime.bars_in_regime != null || regime.last_transition) && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, marginBottom: 14, fontSize: 12, color: 'var(--ink-2)' }}>
+                {regime.bars_in_regime != null && (
+                  <span>No regime há <b style={{ color: 'var(--ink)' }}>{regime.bars_in_regime}</b> candles</span>
+                )}
+                {regime.since && (
+                  <span>desde <b style={{ color: 'var(--ink)' }}>{new Date(regime.since).toLocaleString('pt-BR')}</b></span>
+                )}
+                {regime.last_transition && (
+                  <span>última transição <b style={{ color: 'var(--ink)', fontFamily: 'var(--mono)' }}>{regime.last_transition}</b></span>
+                )}
+              </div>
+            )}
             <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 0 }}>
               {CT.regime.options.map(opt => (
                 <div

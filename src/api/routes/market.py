@@ -6,6 +6,7 @@ Candles are fetched from ExchangeClient (dry-run = synthetic, live = CCXT).
 from __future__ import annotations
 
 import urllib.parse
+from datetime import datetime, timedelta, timezone
 from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,6 +16,7 @@ from src.core.pairs import allowed_pairs
 from src.api.schemas import (
     APIResponse,
     CandleOut,
+    ConfidenceFactor,
     IndicatorsOut,
     LevelsOut,
     MacdOut,
@@ -29,6 +31,65 @@ from src.api.schemas import (
     VolumeProfileOut,
 )
 router = APIRouter(prefix="/market", tags=["market"])
+
+# Timeframe → duration in seconds (for signal validity windows).
+_TF_SECONDS = {"1m": 60, "5m": 300, "15m": 900, "1h": 3600, "4h": 14400, "1d": 86400}
+
+
+def _as_of(ohlcv: list) -> datetime:
+    """Freshness anchor: the close time of the latest candle (UTC), not the wall clock.
+
+    "Stale" should reflect market-data age, so the UI counts from the last candle.
+    """
+    if ohlcv:
+        return datetime.fromtimestamp(ohlcv[-1][0] / 1000, tz=timezone.utc)
+    return datetime.now(timezone.utc)
+
+
+def _regime_history(analyzer: Any, ohlcv: list, current_regime: str, cap: int = 200):
+    """How long the current regime has held + what it transitioned from (M11).
+
+    Stateless and cheap: re-applies ``detect_regime`` over the already-computed
+    EMA/ATR series (no re-fit, no extra exchange fetch). Walks backward from the
+    latest candle, capped at ``cap`` bars, and stops at the first transition.
+
+    Returns ``(bars_in_regime, since_dt, last_transition)``.
+    """
+    from src.analysis.regime_detector import detect_regime  # lazy
+
+    ema_f = analyzer.get_series("ema_fast")
+    ema_s = analyzer.get_series("ema_slow")
+    atr_s = analyzer.get_series("atr")
+    close_s = analyzer.get_series("close")
+    n = min(len(close_s), len(ohlcv))
+
+    def _at(series: Any, i: int):
+        try:
+            v = float(series.iloc[i])
+            return None if v != v else v  # NaN -> None
+        except (IndexError, TypeError, ValueError):
+            return None
+
+    bars = 0
+    since_ms = ohlcv[0][0] if ohlcv else None
+    transition = None
+    for i in range(n - 1, max(-1, n - 1 - cap), -1):
+        r = detect_regime(
+            ema_fast=_at(ema_f, i), ema_slow=_at(ema_s, i),
+            atr=_at(atr_s, i), current_price=_at(close_s, i),
+        )
+        if r == current_regime:
+            bars += 1
+            since_ms = ohlcv[i][0]
+        else:
+            transition = f"{r}→{current_regime}"
+            break
+
+    since_dt = (
+        datetime.fromtimestamp(since_ms / 1000, tz=timezone.utc) if since_ms else None
+    )
+    return bars, since_dt, transition
+
 
 # Computed at import (re-evaluated on importlib.reload, which the tests use to
 # pick up a changed MARKET_PAIRS). Single source of truth lives in core.pairs.
@@ -177,6 +238,7 @@ async def get_indicators(
         sma20=ind.sma_20, sma50=ind.sma_50, sma200=ind.sma_200,
         obv_trend=obv_trend, volume_ratio=ind.volume_ratio,
         current_price=ind.current_price,
+        as_of=_as_of(ohlcv),
     ))
 
 
@@ -192,7 +254,11 @@ async def get_regime(
     client: Any = Depends(get_exchange_client),
 ) -> APIResponse[RegimeOut]:
     from src.analysis.indicators import TechnicalAnalyzer  # lazy — numpy optional in CI
-    from src.analysis.regime_detector import detect_regime, strategies_for_regime  # lazy
+    from src.analysis.regime_detector import (  # lazy
+        detect_market_extreme,
+        detect_regime,
+        strategies_for_regime,
+    )
     symbol = _decode_pair(pair)
     ohlcv = await _fetch_candles(symbol, tf, limit, client)
     try:
@@ -210,11 +276,20 @@ async def get_regime(
     ema_spread = abs((ind.ema_fast or 0) - (ind.ema_slow or 0)) / (ind.current_price or 1)
     confidence = min(1.0, round(ema_spread * 20, 2)) if regime not in ("unknown", "chaotic") else 0.5
 
+    # M11: temporal context (duration + last transition) and euphoria/panic flag.
+    bars_in_regime, since_dt, last_transition = _regime_history(analyzer, ohlcv, regime)
+    extreme = detect_market_extreme(ind.rsi, ind.volume_ratio)
+
     return APIResponse(data=RegimeOut(
         regime=regime,
         confidence=confidence,
         label=_REGIME_LABELS.get(regime, regime),
         active_strategies=strategies,
+        bars_in_regime=bars_in_regime,
+        since=since_dt,
+        last_transition=last_transition,
+        extreme=extreme,
+        as_of=_as_of(ohlcv),
     ))
 
 
@@ -384,27 +459,40 @@ async def get_signal(
     sell_score = 0.0
     reasons = []
 
+    # Track each factor's directional contribution so we can expose a faithful
+    # confidence breakdown (M6) without changing the aggregate math below.
+    # direction: +1 favors buy, -1 favors sell, 0 neutral; pts = magnitude added.
+    rsi_dir, rsi_pts, rsi_note = 0, 0.0, f"RSI neutro ({rsi:.0f})"
     if rsi < 30:
         buy_score += 0.4
         reasons.append("RSI sobrevendido")
+        rsi_dir, rsi_pts, rsi_note = 1, 0.4, "RSI sobrevendido"
     elif rsi > 70:
         sell_score += 0.4
         reasons.append("RSI sobrecomprado")
+        rsi_dir, rsi_pts, rsi_note = -1, 0.4, "RSI sobrecomprado"
 
+    macd_dir, macd_pts, macd_note = 0, 0.0, "MACD sem cruzamento"
     if macd_hist > 0 and (ind.macd_line or 0) > (ind.macd_signal or 0):
         buy_score += 0.3
         reasons.append("MACD cruzamento bullish")
+        macd_dir, macd_pts, macd_note = 1, 0.3, "MACD cruzamento bullish"
     elif macd_hist < 0 and (ind.macd_line or 0) < (ind.macd_signal or 0):
         sell_score += 0.3
         reasons.append("MACD cruzamento bearish")
+        macd_dir, macd_pts, macd_note = -1, 0.3, "MACD cruzamento bearish"
 
+    regime_dir, regime_pts, regime_note = 0, 0.0, f"Regime {regime}"
     if regime == "strong_uptrend":
         buy_score += 0.3
+        regime_dir, regime_pts, regime_note = 1, 0.3, "Regime de alta forte"
     elif regime == "strong_downtrend":
         sell_score += 0.3
+        regime_dir, regime_pts, regime_note = -1, 0.3, "Regime de baixa forte"
     elif regime == "chaotic":
         buy_score = sell_score = 0.0
         reasons = ["Regime caótico — sem sinal"]
+        regime_dir, regime_pts, regime_note = 0, 0.0, "Regime caótico — sem sinal"
 
     if buy_score >= 0.4 and buy_score > sell_score and regime != "chaotic":
         action = "buy"
@@ -426,6 +514,30 @@ async def get_signal(
         rr = None
         reasons = reasons or ["Sem confluência suficiente"]
 
+    # Structure the factors that drove the score above (M6). Contribution is
+    # signed toward the chosen action; for "hold" nothing contributes.
+    def _factor(name: str, weight: float, direction: int, points: float, note: str) -> ConfidenceFactor:
+        if action == "buy":
+            contribution = points if direction == 1 else (-points if direction == -1 else 0.0)
+        elif action == "sell":
+            contribution = points if direction == -1 else (-points if direction == 1 else 0.0)
+        else:
+            contribution = 0.0
+        score = round(max(0.0, contribution) / weight, 4) if weight else 0.0
+        return ConfidenceFactor(
+            name=name, weight=weight, score=score,
+            contribution=round(contribution, 4), note=note,
+        )
+
+    confidence_factors = [
+        _factor("RSI", 0.4, rsi_dir, rsi_pts, rsi_note),
+        _factor("MACD", 0.3, macd_dir, macd_pts, macd_note),
+        _factor("Regime", 0.3, regime_dir, regime_pts, regime_note),
+    ]
+
+    as_of = _as_of(ohlcv)
+    valid_until = as_of + timedelta(seconds=_TF_SECONDS.get(tf, 3600))
+
     return APIResponse(data=SignalOut(
         action=action,
         entry=round(price, 2),
@@ -436,4 +548,7 @@ async def get_signal(
         strategy=strategy,
         confidence=confidence,
         reason=", ".join(reasons) or "hold",
+        confidence_factors=confidence_factors,
+        valid_until=valid_until,
+        as_of=as_of,
     ))

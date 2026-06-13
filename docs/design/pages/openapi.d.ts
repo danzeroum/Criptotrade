@@ -982,6 +982,28 @@ export interface components {
             /** Triggers */
             triggers: string[];
         };
+        /**
+         * ConfidenceFactor
+         * @description One component of the signal's confidence score (M6).
+         *
+         *     Faithfully structures the factors the /signal scorer already computes —
+         *     not the agent's separate 5-factor model.
+         */
+        ConfidenceFactor: {
+            /** Contribution */
+            contribution: number;
+            /** Name */
+            name: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Score */
+            score: number;
+            /** Weight */
+            weight: number;
+        };
         /** ConfigOut */
         ConfigOut: {
             /** App Env */
@@ -1054,6 +1076,11 @@ export interface components {
         };
         /** IndicatorsOut */
         IndicatorsOut: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of?: string;
             /** Atr */
             atr: number | null;
             /** Atr Pct */
@@ -1416,12 +1443,25 @@ export interface components {
         RegimeOut: {
             /** Active Strategies */
             active_strategies: string[];
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of?: string;
+            /** Bars In Regime */
+            bars_in_regime?: number | null;
             /** Confidence */
             confidence: number;
+            /** Extreme */
+            extreme?: string | null;
             /** Label */
             label: string;
+            /** Last Transition */
+            last_transition?: string | null;
             /** Regime */
             regime: string;
+            /** Since */
+            since?: string | null;
         };
         /** RiskConfigOut */
         RiskConfigOut: {
@@ -1488,8 +1528,15 @@ export interface components {
         SignalOut: {
             /** Action */
             action: string;
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of?: string;
             /** Confidence */
             confidence: number;
+            /** Confidence Factors */
+            confidence_factors?: components["schemas"]["ConfidenceFactor"][];
             /** Entry */
             entry: number;
             /** Position Size Pct */
@@ -1504,6 +1551,8 @@ export interface components {
             strategy: string;
             /** Take Profit */
             take_profit: number | null;
+            /** Valid Until */
+            valid_until?: string | null;
         };
         /** StochOut */
         StochOut: {
