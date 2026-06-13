@@ -9,7 +9,19 @@ from src.orchestration.squad_orchestrator import SquadOrchestrator
 
 
 class _DummyExchange:
-    pass
+    """Paper exchange double: returns a bare PAPER_ fill (no slippage/fee), so the
+    execution agent's ``create_order`` call succeeds and existing P&L holds."""
+
+    async def create_order(self, symbol, order_type, side, amount, price=None, params=None):
+        import uuid
+
+        return {
+            "id": "PAPER_" + uuid.uuid4().hex[:8],
+            "symbol": symbol,
+            "side": side,
+            "amount": amount,
+            "status": "filled",
+        }
 
 
 async def _approve(order):
@@ -220,6 +232,41 @@ def test_check_open_positions_only_affects_matching_symbol(tmp_path):
     }
     orch._check_open_positions(1.0, "BTC/USDT")  # different symbol
     assert len(orch._open_positions) == 1  # ETH position untouched
+
+
+# ----------------------------------------------------- R1: fill fidelity (price+fee)
+def test_log_fill_uses_executed_price_and_fee(tmp_path):
+    # When the execution result carries the exchange's executed price + fee, the
+    # ledger fill and the position book reflect those (not the raw signal price).
+    orch, ledger = _make_orch(tmp_path)
+    signal = {
+        "action": "BUY", "symbol": "BTC/USDT",
+        "entry_price": 50_000.0, "position_size_pct": 5.0,
+        "stop_loss": 48_000.0, "take_profit": 55_000.0,
+    }
+    execution = {"order_id": "PAPER_exec", "executed_price": 50_100.0, "fee": 5.01}
+    orch._log_fill("BTC/USDT", signal, execution)
+
+    fills = ledger.get_events("order_fill")
+    assert len(fills) == 1
+    assert fills[0]["data"]["price"] == 50_100.0
+    assert fills[0]["data"]["fee"] == 5.01
+    assert orch._open_positions["PAPER_exec"]["entry_price"] == 50_100.0
+
+
+def test_log_fill_falls_back_to_signal_price(tmp_path):
+    # A bare order (no executed_price) falls back to the signal entry price and
+    # fee 0 — preserving legacy behaviour for test doubles.
+    orch, ledger = _make_orch(tmp_path)
+    signal = {
+        "action": "BUY", "symbol": "BTC/USDT",
+        "entry_price": 50_000.0, "position_size_pct": 5.0,
+    }
+    orch._log_fill("BTC/USDT", signal, {"order_id": "PAPER_nb"})
+
+    fills = ledger.get_events("order_fill")
+    assert fills[0]["data"]["price"] == 50_000.0
+    assert fills[0]["data"]["fee"] == 0.0
 
 
 @pytest.mark.asyncio

@@ -47,6 +47,44 @@ def test_get_unknown_job_returns_404(db):
     assert r.json()["error"] == "job_not_found"
 
 
+# ------------------------------------------------------------- per-symbol pair
+def test_run_persists_requested_pair(db):
+    c = _make_client(db)
+    r = c.post("/v1/backtest/run", json={"pair": "ETH/USDT"})
+    assert r.status_code == 202
+    job_id = r.json()["data"]["job_id"]
+    with connection() as conn:
+        row = conn.execute(
+            "SELECT config_json FROM backtest_jobs WHERE id=?", (job_id,)
+        ).fetchone()
+    assert '"pair":"ETH/USDT"' in row["config_json"]  # backtests the chosen pair
+
+
+def test_run_normalizes_dash_pair(db):
+    c = _make_client(db)
+    r = c.post("/v1/backtest/run", json={"pair": "eth-usdt"})
+    assert r.status_code == 202
+    job_id = r.json()["data"]["job_id"]
+    with connection() as conn:
+        row = conn.execute(
+            "SELECT config_json FROM backtest_jobs WHERE id=?", (job_id,)
+        ).fetchone()
+    assert '"pair":"ETH/USDT"' in row["config_json"]
+
+
+def test_run_rejects_pair_outside_allowlist(db):
+    c = _make_client(db)
+    r = c.post("/v1/backtest/run", json={"pair": "FOO/BAR"})
+    assert r.status_code == 422
+
+
+def test_montecarlo_accepts_pair(db):
+    c = _make_client(db)
+    r = c.post("/v1/backtest/montecarlo", json={"pair": "SOL/USDT", "monte_carlo_sims": 100})
+    assert r.status_code == 200
+    assert r.json()["data"]["n"] >= 0
+
+
 def test_job_persists_after_restart(db):
     """A done job is still readable by a fresh app instance (no shared _jobs dict)."""
     from src.api.routes.backtest import _insert_running, _mark_done

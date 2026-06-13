@@ -5,13 +5,13 @@ Candles are fetched from ExchangeClient (dry-run = synthetic, live = CCXT).
 """
 from __future__ import annotations
 
-import os
 import urllib.parse
 from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.api.deps import get_exchange_client
+from src.core.pairs import allowed_pairs
 from src.api.schemas import (
     APIResponse,
     CandleOut,
@@ -24,17 +24,15 @@ from src.api.schemas import (
     RegimeOut,
     SRLevelOut,
     SignalOut,
+    TickerOut,
     VolumeProfileBin,
     VolumeProfileOut,
 )
 router = APIRouter(prefix="/market", tags=["market"])
 
-_DEFAULT_PAIRS = "BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT,XRP/USDT"
-_ALLOWED_PAIRS: frozenset[str] = frozenset(
-    p.strip().upper()
-    for p in os.getenv("MARKET_PAIRS", _DEFAULT_PAIRS).split(",")
-    if p.strip()
-)
+# Computed at import (re-evaluated on importlib.reload, which the tests use to
+# pick up a changed MARKET_PAIRS). Single source of truth lives in core.pairs.
+_ALLOWED_PAIRS: frozenset[str] = frozenset(allowed_pairs())
 
 _REGIME_LABELS = {
     "strong_uptrend": "Alta forte",
@@ -63,6 +61,17 @@ def _decode_pair(raw: str) -> str:
     return symbol
 
 
+@router.get(
+    "/pairs",
+    response_model=APIResponse[List[str]],
+    summary="Pares permitidos (allowlist MARKET_PAIRS) — alimenta o seletor da UI",
+)
+async def get_pairs() -> APIResponse[List[str]]:
+    # Same source _decode_pair validates against, so the dropdown can only offer
+    # pairs the other endpoints accept.
+    return APIResponse(data=sorted(_ALLOWED_PAIRS))
+
+
 async def _fetch_candles(pair: str, tf: str, limit: int, client: Any) -> list:
     try:
         return await client.fetch_ohlcv(pair, timeframe=tf, limit=limit)
@@ -88,6 +97,34 @@ async def get_candles(
     ohlcv = await _fetch_candles(symbol, tf, limit, client)
     candles = [CandleOut(t=int(r[0]), o=r[1], h=r[2], lo=r[3], c=r[4], v=r[5]) for r in ohlcv]
     return APIResponse(data=candles)
+
+
+@router.get(
+    "/{pair}/ticker",
+    response_model=APIResponse[TickerOut],
+    summary="Preço atual + variação 24h (derivado de OHLCV; dry-run = sintético)",
+)
+async def get_ticker(
+    pair: str,
+    client: Any = Depends(get_exchange_client),
+) -> APIResponse[TickerOut]:
+    symbol = _decode_pair(pair)
+    # 25 hourly candles => ~24h ago reference + now. Works in dry-run and live.
+    ohlcv = await _fetch_candles(symbol, "1h", 25, client)
+    if not ohlcv:
+        raise HTTPException(status_code=503, detail={
+            "error": "market_data_unavailable",
+            "message": f"Sem dados de mercado para {symbol}",
+        })
+    last = float(ohlcv[-1][4])
+    ref = float(ohlcv[0][4])  # close ~24h ago
+    change = ((last - ref) / ref * 100) if ref else 0.0
+    return APIResponse(data=TickerOut(
+        last=round(last, 8),
+        change_24h_pct=round(change, 4),
+        high_24h=round(max(float(c[2]) for c in ohlcv), 8),
+        low_24h=round(min(float(c[3]) for c in ohlcv), 8),
+    ))
 
 
 @router.get(

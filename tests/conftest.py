@@ -14,6 +14,23 @@ import pytest
 class DummyExchange:
     """Minimal exchange stub — no network, safe for unit/integration tests."""
 
+    async def create_order(self, symbol, order_type, side, amount, price=None, params=None):
+        """Bare paper fill (no slippage/fee) so existing P&L assertions hold.
+
+        The real slippage/fee path lives in ``ExchangeClient._create_paper_order``
+        and is exercised separately; this double only needs a valid PAPER_ id.
+        """
+        import uuid
+
+        return {
+            "id": "PAPER_" + uuid.uuid4().hex[:8],
+            "symbol": symbol,
+            "type": order_type,
+            "side": side,
+            "amount": amount,
+            "status": "filled",
+        }
+
 
 @pytest.fixture
 def dummy_exchange() -> DummyExchange:

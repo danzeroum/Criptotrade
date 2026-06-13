@@ -46,8 +46,9 @@ function SRLevelRow({ label, price, strength, color }) {
 
 function ScreenMarket() {
   const mock = !!window.USE_MOCK_DATA;
-  const [pair, setPair] = useState('BTC/USDT');
+  const [pair, setPair] = useState(CT_PAIR.get());
   const [tf, setTf] = useState('1h');
+  const [pairs, setPairs] = useState(mock ? ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'] : null);
 
   const mockData = useMemo(() => ({
     candles: CT.candles.map(c => ({ t: c.i, o: c.open, h: c.high, l: c.low, c: c.close, v: c.volume })),
@@ -112,23 +113,27 @@ function ScreenMarket() {
   const [volumeProfile, setVolumeProfile] = useState(mock ? mockData.volumeProfile : null);
   const [patterns,      setPatterns]      = useState(mock ? mockData.patterns : null);
   const [signal,        setSignal]        = useState(mock ? mockData.signal : null);
+  const [ticker,        setTicker]        = useState(null);
   const [loading,       setLoading]       = useState(!mock);
   const [error,         setError]         = useState(null);
+
+  // Mercado exige um par concreto; se o escopo global for 'ALL', usa o default.
+  const effPair = effectivePair(pair, pairs);
 
   const load = () => {
     if (mock) return;
     setLoading(true);
-    const encoded = encodeURIComponent(pair);
     Promise.all([
-      CT_API.getCandles(pair, tf, 70),
-      CT_API.getIndicators(pair),
-      CT_API.getRegime(pair),
-      CT_API.getLevels(pair),
-      CT_API.getVolumeProfile(pair),
-      CT_API.getPatterns(pair),
-      CT_API.getSignal(pair),
+      CT_API.getCandles(effPair, tf, 70),
+      CT_API.getIndicators(effPair),
+      CT_API.getRegime(effPair),
+      CT_API.getLevels(effPair),
+      CT_API.getVolumeProfile(effPair),
+      CT_API.getPatterns(effPair),
+      CT_API.getSignal(effPair),
+      CT_API.getTicker(effPair).catch(() => null),  // non-critical: never fail the load
     ])
-      .then(([c, ind, reg, lvl, vp, pat, sig]) => {
+      .then(([c, ind, reg, lvl, vp, pat, sig, tk]) => {
         setCandles(c);
         setIndicators(ind);
         setRegime(reg);
@@ -136,12 +141,20 @@ function ScreenMarket() {
         setVolumeProfile(vp);
         setPatterns(Array.isArray(pat) ? pat : []);
         setSignal(sig);
+        setTicker(tk);
         setLoading(false);
       })
       .catch(e => { setError(e); setLoading(false); });
   };
 
-  useEffect(() => { load(); }, [pair, tf]);
+  // Source the dropdown from the allowlist and let other screens (the header)
+  // drive the pair too. The store is the single source of truth for `pair`.
+  useEffect(() => {
+    if (!mock) loadPairs().then(setPairs);
+    return CT_PAIR.subscribe(setPair);
+  }, []);
+
+  useEffect(() => { load(); }, [effPair, tf]);
 
   if (loading) return <LoadingState label="Carregando análise de mercado…" />;
   if (error)   return <ErrorState message="Erro ao carregar mercado" onRetry={() => { setError(null); load(); }} />;
@@ -167,6 +180,7 @@ function ScreenMarket() {
               {' · '}{Math.round((regime.confidence ?? 0) * 100)}%
             </Badge>
           )}
+          <PairSelect />
           <Seg
             options={[
               { value: '15m', label: '15m' },
@@ -189,7 +203,7 @@ function ScreenMarket() {
           <KPI label="Preço atual" value={lastClose} format="usd" icon="dollar" />
         </div>
         <div className="card">
-          <KPI label="Variação 24h" value={sym?.change24h} format="pct_direct" delta={sym?.change24h} icon="trending" />
+          <KPI label="Variação 24h" value={ticker?.change_24h_pct ?? sym?.change24h} format="pct_direct" delta={ticker?.change_24h_pct ?? sym?.change24h} icon="trending" />
         </div>
         <div className="card">
           <KPI label="RSI" value={ind?.rsi?.toFixed(1)} sub={ind?.rsi < 30 ? 'Sobrevendido' : ind?.rsi > 70 ? 'Sobrecomprado' : 'Neutro'} />
@@ -206,7 +220,7 @@ function ScreenMarket() {
       <div className="grid" style={{ gridTemplateColumns: '1fr 300px', marginBottom: 20, alignItems: 'start' }}>
         <div className="card">
           <div className="card-head">
-            <span className="card-title"><Icon name="candle" />{sym?.pair ?? pair} · {tf}</span>
+            <span className="card-title"><Icon name="candle" />{effPair} · {tf}</span>
           </div>
           <div className="card-pad" style={{ padding: '14px 12px' }}>
             {candles && candles.length > 0 ? (

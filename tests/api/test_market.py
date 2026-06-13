@@ -59,6 +59,32 @@ def test_decode_pair_handles_percent_encoded_slash():
     assert result == "BTC/USDT"
 
 
+# ----------------------------------------------------- pairs + ticker endpoints
+def test_pairs_returns_sorted_allowlist(client):
+    r = client.get("/v1/market/pairs")
+    assert r.status_code == 200
+    pairs = r.json()["data"]
+    assert "BTC/USDT" in pairs
+    assert pairs == sorted(pairs)  # stable order for the dropdown
+
+
+def test_ticker_returns_price_and_24h(client):
+    r = client.get("/v1/market/BTC-USDT/ticker")
+    assert r.status_code == 200
+    t = r.json()["data"]
+    # Mock candles are constant: last close 50500, high 51000, low 49000.
+    assert t["last"] == 50_500.0
+    assert t["high_24h"] == 51_000.0
+    assert t["low_24h"] == 49_000.0
+    assert t["change_24h_pct"] == 0.0  # constant closes -> flat
+
+
+def test_ticker_unknown_pair_returns_422(client):
+    r = client.get("/v1/market/FOO-BAR/ticker")
+    assert r.status_code == 422
+    assert r.json()["error"] == "invalid_pair"
+
+
 def test_decode_pair_rejects_unknown_percent_encoded():
     """_decode_pair must reject FOO%2FBAR with 422."""
     from src.api.routes.market import _decode_pair

@@ -3,8 +3,8 @@
 import { test, expect } from "@playwright/test";
 
 const NAV = [
-  "HITL Controls", "Ordens", "Agentes", "Risco",
-  "Mercado", "Diário", "Backtest", "Config",
+  "Visão Geral", "HITL Controls", "Ordens", "Agentes", "Risco",
+  "Mercado", "Observabilidade", "Diário", "Backtest", "Config",
 ];
 
 test.beforeEach(async ({ page }) => {
@@ -26,9 +26,9 @@ test("loads the app shell with the full navigation", async ({ page }) => {
   expect(errors, `uncaught page errors: ${errors.join("; ")}`).toEqual([]);
 });
 
-test("default screen is HITL and marked active", async ({ page }) => {
+test("default screen is Visão Geral and marked active", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".nav-item.active")).toContainText("HITL Controls");
+  await expect(page.locator(".nav-item.active")).toContainText("Visão Geral");
 });
 
 test("clicking a nav item routes via the hash and updates the active item", async ({ page }) => {

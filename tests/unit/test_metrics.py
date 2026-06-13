@@ -53,6 +53,36 @@ def test_read_all_empty_ledger_returns_empty(tmp_path):
     assert led.read_all() == []
 
 
+# ------------------------------------------------------------ per-symbol filter
+def test_compute_symbol_filter_scopes_to_pair(ledger):
+    ledger.log_position_closed("b1", "BTC/USDT", "buy", 100.0, 110.0, 1.0)  # +10
+    ledger.log_position_closed("e1", "ETH/USDT", "buy", 100.0, 90.0, 1.0)   # -10
+    calc = PortfolioMetricsCalculator(ledger, initial_capital=1_000.0)
+
+    btc = calc.compute(period="all", symbol="BTC/USDT")
+    assert btc.total_trades == 1
+    assert btc.pnl_period_usdt == 10.0
+    assert btc.portfolio_value_usdt == 1_010.0  # value scoped to the pair
+
+    both = calc.compute(period="all")
+    assert both.total_trades == 2
+    assert both.pnl_period_usdt == 0.0  # +10 and -10 net out portfolio-wide
+
+
+def test_compute_symbol_is_case_insensitive(ledger):
+    ledger.log_position_closed("b1", "BTC/USDT", "buy", 100.0, 110.0, 1.0)
+    calc = PortfolioMetricsCalculator(ledger, initial_capital=1_000.0)
+    assert calc.compute(symbol="btc/usdt").total_trades == 1
+
+
+def test_compute_symbol_without_trades_has_no_data(ledger):
+    ledger.log_position_closed("b1", "BTC/USDT", "buy", 100.0, 110.0, 1.0)
+    calc = PortfolioMetricsCalculator(ledger, initial_capital=1_000.0)
+    m = calc.compute(symbol="SOL/USDT")
+    assert m.has_data is False
+    assert m.total_trades == 0
+
+
 # ---------------------------------------------------------------- metrics
 def test_empty_ledger_degrades_gracefully(ledger):
     metrics = PortfolioMetricsCalculator(ledger, initial_capital=10_000.0).compute()

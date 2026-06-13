@@ -122,7 +122,7 @@ A coluna **Evidência** cita `arquivo:linha` reais verificados no repositório.
 | **Forbidden patterns** bloqueiam ferramentas perigosas | ✅ | `security_config.py:19-30` (`rm`, `delete_resource`, `drop_database`, `format_disk`, `rm -rf`, `drop table`...); enforcement em `secure_executor.py:51-56` | — | — |
 | **Guardrails ativos por padrão** (position_size, stop_loss, risk_reward) | ✅ | `guardrails.py` + `tests/unit/test_guardrails.py` | — | — |
 | **Ledger** registra todas as decisões (timestamp/event/data) | ✅ | `ledger.py` append-only JSONL | — | — |
-| **Paper trading** por padrão; IDs `PAPER_`; nenhuma ordem real | ✅ | `exchange_client.py` + `execution_agent.py:72`; `test_trading_flow.py` valida prefixo | "Liar variable": `paper_trading` nunca foi exercitado em modo real (mascara não-teste com exchange real) | Manter como está no MVP; documentar explicitamente que modo real exige refatoração |
+| **Paper trading** por padrão; IDs `PAPER_`; nenhuma ordem real | ✅ | `exchange_client._create_paper_order` (slippage 0.2% + fee 0.1%) via `execution_agent._simulate_order`; o fill registra **preço executado + fee** (R1); `test_trading_flow.py` valida prefixo | Entrada já é fiel (R1 resolvido). **Saída** ainda registra no stop/TP exato, fee=0, sem slippage (R2). "Liar variable": `paper_trading` nunca exercitado em modo real | R2: rotear o exit por `create_order` + `log_position_closed(fee=...)`; modo real exige refatoração separada |
 | `validate_configuration()` valida ambiente | 🟡 | `config.py:228` executa no import dentro de try/except | Roda como efeito colateral; falhas mascaradas no try/except | Tornar chamada explícita e propagar erro de config inválida |
 
 ### 3.5 Validações de Qualidade (Código, Segurança, Docs)

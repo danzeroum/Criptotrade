@@ -26,12 +26,37 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from src.agents.registry import AgentRegistry
 from src.core.ledger import TradingLedger
+from src.core.pairs import allowed_pairs, parse_pairs
 
 logger = logging.getLogger(__name__)
 
 MIN_INTERVAL = 10
 MAX_INTERVAL = 3600
 DEFAULT_INTERVAL = 60
+
+
+def _symbols_from_env() -> List[str]:
+    """Resolve which symbols the loop trades each cycle.
+
+    ``SYMBOLS`` (comma-separated) is the explicit opt-in for multi-symbol
+    trading; entries must be in the ``MARKET_PAIRS`` allowlist so the API/UI can
+    validate and view them. Unknown entries are dropped with a warning. When
+    ``SYMBOLS`` is unset/empty (or every entry is invalid) the loop trades
+    ``BTC/USDT`` only — multi-symbol is opt-in, not automatic, to avoid a
+    surprise jump in capital exposure on upgrade.
+    """
+    raw = os.getenv("SYMBOLS", "").strip()
+    if not raw:
+        return ["BTC/USDT"]
+    requested = parse_pairs(raw)
+    allowed = set(allowed_pairs())
+    valid = [s for s in requested if s in allowed]
+    dropped = [s for s in requested if s not in allowed]
+    if dropped:
+        logger.warning(
+            "Ignoring SYMBOLS not in MARKET_PAIRS allowlist: %s", ", ".join(dropped)
+        )
+    return valid or ["BTC/USDT"]
 
 
 class AgentExecutionError(Exception):
@@ -183,7 +208,8 @@ class OrchestratorLoop:
             exchange, approval_handler=handler, fill_callback=order_store.mark_filled,
         )
         orchestrator.ledger = ledger  # share one ledger between pipeline and loop
-        loop = cls(orchestrator, registry, ledger, symbols=symbols)
+        # Explicit symbols win; otherwise resolve from SYMBOLS env (default BTC).
+        loop = cls(orchestrator, registry, ledger, symbols=symbols or _symbols_from_env())
         loop.order_store = order_store  # exposed for inspection / future mark_filled
         return loop
 

@@ -143,7 +143,7 @@ def _result_to_out(result: BacktestResult, initial_capital: float) -> BacktestRe
 
 async def _run_job(job_id: str, config: BacktestConfigIn, client: Any, initial_capital: float) -> None:
     try:
-        ohlcv = await client.fetch_ohlcv("BTC/USDT", timeframe="1h", limit=500)
+        ohlcv = await client.fetch_ohlcv(config.pair, timeframe="1h", limit=500)
         engine = BacktestEngine(
             initial_capital=initial_capital,
             commission_pct=config.commission_pct / 100,
@@ -204,7 +204,7 @@ async def run_montecarlo(
     client: Any = Depends(get_exchange_client),
     calc: PortfolioMetricsCalculator = Depends(get_metrics_calculator),
 ) -> APIResponse[MonteCarloOut]:
-    ohlcv = await client.fetch_ohlcv("BTC/USDT", timeframe="1h", limit=500)
+    ohlcv = await client.fetch_ohlcv(config.pair, timeframe="1h", limit=500)
     engine = BacktestEngine(
         initial_capital=calc.initial_capital,
         commission_pct=config.commission_pct / 100,
@@ -239,7 +239,7 @@ async def run_walkforward(
     client: Any = Depends(get_exchange_client),
     calc: PortfolioMetricsCalculator = Depends(get_metrics_calculator),
 ) -> APIResponse[WalkForwardOut]:
-    ohlcv = await client.fetch_ohlcv("BTC/USDT", timeframe="1h", limit=500)
+    ohlcv = await client.fetch_ohlcv(config.pair, timeframe="1h", limit=500)
     validator = WalkForwardValidator(
         window_size=200,
         test_size=50,

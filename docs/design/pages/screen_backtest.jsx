@@ -49,7 +49,7 @@ function ScreenBacktest() {
   const mock = !!window.USE_MOCK_DATA;
 
   const defaultConfig = {
-    pair: PAIRS[0],
+    pair: effectivePair(CT_PAIR.get(), null),  // herda o par do seletor global
     strategy: STRATEGIES[0],
     start_date: '2025-01-01',
     end_date: '2025-12-31',
@@ -93,7 +93,10 @@ function ScreenBacktest() {
   const [jobStatus, setJobStatus] = useState(null);
   const [running,   setRunning]   = useState(false);
   const [tab,       setTab]       = useState('result');
+  const [pairs,     setPairs]     = useState(null);
   const pollRef = useRef(null);
+
+  useEffect(() => { if (!mock) loadPairs().then(setPairs); }, [mock]);
 
   const updateConfig = (k, v) => setConfig(prev => ({ ...prev, [k]: v }));
 
@@ -169,9 +172,9 @@ function ScreenBacktest() {
               <select
                 className="input"
                 value={config.pair}
-                onChange={e => updateConfig('pair', e.target.value)}
+                onChange={e => { updateConfig('pair', e.target.value); CT_PAIR.set(e.target.value); }}
               >
-                {PAIRS.map(p => <option key={p} value={p}>{p}</option>)}
+                {(pairs ?? PAIRS).map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
             <div className="field">

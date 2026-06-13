@@ -677,6 +677,42 @@
         "title": "APIResponse[List[ProtectionOut]]",
         "type": "object"
       },
+      "APIResponse_List_str__": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[List[str]]",
+        "type": "object"
+      },
       "APIResponse_MonteCarloOut_": {
         "properties": {
           "_links": {
@@ -867,6 +903,38 @@
           "data"
         ],
         "title": "APIResponse[SignalOut]",
+        "type": "object"
+      },
+      "APIResponse_TickerOut_": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/TickerOut"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[TickerOut]",
         "type": "object"
       },
       "APIResponse_VolumeProfileOut_": {
@@ -1267,6 +1335,11 @@
             "minimum": 100.0,
             "title": "Monte Carlo Sims",
             "type": "integer"
+          },
+          "pair": {
+            "default": "BTC/USDT",
+            "title": "Pair",
+            "type": "string"
           },
           "slippage_bps": {
             "default": 5,
@@ -3167,6 +3240,35 @@
         "title": "StochOut",
         "type": "object"
       },
+      "TickerOut": {
+        "description": "Current price + 24h stats, derived from OHLCV (dry-run = synthetic).",
+        "properties": {
+          "change_24h_pct": {
+            "title": "Change 24H Pct",
+            "type": "number"
+          },
+          "high_24h": {
+            "title": "High 24H",
+            "type": "number"
+          },
+          "last": {
+            "title": "Last",
+            "type": "number"
+          },
+          "low_24h": {
+            "title": "Low 24H",
+            "type": "number"
+          }
+        },
+        "required": [
+          "last",
+          "change_24h_pct",
+          "high_24h",
+          "low_24h"
+        ],
+        "title": "TickerOut",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -4128,6 +4230,27 @@
         ]
       }
     },
+    "/v1/market/pairs": {
+      "get": {
+        "operationId": "get_pairs_v1_market_pairs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_List_str__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Pares permitidos (allowlist MARKET_PAIRS) \u2014 alimenta o seletor da UI",
+        "tags": [
+          "market"
+        ]
+      }
+    },
     "/v1/market/{pair}/candles": {
       "get": {
         "operationId": "get_candles_v1_market__pair__candles_get",
@@ -4513,6 +4636,48 @@
         ]
       }
     },
+    "/v1/market/{pair}/ticker": {
+      "get": {
+        "operationId": "get_ticker_v1_market__pair__ticker_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pair",
+            "required": true,
+            "schema": {
+              "title": "Pair",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_TickerOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pre\u00e7o atual + varia\u00e7\u00e3o 24h (derivado de OHLCV; dry-run = sint\u00e9tico)",
+        "tags": [
+          "market"
+        ]
+      }
+    },
     "/v1/market/{pair}/volume-profile": {
       "get": {
         "operationId": "get_volume_profile_v1_market__pair__volume_profile_get",
@@ -4603,6 +4768,24 @@
               "title": "Period",
               "type": "string"
             }
+          },
+          {
+            "description": "Filtrar por par (ex.: BTC/USDT). Vazio = portf\u00f3lio inteiro.",
+            "in": "query",
+            "name": "symbol",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por par (ex.: BTC/USDT). Vazio = portf\u00f3lio inteiro.",
+              "title": "Symbol"
+            }
           }
         ],
         "responses": {
@@ -4646,6 +4829,24 @@
               "pattern": "^(7d|30d|90d|all)$",
               "title": "Period",
               "type": "string"
+            }
+          },
+          {
+            "description": "Filtrar por par (ex.: BTC/USDT). Vazio = portf\u00f3lio inteiro.",
+            "in": "query",
+            "name": "symbol",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por par (ex.: BTC/USDT). Vazio = portf\u00f3lio inteiro.",
+              "title": "Symbol"
             }
           }
         ],
