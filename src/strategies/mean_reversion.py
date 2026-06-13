@@ -105,8 +105,9 @@ class MeanReversionStrategy(BaseStrategy):
                 ),
             }
 
+        rsi_str = f"{rsi:.1f}" if rsi is not None else "N/A"
         return self._hold(
-            f"No mean reversion signal (RSI={rsi:.1f if rsi else 'N/A'}, "
+            f"No mean reversion signal (RSI={rsi_str}, "
             f"price {'below' if bb_lower and current_price < bb_lower else 'within'} bands)"
         )
 
