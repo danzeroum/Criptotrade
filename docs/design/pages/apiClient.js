@@ -33,7 +33,8 @@ const CT_API = (() => {
   return {
     // ---- Phase 0: ready endpoints ----
     getHealth:        ()           => req('/health'),
-    getMetrics:       (p = '7d')   => req(`/v1/metrics?period=${p}`),
+    getMetrics:       (p = '7d', symbol) =>
+      req(`/v1/metrics?period=${p}${symbol && symbol !== 'ALL' ? `&symbol=${encodeURIComponent(symbol)}` : ''}`),
     getHITL:          ()           => req('/v1/hitl/config'),
     patchHITL:        (body)       => req('/v1/hitl/config', { method: 'PATCH', body: JSON.stringify(body) }),
     getOrders:        (limit = 50, offset = 0, q = '') =>
@@ -69,7 +70,9 @@ const CT_API = (() => {
     getKelly:          ()     => req('/v1/risk/kelly'),
     getRiskConfig:     ()     => req('/v1/risk/config'),
     patchRiskConfig:   (body) => req('/v1/risk/config', { method: 'PATCH', body: JSON.stringify(body) }),
-    getEquity:         (p = '90d') => req(`/v1/metrics/equity?period=${p}`),
+    getEquity:         (p = '90d', symbol) =>
+      req(`/v1/metrics/equity?period=${p}${symbol && symbol !== 'ALL' ? `&symbol=${encodeURIComponent(symbol)}` : ''}`),
+    getProcessEvents:  (limit = 200) => req(`/v1/process/events?limit=${limit}`),
 
     // ---- Phase 3: backtest ----
     runBacktest:      (body) => req('/v1/backtest/run', { method: 'POST', body: JSON.stringify(body) }),

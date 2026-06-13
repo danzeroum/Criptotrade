@@ -4,11 +4,13 @@
 const { useState, useEffect } = React;
 
 const NAV = [
+  { id: 'overview', icon: 'dollar',   label: 'Visão Geral' },
   { id: 'hitl',     icon: 'activity', label: 'HITL Controls' },
   { id: 'orders',   icon: 'list',     label: 'Ordens' },
   { id: 'agents',   icon: 'user',     label: 'Agentes' },
   { id: 'risk',     icon: 'shield',   label: 'Risco' },
   { id: 'market',   icon: 'trending', label: 'Mercado' },
+  { id: 'observability', icon: 'eye', label: 'Observabilidade' },
   { id: 'journal',  icon: 'book',     label: 'Diário' },
   { id: 'backtest', icon: 'bar',      label: 'Backtest' },
   { id: 'settings', icon: 'settings', label: 'Config' },
@@ -66,14 +68,16 @@ function Header({ onToggleAlerts, alertCount }) {
     return CT_PAIR.subscribe(setPair);  // reflect the pair chosen on the Market screen
   }, []);
 
+  const isAll = pair === 'ALL';
+
   useEffect(() => {
-    if (mock) { setTicker(null); return; }
+    if (mock || isAll) { setTicker(null); return; }
     let alive = true;
     CT_API.getTicker(pair)
       .then(t => { if (alive) setTicker(t); })
       .catch(() => { if (alive) setTicker(null); });
     return () => { alive = false; };
-  }, [pair, mock]);
+  }, [pair, mock, isAll]);
 
   const price = ticker?.last ?? CT.symbol?.price ?? 65200;
   const change = ticker?.change_24h_pct ?? CT.symbol?.change24h ?? 0;
@@ -81,13 +85,17 @@ function Header({ onToggleAlerts, alertCount }) {
   return (
     <header className="header">
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
-        <span style={{ fontFamily: 'var(--mono)', fontWeight: 600 }}>{pair}</span>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 15, fontWeight: 500 }}>
-          ${fmtPrice(price)}
-        </span>
-        <Badge variant={change >= 0 ? 'ok' : 'down'}>
-          {change >= 0 ? '+' : ''}{change.toFixed(2)}%
-        </Badge>
+        <span style={{ fontFamily: 'var(--mono)', fontWeight: 600 }}>{isAll ? 'Portfólio' : pair}</span>
+        {!isAll && (
+          <>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 15, fontWeight: 500 }}>
+              ${fmtPrice(price)}
+            </span>
+            <Badge variant={change >= 0 ? 'ok' : 'down'}>
+              {change >= 0 ? '+' : ''}{change.toFixed(2)}%
+            </Badge>
+          </>
+        )}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         {hitl && (

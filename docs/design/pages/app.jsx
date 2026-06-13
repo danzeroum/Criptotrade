@@ -5,14 +5,16 @@ const { useState, useEffect, useCallback, useRef } = React;
 
 // ---- Screen registry ----
 const SCREENS = {
-  hitl:     ScreenHITL,
-  orders:   ScreenOrders,
-  agents:   ScreenAgents,
-  risk:     ScreenRisk,
-  market:   ScreenMarket,
-  journal:  ScreenJournal,
-  backtest: ScreenBacktest,
-  settings: ScreenSettings,
+  overview:      ScreenOverview,
+  hitl:          ScreenHITL,
+  orders:        ScreenOrders,
+  agents:        ScreenAgents,
+  risk:          ScreenRisk,
+  market:        ScreenMarket,
+  observability: ScreenObservability,
+  journal:       ScreenJournal,
+  backtest:      ScreenBacktest,
+  settings:      ScreenSettings,
 };
 
 // ---- Error boundary ----
@@ -139,7 +141,7 @@ function ToastContainer({ toasts }) {
 function App() {
   const getInitialScreen = () => {
     const hash = window.location.hash.replace('#', '');
-    return SCREENS[hash] ? hash : 'hitl';
+    return SCREENS[hash] ? hash : 'overview';
   };
 
   const [screen,       setScreen]       = useState(getInitialScreen);
@@ -193,7 +195,7 @@ function App() {
     return () => es?.close?.();
   }, [addToast]);
 
-  const ActiveScreen = SCREENS[screen] ?? ScreenHITL;
+  const ActiveScreen = SCREENS[screen] ?? ScreenOverview;
 
   return (
     <div className="app">

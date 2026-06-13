@@ -117,18 +117,21 @@ function ScreenMarket() {
   const [loading,       setLoading]       = useState(!mock);
   const [error,         setError]         = useState(null);
 
+  // Mercado exige um par concreto; se o escopo global for 'ALL', usa o default.
+  const effPair = effectivePair(pair, pairs);
+
   const load = () => {
     if (mock) return;
     setLoading(true);
     Promise.all([
-      CT_API.getCandles(pair, tf, 70),
-      CT_API.getIndicators(pair),
-      CT_API.getRegime(pair),
-      CT_API.getLevels(pair),
-      CT_API.getVolumeProfile(pair),
-      CT_API.getPatterns(pair),
-      CT_API.getSignal(pair),
-      CT_API.getTicker(pair).catch(() => null),  // non-critical: never fail the load
+      CT_API.getCandles(effPair, tf, 70),
+      CT_API.getIndicators(effPair),
+      CT_API.getRegime(effPair),
+      CT_API.getLevels(effPair),
+      CT_API.getVolumeProfile(effPair),
+      CT_API.getPatterns(effPair),
+      CT_API.getSignal(effPair),
+      CT_API.getTicker(effPair).catch(() => null),  // non-critical: never fail the load
     ])
       .then(([c, ind, reg, lvl, vp, pat, sig, tk]) => {
         setCandles(c);
@@ -147,11 +150,11 @@ function ScreenMarket() {
   // Source the dropdown from the allowlist and let other screens (the header)
   // drive the pair too. The store is the single source of truth for `pair`.
   useEffect(() => {
-    if (!mock) CT_API.getPairs().then(setPairs).catch(() => setPairs(['BTC/USDT']));
+    if (!mock) loadPairs().then(setPairs);
     return CT_PAIR.subscribe(setPair);
   }, []);
 
-  useEffect(() => { load(); }, [pair, tf]);
+  useEffect(() => { load(); }, [effPair, tf]);
 
   if (loading) return <LoadingState label="Carregando análise de mercado…" />;
   if (error)   return <ErrorState message="Erro ao carregar mercado" onRetry={() => { setError(null); load(); }} />;
@@ -177,17 +180,7 @@ function ScreenMarket() {
               {' · '}{Math.round((regime.confidence ?? 0) * 100)}%
             </Badge>
           )}
-          <select
-            className="input"
-            value={pair}
-            onChange={(e) => CT_PAIR.set(e.target.value)}
-            style={{ width: 'auto', minWidth: 112 }}
-            aria-label="Par"
-          >
-            {Array.from(new Set([pair, ...(pairs ?? [])])).map(p => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
+          <PairSelect />
           <Seg
             options={[
               { value: '15m', label: '15m' },
@@ -227,7 +220,7 @@ function ScreenMarket() {
       <div className="grid" style={{ gridTemplateColumns: '1fr 300px', marginBottom: 20, alignItems: 'start' }}>
         <div className="card">
           <div className="card-head">
-            <span className="card-title"><Icon name="candle" />{pair} · {tf}</span>
+            <span className="card-title"><Icon name="candle" />{effPair} · {tf}</span>
           </div>
           <div className="card-pad" style={{ padding: '14px 12px' }}>
             {candles && candles.length > 0 ? (

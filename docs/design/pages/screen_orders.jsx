@@ -29,6 +29,7 @@ function ScreenOrders() {
     operator_note:     o.operatorNote,
   }));
 
+  const [scope] = useCurrentPair();
   const [orders,  setOrders]  = useState(mock ? mockOrders : null);
   const [loading, setLoading] = useState(!mock);
   const [error,   setError]   = useState(null);
@@ -38,10 +39,11 @@ function ScreenOrders() {
   useEffect(() => {
     if (mock) return;
     setLoading(true);
-    CT_API.getOrders()
+    const pairQ = scope && scope !== 'ALL' ? `&pair=${encodeURIComponent(scope)}` : '';
+    CT_API.getOrders(100, 0, pairQ)
       .then(d => { setOrders(Array.isArray(d) ? d : []); setLoading(false); })
       .catch(e => { setError(e); setLoading(false); });
-  }, [mock]);
+  }, [mock, scope]);
 
   if (loading) return <LoadingState label="Carregando ordens…" />;
   if (error)   return <ErrorState message="Erro ao carregar ordens" onRetry={() => { setError(null); setLoading(true); }} />;
@@ -65,8 +67,11 @@ function ScreenOrders() {
       <div className="page-head">
         <div>
           <h1 className="page-title">Ordens</h1>
-          <div className="page-sub">{orders.length} ordens no histórico</div>
+          <div className="page-sub">
+            {orders.length} ordens{scope && scope !== 'ALL' ? ` · ${scope}` : ' · todos os pares'}
+          </div>
         </div>
+        <PairSelect allowAll />
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 20 }}>
