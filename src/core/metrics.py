@@ -84,8 +84,18 @@ class PortfolioMetricsCalculator:
         self.initial_capital = float(initial_capital)
 
     # ------------------------------------------------------------------ public
-    def compute(self, period: str = "all", now: Optional[datetime] = None) -> PortfolioMetrics:
-        """Compute metrics over ``period`` (one of ``1d/7d/30d/90d/all``)."""
+    def compute(
+        self,
+        period: str = "all",
+        now: Optional[datetime] = None,
+        symbol: Optional[str] = None,
+    ) -> PortfolioMetrics:
+        """Compute metrics over ``period`` (one of ``1d/7d/30d/90d/all``).
+
+        When ``symbol`` is given, every figure (P&L, value, exposure, ratios) is
+        scoped to that pair — a consistent per-symbol sub-portfolio. ``None``
+        (the default) keeps the portfolio-wide behaviour.
+        """
         if period not in _PERIOD_DAYS:
             raise ValueError(f"Unknown period {period!r}; expected one of {list(_PERIOD_DAYS)}")
 
@@ -94,6 +104,11 @@ class PortfolioMetricsCalculator:
 
         closed = self._with_timestamps(entries, "position_closed")
         open_positions = self._open_positions(entries)
+
+        if symbol:
+            sym = symbol.upper()
+            closed = [c for c in closed if str(c.get("symbol", "")).upper() == sym]
+            open_positions = [p for p in open_positions if str(p.get("symbol", "")).upper() == sym]
 
         cutoff = self._cutoff(period, now)
         in_period = [c for c in closed if cutoff is None or (c["_ts"] and c["_ts"] >= cutoff)]

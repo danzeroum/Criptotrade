@@ -91,8 +91,16 @@ with autonomy_col:
 
 st.divider()
 
+# ── Symbol filter (sidebar) ───────────────────────────────────────────────────
+# Sourced from the API allowlist; "Todos" = portfolio-wide (the default).
+pairs_resp, _ = _get("/v1/market/pairs")
+_pair_list = pairs_resp["data"] if pairs_resp and pairs_resp.get("data") else []
+selected_symbol = st.sidebar.selectbox("🪙 Símbolo", ["Todos"] + _pair_list, index=0)
+symbol_qs = "" if selected_symbol == "Todos" else f"&symbol={selected_symbol}"
+scope_label = "Portfólio" if selected_symbol == "Todos" else selected_symbol
+
 # ── KPIs ──────────────────────────────────────────────────────────────────────
-metrics, metrics_err = _get("/v1/metrics?period=7d")
+metrics, metrics_err = _get(f"/v1/metrics?period=7d{symbol_qs}")
 c1, c2, c3 = st.columns(3)
 if metrics_err:
     for col, label in zip((c1, c2, c3), ("Sharpe Ratio", "Win Rate", "Max Drawdown")):
@@ -107,7 +115,7 @@ elif metrics:
     c2.metric("Win Rate", _fmt_pct(d["win_rate"]))
     c3.metric("Max Drawdown", _fmt_pct(d["max_drawdown"]))
     st.caption(
-        f"Portfólio: ${d['portfolio_value_usdt']:,.2f}  ·  "
+        f"{scope_label}: ${d['portfolio_value_usdt']:,.2f}  ·  "
         f"P&L (7d): ${d['pnl_period_usdt']:,.2f}  ·  "
         f"Trades: {d['total_trades']}  ·  Posições abertas: {d['open_positions']}"
     )
@@ -273,7 +281,7 @@ elif agents and agents["data"]:
                 help="Em breve",
             )
 
-    total_cycles = sum(a["cycles"] for a in agents["data"])
+    total_cycles = sum(a["cycles"] for a in agent_list)
     st.caption(
         f"Ciclos hoje (total): {total_cycles} · "
         "0 em todos = o loop (orchestrator) não está rodando."
@@ -292,23 +300,29 @@ _ORDER_ICON = {
 if orders_err:
     st.warning(f"Não foi possível carregar ordens ({orders_err}).")
 elif orders and orders["data"]:
-    st.dataframe(
-        [
-            {
-                "ID": o["id"],
-                "Par": o["pair"],
-                "Lado": o["side"].upper(),
-                "Qtd": o["quantity"],
-                "Notional": f"${o['notional']:,.2f}",
-                "Status": f"{_ORDER_ICON.get(o['status'], '⬜')} {o['status']}",
-                "Operador": o["operator_id"] or "—",
-                "Criada": o["created_at"],
-            }
-            for o in orders["data"][:20]
-        ],
-        hide_index=True,
-        use_container_width=True,
-    )
+    _rows = orders["data"]
+    if selected_symbol != "Todos":
+        _rows = [o for o in _rows if o.get("pair") == selected_symbol]
+    if _rows:
+        st.dataframe(
+            [
+                {
+                    "ID": o["id"],
+                    "Par": o["pair"],
+                    "Lado": o["side"].upper(),
+                    "Qtd": o["quantity"],
+                    "Notional": f"${o['notional']:,.2f}",
+                    "Status": f"{_ORDER_ICON.get(o['status'], '⬜')} {o['status']}",
+                    "Operador": o["operator_id"] or "—",
+                    "Criada": o["created_at"],
+                }
+                for o in _rows[:20]
+            ],
+            hide_index=True,
+            use_container_width=True,
+        )
+    else:
+        st.caption(f"Nenhuma ordem recente para {selected_symbol}.")
 else:
     st.caption("Nenhuma ordem registrada ainda.")
 

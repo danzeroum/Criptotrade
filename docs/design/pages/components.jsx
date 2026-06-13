@@ -249,3 +249,60 @@ function ErrorState({ message = 'API offline', onRetry }) {
   );
 }
 window.ErrorState = ErrorState;
+
+// ---- Global pair scope (store lives on window.CT_PAIR, set in apiClient.js) ----
+// 'ALL' = portfólio consolidado; senão um par concreto (ex.: 'BTC/USDT').
+let _pairsPromise = null;
+function loadPairs() {
+  if (!_pairsPromise) {
+    _pairsPromise = window.USE_MOCK_DATA
+      ? Promise.resolve(['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT'])
+      : CT_API.getPairs().catch(() => ['BTC/USDT']);
+  }
+  return _pairsPromise;
+}
+window.loadPairs = loadPairs;
+
+function useCurrentPair() {
+  const [pair, setPair] = useState(CT_PAIR.get());
+  useEffect(() => CT_PAIR.subscribe(setPair), []);
+  return [pair, (p) => CT_PAIR.set(p)];
+}
+window.useCurrentPair = useCurrentPair;
+
+// Coerce the scope to a concrete pair for screens that require one (Mercado/Backtest).
+function effectivePair(scope, pairs) {
+  if (scope && scope !== 'ALL') return scope;
+  if (pairs && pairs.includes('BTC/USDT')) return 'BTC/USDT';
+  return (pairs && pairs[0]) || 'BTC/USDT';
+}
+window.effectivePair = effectivePair;
+
+// Pair dropdown bound to the global store. `allowAll` adds "Todos os pares".
+function PairSelect({ allowAll = false }) {
+  const [scope, setScope] = useCurrentPair();
+  const [pairs, setPairs] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    loadPairs().then(p => { if (alive) setPairs(p); });
+    return () => { alive = false; };
+  }, []);
+  const list = pairs ?? [];
+  const options = allowAll ? ['ALL', ...list] : list;
+  // Concrete-only select must not render value="ALL" (no matching option).
+  const shown = allowAll ? scope : effectivePair(scope, list);
+  return (
+    <select
+      className="input"
+      value={shown}
+      onChange={(e) => setScope(e.target.value)}
+      style={{ width: 'auto', minWidth: 118 }}
+      aria-label="Par"
+    >
+      {Array.from(new Set([shown, ...options])).map(p => (
+        <option key={p} value={p}>{p === 'ALL' ? 'Todos os pares' : p}</option>
+      ))}
+    </select>
+  );
+}
+window.PairSelect = PairSelect;

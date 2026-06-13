@@ -677,6 +677,42 @@
         "title": "APIResponse[List[ProtectionOut]]",
         "type": "object"
       },
+      "APIResponse_List_str__": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[List[str]]",
+        "type": "object"
+      },
       "APIResponse_MonteCarloOut_": {
         "properties": {
           "_links": {
@@ -1299,6 +1335,11 @@
             "minimum": 100.0,
             "title": "Monte Carlo Sims",
             "type": "integer"
+          },
+          "pair": {
+            "default": "BTC/USDT",
+            "title": "Pair",
+            "type": "string"
           },
           "slippage_bps": {
             "default": 5,
@@ -4218,6 +4259,27 @@
         ]
       }
     },
+    "/v1/market/pairs": {
+      "get": {
+        "operationId": "get_pairs_v1_market_pairs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_List_str__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Pares permitidos (allowlist MARKET_PAIRS) \u2014 alimenta o seletor da UI",
+        "tags": [
+          "market"
+        ]
+      }
+    },
     "/v1/market/{pair}/candles": {
       "get": {
         "operationId": "get_candles_v1_market__pair__candles_get",
@@ -4735,6 +4797,24 @@
               "title": "Period",
               "type": "string"
             }
+          },
+          {
+            "description": "Filtrar por par (ex.: BTC/USDT). Vazio = portf\u00f3lio inteiro.",
+            "in": "query",
+            "name": "symbol",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por par (ex.: BTC/USDT). Vazio = portf\u00f3lio inteiro.",
+              "title": "Symbol"
+            }
           }
         ],
         "responses": {
@@ -4778,6 +4858,24 @@
               "pattern": "^(7d|30d|90d|all)$",
               "title": "Period",
               "type": "string"
+            }
+          },
+          {
+            "description": "Filtrar por par (ex.: BTC/USDT). Vazio = portf\u00f3lio inteiro.",
+            "in": "query",
+            "name": "symbol",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por par (ex.: BTC/USDT). Vazio = portf\u00f3lio inteiro.",
+              "title": "Symbol"
             }
           }
         ],

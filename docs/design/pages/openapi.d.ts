@@ -263,6 +263,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/market/pairs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pares permitidos (allowlist MARKET_PAIRS) — alimenta o seletor da UI */
+        get: operations["get_pairs_v1_market_pairs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/market/{pair}/candles": {
         parameters: {
             query?: never;
@@ -357,6 +374,23 @@ export interface paths {
         };
         /** Sinal de trading atual (buy/sell/hold) baseado em indicadores */
         get: operations["get_signal_v1_market__pair__signal_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/market/{pair}/ticker": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preço atual + variação 24h (derivado de OHLCV; dry-run = sintético) */
+        get: operations["get_ticker_v1_market__pair__ticker_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -672,6 +706,13 @@ export interface components {
             data: components["schemas"]["ProtectionOut"][];
             meta?: components["schemas"]["Meta"] | null;
         };
+        /** APIResponse[List[str]] */
+        APIResponse_List_str__: {
+            _links?: components["schemas"]["Links"] | null;
+            /** Data */
+            data: string[];
+            meta?: components["schemas"]["Meta"] | null;
+        };
         /** APIResponse[MonteCarloOut] */
         APIResponse_MonteCarloOut_: {
             _links?: components["schemas"]["Links"] | null;
@@ -706,6 +747,12 @@ export interface components {
         APIResponse_SignalOut_: {
             _links?: components["schemas"]["Links"] | null;
             data: components["schemas"]["SignalOut"];
+            meta?: components["schemas"]["Meta"] | null;
+        };
+        /** APIResponse[TickerOut] */
+        APIResponse_TickerOut_: {
+            _links?: components["schemas"]["Links"] | null;
+            data: components["schemas"]["TickerOut"];
             meta?: components["schemas"]["Meta"] | null;
         };
         /** APIResponse[VolumeProfileOut] */
@@ -847,6 +894,11 @@ export interface components {
              * @default 1000
              */
             monte_carlo_sims: number;
+            /**
+             * Pair
+             * @default BTC/USDT
+             */
+            pair: string;
             /**
              * Slippage Bps
              * @default 5
@@ -1459,6 +1511,20 @@ export interface components {
             d: number;
             /** K */
             k: number;
+        };
+        /**
+         * TickerOut
+         * @description Current price + 24h stats, derived from OHLCV (dry-run = synthetic).
+         */
+        TickerOut: {
+            /** Change 24H Pct */
+            change_24h_pct: number;
+            /** High 24H */
+            high_24h: number;
+            /** Last */
+            last: number;
+            /** Low 24H */
+            low_24h: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -2082,6 +2148,26 @@ export interface operations {
             };
         };
     };
+    get_pairs_v1_market_pairs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_List_str__"];
+                };
+            };
+        };
+    };
     get_candles_v1_market__pair__candles_get: {
         parameters: {
             query?: {
@@ -2286,6 +2372,37 @@ export interface operations {
             };
         };
     };
+    get_ticker_v1_market__pair__ticker_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pair: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_TickerOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_volume_profile_v1_market__pair__volume_profile_get: {
         parameters: {
             query?: {
@@ -2325,6 +2442,8 @@ export interface operations {
         parameters: {
             query?: {
                 period?: string;
+                /** @description Filtrar por par (ex.: BTC/USDT). Vazio = portfólio inteiro. */
+                symbol?: string | null;
             };
             header?: never;
             path?: never;
@@ -2356,6 +2475,8 @@ export interface operations {
         parameters: {
             query?: {
                 period?: string;
+                /** @description Filtrar por par (ex.: BTC/USDT). Vazio = portfólio inteiro. */
+                symbol?: string | null;
             };
             header?: never;
             path?: never;

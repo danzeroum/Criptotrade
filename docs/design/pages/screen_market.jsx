@@ -46,8 +46,9 @@ function SRLevelRow({ label, price, strength, color }) {
 
 function ScreenMarket() {
   const mock = !!window.USE_MOCK_DATA;
-  const [pair, setPair] = useState('BTC/USDT');
+  const [pair, setPair] = useState(CT_PAIR.get());
   const [tf, setTf] = useState('1h');
+  const [pairs, setPairs] = useState(mock ? ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'] : null);
 
   const mockData = useMemo(() => ({
     ticker: {
@@ -125,13 +126,16 @@ function ScreenMarket() {
   const [volumeProfile, setVolumeProfile] = useState(mock ? mockData.volumeProfile : null);
   const [patterns,      setPatterns]      = useState(mock ? mockData.patterns : null);
   const [signal,        setSignal]        = useState(mock ? mockData.signal : null);
+  const [ticker,        setTicker]        = useState(null);
   const [loading,       setLoading]       = useState(!mock);
   const [error,         setError]         = useState(null);
+
+  // Mercado exige um par concreto; se o escopo global for 'ALL', usa o default.
+  const effPair = effectivePair(pair, pairs);
 
   const load = () => {
     if (mock) return;
     setLoading(true);
-    const encoded = encodeURIComponent(pair);
     Promise.all([
       CT_API.getTicker(pair),
       CT_API.getCandles(pair, tf, 70),
@@ -151,12 +155,20 @@ function ScreenMarket() {
         setVolumeProfile(vp);
         setPatterns(Array.isArray(pat) ? pat : []);
         setSignal(sig);
+        setTicker(tk);
         setLoading(false);
       })
       .catch(e => { setError(e); setLoading(false); });
   };
 
-  useEffect(() => { load(); }, [pair, tf]);
+  // Source the dropdown from the allowlist and let other screens (the header)
+  // drive the pair too. The store is the single source of truth for `pair`.
+  useEffect(() => {
+    if (!mock) loadPairs().then(setPairs);
+    return CT_PAIR.subscribe(setPair);
+  }, []);
+
+  useEffect(() => { load(); }, [effPair, tf]);
 
   if (loading) return <LoadingState label="Carregando análise de mercado…" />;
   if (error)   return <ErrorState message="Erro ao carregar mercado" onRetry={() => { setError(null); load(); }} />;
@@ -181,6 +193,7 @@ function ScreenMarket() {
               {' · '}{Math.round((regime.confidence ?? 0) * 100)}%
             </Badge>
           )}
+          <PairSelect />
           <Seg
             options={[
               { value: '15m', label: '15m' },

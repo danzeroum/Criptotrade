@@ -48,6 +48,9 @@ class ExchangeClient:
             )
         self.dry_run = dry_run_raw.lower() == "true"
         self.base_price = float(os.getenv("DRY_RUN_BASE_PRICE", "50000"))
+        # Optional per-symbol overrides (``BTC/USDT=50000,ETH/USDT=3000``). Lets
+        # paper analysis differ per coin instead of every pair sharing one price.
+        self.base_prices = synth.parse_base_prices(os.getenv("DRY_RUN_BASE_PRICES", ""))
 
         self.paper_trading = True
         self.simulated_orders: Dict[str, Dict[str, Any]] = {}
@@ -95,10 +98,14 @@ class ExchangeClient:
         """Mockable timestamp source (tests patch ``time.time``)."""
         return int(time.time())
 
+    def _base_for(self, symbol: str) -> float:
+        """Resolve the synthetic base price for ``symbol`` (per-symbol in dry-run)."""
+        return synth.base_price_for(symbol, self.base_price, self.base_prices)
+
     async def fetch_ticker(self, symbol: str) -> Dict[str, Any]:
         """Fetch current ticker data for a symbol."""
         if self.dry_run:
-            return synth.synthetic_ticker(symbol, self.base_price, self._now_ts())
+            return synth.synthetic_ticker(symbol, self._base_for(symbol), self._now_ts())
         try:
             ticker = await asyncio.to_thread(self.exchange.fetch_ticker, symbol)
             logger.debug("Fetched ticker for %s: %s", symbol, ticker.get("last"))
@@ -112,7 +119,9 @@ class ExchangeClient:
     ) -> List[List[float]]:
         """Fetch OHLCV (candlestick) data."""
         if self.dry_run:
-            return synth.synthetic_ohlcv(self.base_price, self._now_ts(), timeframe, limit)
+            return synth.synthetic_ohlcv(
+                self._base_for(symbol), self._now_ts(), timeframe, limit
+            )
         try:
             ohlcv = await asyncio.to_thread(
                 self.exchange.fetch_ohlcv, symbol, timeframe, None, limit
@@ -126,7 +135,9 @@ class ExchangeClient:
     async def fetch_order_book(self, symbol: str, limit: int = 20) -> Dict[str, Any]:
         """Fetch order book (bids and asks)."""
         if self.dry_run:
-            return synth.synthetic_order_book(symbol, self.base_price, self._now_ts(), limit)
+            return synth.synthetic_order_book(
+                symbol, self._base_for(symbol), self._now_ts(), limit
+            )
         try:
             order_book = await asyncio.to_thread(
                 self.exchange.fetch_order_book, symbol, limit

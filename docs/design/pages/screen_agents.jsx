@@ -23,7 +23,94 @@ const STATUS_LABEL = {
   error:           'Erro',
 };
 
-function AgentCard({ agent }) {
+// One editable field per parameter; control inferred from the value's type
+// (the contract carries values, not a schema).
+function AgentParamField({ name, value, onChange }) {
+  const label = name.replace(/_/g, ' ');
+  if (typeof value === 'number') {
+    return <NumField label={label} value={value} step={Number.isInteger(value) ? 1 : 0.1} onChange={(v) => onChange(name, v)} />;
+  }
+  if (typeof value === 'boolean') {
+    return (
+      <div>
+        <div style={{ fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 500, marginBottom: 4 }}>{label}</div>
+        <Seg options={[{ value: true, label: 'Sim' }, { value: false, label: 'Não' }]} value={value} onChange={(v) => onChange(name, v)} />
+      </div>
+    );
+  }
+  if (typeof value === 'string') {
+    return (
+      <label style={{ display: 'block' }}>
+        <span style={{ fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 500 }}>{label}</span>
+        <input className="input" value={value} onChange={(e) => onChange(name, e.target.value)} style={{ width: '100%', marginTop: 4 }} />
+      </label>
+    );
+  }
+  return (
+    <div>
+      <div style={{ fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 500, marginBottom: 4 }}>{label}</div>
+      <code style={{ fontSize: 11 }}>{JSON.stringify(value)}</code>
+    </div>
+  );
+}
+
+// Drawer to view/edit an agent's params. GET /v1/agents/{id}/config →
+// form → PATCH (body = the params dict, per the route in config.py).
+function AgentConfigDrawer({ agentId, onClose }) {
+  const [draft, setDraft] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    setError(null);
+    CT_API.getAgentConfig(agentId)
+      .then(c => { setDraft({ ...(c.params || {}) }); setLoading(false); })
+      .catch(e => { setError(e); setLoading(false); });
+  };
+  useEffect(() => { load(); }, [agentId]);
+
+  const setParam = (k, v) => { setDraft(d => ({ ...d, [k]: v })); setSaved(false); };
+  const save = () => {
+    setSaving(true);
+    CT_API.patchAgentConfig(agentId, draft)
+      .then(c => { setDraft({ ...(c.params || {}) }); setSaving(false); setSaved(true); })
+      .catch(e => { setError(e); setSaving(false); });
+  };
+
+  const keys = draft ? Object.keys(draft) : [];
+  return (
+    <>
+      <div className="drawer-scrim" onClick={onClose} />
+      <div className="drawer">
+        <div className="card-head" style={{ flexShrink: 0 }}>
+          <span className="card-title"><Icon name="settings" />Configurar · {agentId}</span>
+          <Btn variant="ghost" size="sm" onClick={onClose}><Icon name="x" size={14} /></Btn>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+          {loading ? <LoadingState label="Carregando configuração…" />
+            : error ? <ErrorState message="Erro ao carregar configuração" onRetry={load} />
+            : keys.length === 0 ? <EmptyState label="Sem parâmetros configuráveis" sub="Este agente não expõe parâmetros." />
+            : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {keys.map(k => <AgentParamField key={k} name={k} value={draft[k]} onChange={setParam} />)}
+              </div>
+            )}
+        </div>
+        {!loading && !error && keys.length > 0 && (
+          <div style={{ flexShrink: 0, padding: 16, borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Btn variant="primary" onClick={save} disabled={saving}>{saving ? 'Salvando…' : 'Salvar'}</Btn>
+            {saved && <span style={{ fontSize: 12, color: 'var(--up)' }}>✓ Salvo</span>}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function AgentCard({ agent, onConfigure }) {
   const statusVariant = STATUS_VARIANT[agent.status] ?? 'neutral';
   const domainVariant = DOMAIN_VARIANT[agent.domain] ?? 'neutral';
   const lastRun = agent.last_run ?? agent.last ?? null;
@@ -62,6 +149,11 @@ function AgentCard({ agent }) {
             </div>
           )}
         </div>
+        <div style={{ marginTop: 14 }}>
+          <Btn variant="ghost" size="sm" onClick={() => onConfigure(agent.id)}>
+            <Icon name="settings" size={12} /> Configurar
+          </Btn>
+        </div>
       </div>
     </div>
   );
@@ -72,6 +164,7 @@ function ScreenAgents() {
   const [agents,  setAgents]  = useState(mock ? CT.agents : null);
   const [loading, setLoading] = useState(!mock);
   const [error,   setError]   = useState(null);
+  const [configAgent, setConfigAgent] = useState(null);
 
   useEffect(() => {
     if (mock) return;
@@ -105,30 +198,13 @@ function ScreenAgents() {
 
       <div className="grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', marginBottom: 20 }}>
         {agents.map(agent => (
-          <AgentCard key={agent.id} agent={agent} />
+          <AgentCard key={agent.id} agent={agent} onConfigure={setConfigAgent} />
         ))}
       </div>
 
-      <div className="card">
-        <div className="card-head">
-          <span className="card-title"><Icon name="settings" />Parâmetros das Estratégias</span>
-        </div>
-        <div className="card-pad">
-          <div className="grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
-            {Object.entries(CT.strategies ?? {}).map(([name, params]) => (
-              <div key={name}>
-                <div className="label-xs" style={{ marginBottom: 10 }}>{name}</div>
-                {Object.entries(params).map(([k, v]) => (
-                  <div key={k} className="stat-row">
-                    <span className="stat-k">{k}</span>
-                    <span className="stat-v">{String(v)}</span>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      {configAgent && (
+        <AgentConfigDrawer agentId={configAgent} onClose={() => setConfigAgent(null)} />
+      )}
     </div>
   );
 }

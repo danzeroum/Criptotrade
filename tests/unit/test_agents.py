@@ -5,6 +5,7 @@ from src.agents.execution_agent import ExecutionAgent
 from src.agents.ops_agent import OpsAgent
 from src.agents.risk_agent import RiskAgent
 from src.agents.strategy_agent import StrategyAgent
+from src.core.exchange_client import ExchangeClient
 
 
 @pytest.mark.asyncio
