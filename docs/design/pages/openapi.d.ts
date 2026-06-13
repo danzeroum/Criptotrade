@@ -848,6 +848,11 @@ export interface components {
              */
             monte_carlo_sims: number;
             /**
+             * Pair
+             * @default BTC/USDT
+             */
+            pair: string;
+            /**
              * Slippage Bps
              * @default 5
              */

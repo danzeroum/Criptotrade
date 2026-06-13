@@ -13,6 +13,8 @@ from typing import Any, Dict, Generic, List, Optional, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from src.core.pairs import is_allowed
+
 T = TypeVar("T")
 
 
@@ -357,10 +359,23 @@ class RiskConfigPatch(BaseModel):
 # ----------------------------------------------------------------- backtest
 class BacktestConfigIn(BaseModel):
     strategy: str = "dca"
+    # Pair to backtest. Defaults to BTC/USDT (the default is trusted — Pydantic
+    # skips validating it — so a custom MARKET_PAIRS without BTC can't break an
+    # omitted field). An explicitly supplied pair IS validated against the
+    # allowlist below.
+    pair: str = Field(default="BTC/USDT")
     initial_capital: float = Field(default=10000.0, gt=0)
     commission_pct: float = Field(default=0.1, ge=0, le=5)
     slippage_bps: int = Field(default=5, ge=0, le=100)
     monte_carlo_sims: int = Field(default=1000, ge=100, le=10000)
+
+    @field_validator("pair")
+    @classmethod
+    def pair_must_be_allowed(cls, v: str) -> str:
+        symbol = v.replace("-", "/").upper() if "/" not in v else v.upper()
+        if not is_allowed(symbol):
+            raise ValueError(f"Par '{symbol}' não permitido. Configure em MARKET_PAIRS.")
+        return symbol
 
 
 class BacktestResultOut(BaseModel):

@@ -1268,6 +1268,11 @@
             "title": "Monte Carlo Sims",
             "type": "integer"
           },
+          "pair": {
+            "default": "BTC/USDT",
+            "title": "Pair",
+            "type": "string"
+          },
           "slippage_bps": {
             "default": 5,
             "maximum": 100.0,
