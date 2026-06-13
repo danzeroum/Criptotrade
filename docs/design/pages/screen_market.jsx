@@ -51,7 +51,10 @@ function ScreenMarket() {
   const [pairs, setPairs] = useState(mock ? ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'] : null);
 
   const mockData = useMemo(() => ({
-    candles: CT.candles.map(c => ({ t: c.i, o: c.open, h: c.high, l: c.low, c: c.close, v: c.volume })),
+    candles: CT.candles.map((c, idx, arr) => ({
+      t: Date.now() - (arr.length - 1 - idx) * 3600e3,
+      o: c.open, h: c.high, l: c.low, c: c.close, v: c.volume,
+    })),
     bb: CT.bb,
     indicators: {
       rsi: CT.indicators.rsi,
@@ -130,6 +133,7 @@ function ScreenMarket() {
   const [error,         setError]         = useState(null);
   const [auto,          setAuto]          = useState(false);   // M3: auto-refresh
   const [showFactors,   setShowFactors]   = useState(false);   // M6: confidence breakdown
+  const [showBB,        setShowBB]        = useState(true);    // M4: Bollinger overlay
 
   // Mercado exige um par concreto; se o escopo global for 'ALL', usa o default.
   const effPair = effectivePair(pair, pairs);
@@ -177,6 +181,9 @@ function ScreenMarket() {
     return () => clearInterval(id);
   }, [auto, effPair, tf]);
 
+  // M4: Bollinger series derived client-side from the fetched candles.
+  const bbSeries = useMemo(() => (candles ? computeBB(candles) : []), [candles]);
+
   // Full-screen spinner only on the first load; refreshes keep the cards visible.
   if (loading && !candles) return <LoadingState label="Carregando análise de mercado…" />;
   if (error)   return <ErrorState message="Erro ao carregar mercado" onRetry={() => { setError(null); load(); }} />;
@@ -223,7 +230,7 @@ function ScreenMarket() {
       </div>
 
       {/* Price KPIs */}
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)', marginBottom: 20 }}>
+      <div className="grid grid-kpi5" style={{ marginBottom: 20 }}>
         <div className="card">
           <KPI label="Preço atual" value={lastClose} format="usd" icon="dollar" />
         </div>
@@ -242,17 +249,26 @@ function ScreenMarket() {
       </div>
 
       {/* Candle chart + Signal */}
-      <div className="grid" style={{ gridTemplateColumns: '1fr 300px', marginBottom: 20, alignItems: 'start' }}>
+      <div className="grid grid-chart-rail" style={{ marginBottom: 20 }}>
         <div className="card">
           <div className="card-head">
             <span className="card-title"><Icon name="candle" />{effPair} · {tf}</span>
-            <FreshnessBadge asOf={signal?.as_of ?? indicators?.as_of ?? regime?.as_of} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <FreshnessBadge asOf={signal?.as_of ?? indicators?.as_of ?? regime?.as_of} />
+              <Btn variant={showBB ? '' : 'ghost'} size="sm" onClick={() => setShowBB(v => !v)}
+                aria-pressed={showBB} aria-label="Alternar Bandas de Bollinger">
+                BB
+              </Btn>
+            </div>
           </div>
           <div className="card-pad" style={{ padding: '14px 12px' }}>
             {candles && candles.length > 0 ? (
               <CandleChart
                 candles={candles}
+                bb={showBB ? bbSeries : []}
                 height={280}
+                tf={tf}
+                pair={effPair}
               />
             ) : (
               <EmptyState label="Sem candles" />
@@ -346,7 +362,7 @@ function ScreenMarket() {
       </div>
 
       {/* MACD + Indicators + S/R + Volume Profile */}
-      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', marginBottom: 20 }}>
+      <div className="grid grid-3" style={{ marginBottom: 20 }}>
         {/* Indicators */}
         <div className="card">
           <div className="card-head"><span className="card-title"><Icon name="activity" />Indicadores</span></div>
@@ -491,7 +507,7 @@ function ScreenMarket() {
                 )}
               </div>
             )}
-            <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: 0 }}>
+            <div className="grid grid-regime4" style={{ gap: 0 }}>
               {CT.regime.options.map(opt => (
                 <div
                   key={opt.key}

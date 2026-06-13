@@ -6,6 +6,37 @@
 
 const { useState, useEffect, useRef } = React;
 
+// ---- Number formatting (M7) — single source of truth, en-US convention ----
+// Charts used bare toLocaleString() (locale-dependent); screens forced 'en'.
+// These helpers canonicalise on 'en' so every price/number matches.
+function fmtNum(v, dp = 2) {
+  if (v === null || v === undefined || Number.isNaN(+v)) return '—';
+  return (+v).toLocaleString('en', { minimumFractionDigits: dp, maximumFractionDigits: dp });
+}
+function fmtUsd(v, dp = 2) {
+  if (v === null || v === undefined || Number.isNaN(+v)) return '—';
+  return `$${fmtNum(v, dp)}`;
+}
+function fmtPrice(v) {
+  // Majors render as integers; sub-$10 coins (e.g. XRP) keep precision.
+  if (v === null || v === undefined || Number.isNaN(+v)) return '—';
+  return +v >= 10
+    ? Math.round(+v).toLocaleString('en')
+    : (+v).toLocaleString('en', { maximumFractionDigits: 4 });
+}
+function fmtCompact(v) {
+  // Dense axis labels: 3.4M / 67,667 / 12.34.
+  if (v === null || v === undefined || Number.isNaN(+v)) return '–';
+  const n = +v;
+  if (Math.abs(n) >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+  if (Math.abs(n) >= 1e3) return Math.round(n).toLocaleString('en');
+  return n.toFixed(2);
+}
+window.fmtNum = fmtNum;
+window.fmtUsd = fmtUsd;
+window.fmtPrice = fmtPrice;
+window.fmtCompact = fmtCompact;
+
 // ---- Icon (inline SVG paths via name) ----
 const ICONS = {
   alert:     'M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z',
@@ -83,10 +114,11 @@ function Badge({ variant = 'neutral', dot = true, children }) {
 window.Badge = Badge;
 
 // ---- Btn ----
-function Btn({ variant = '', size = '', onClick, disabled, children, style }) {
+function Btn({ variant = '', size = '', onClick, disabled, children, style, ...rest }) {
   const cls = ['btn', variant ? `btn-${variant}` : '', size ? `btn-${size}` : ''].filter(Boolean).join(' ');
+  // ...rest forwards aria-pressed / aria-label / title for accessible toggles (M8).
   return (
-    <button className={cls} onClick={onClick} disabled={disabled} style={style}>
+    <button className={cls} onClick={onClick} disabled={disabled} style={style} {...rest}>
       {children}
     </button>
   );
