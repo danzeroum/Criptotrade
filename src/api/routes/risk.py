@@ -49,7 +49,7 @@ def _daily_loss_pct(ledger: TradingLedger, initial_capital: float) -> float:
         e.get("data", {}).get("pnl", 0.0)
         for e in entries
         if e.get("event_type") == "position_closed"
-        and (e.get("data", {}).get("timestamp") or "").startswith(today)
+        and (e.get("timestamp") or "").startswith(today)
     )
     if initial_capital <= 0:
         return 0.0
