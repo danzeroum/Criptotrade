@@ -259,3 +259,88 @@ def test_patch_risk_config_all_fields(tmp_path, monkeypatch):
     assert written["take_profit"]["default_pct"] == 6.0
     assert written["loss_limits"]["max_weekly_loss_pct"] == 8.0
     assert written["loss_limits"]["max_monthly_loss_pct"] == 15.0
+
+
+# ── Protection: paused and warn states ───────────────────────────────────────
+
+def _fake_metrics(pnl_pct: float):
+    """Return a PortfolioMetrics-like stub with the given pnl_period_pct."""
+    from src.core.metrics import PortfolioMetrics
+    from datetime import UTC, datetime
+
+    return PortfolioMetrics(
+        sharpe_ratio=None,
+        win_rate=None,
+        max_drawdown=0.0,
+        profit_factor=None,
+        total_trades=0,
+        open_positions=0,
+        portfolio_value_usdt=10_000.0,
+        pnl_period_usdt=pnl_pct * 10_000.0,
+        pnl_period_pct=pnl_pct,
+        exposure_pct=0.0,
+        initial_capital_usdt=10_000.0,
+        period="1d",
+        calculated_at=datetime.now(UTC).isoformat(),
+        has_data=True,
+    )
+
+
+def test_protection_paused_state(tmp_path, monkeypatch):
+    """Lines 95-96: daily loss >= limit → status=paused, action=stop."""
+    import src.api.routes.risk as risk_mod
+
+    yaml_file = tmp_path / "rp.yaml"
+    yaml_file.write_text("loss_limits:\n  max_daily_loss_pct: 5.0\n")
+    monkeypatch.setattr(risk_mod, "_RISK_PARAMS_PATH", yaml_file)
+
+    ledger = TradingLedger(tmp_path / "trades.jsonl")
+
+    class FakeCalc:
+        initial_capital = 10_000.0
+
+        def compute(self, period="all"):
+            if period == "1d":
+                return _fake_metrics(-0.10)  # -10% daily loss > 5% limit
+            return _fake_metrics(0.0)
+
+    app = create_app()
+    app.dependency_overrides[deps.get_ledger] = lambda: ledger
+    app.dependency_overrides[deps.get_metrics_calculator] = lambda: FakeCalc()
+
+    r = TestClient(app).get("/v1/risk/protections")
+    assert r.status_code == 200
+    data = r.json()["data"]
+    daily = next(p for p in data if p["scope"] == "daily")
+    assert daily["status"] == "paused"
+    assert daily["action"] == "stop"
+
+
+def test_protection_warn_state(tmp_path, monkeypatch):
+    """Lines 98-99: daily loss in 80%-100% of limit → status=warn, action=pause."""
+    import src.api.routes.risk as risk_mod
+
+    yaml_file = tmp_path / "rp.yaml"
+    yaml_file.write_text("loss_limits:\n  max_daily_loss_pct: 5.0\n")
+    monkeypatch.setattr(risk_mod, "_RISK_PARAMS_PATH", yaml_file)
+
+    ledger = TradingLedger(tmp_path / "trades.jsonl")
+
+    class FakeCalc:
+        initial_capital = 10_000.0
+
+        def compute(self, period="all"):
+            if period == "1d":
+                return _fake_metrics(-0.043)  # -4.3% (between 4.0 and 5.0)
+            return _fake_metrics(0.0)
+
+    app = create_app()
+    app.dependency_overrides[deps.get_ledger] = lambda: ledger
+    app.dependency_overrides[deps.get_metrics_calculator] = lambda: FakeCalc()
+
+    r = TestClient(app).get("/v1/risk/protections")
+    assert r.status_code == 200
+    data = r.json()["data"]
+    daily = next(p for p in data if p["scope"] == "daily")
+    assert daily["status"] == "warn"
+    assert daily["action"] == "pause"
