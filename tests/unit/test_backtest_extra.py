@@ -67,6 +67,15 @@ def test_sharpe_normal_two_trades():
 
 # ── BacktestEngine._check_exits ───────────────────────────────────────────────
 
+def test_check_exits_buy_stop_loss_hit():
+    """Line 184: BUY + low <= sl → returns (sl, 'stop_loss')."""
+    engine = BacktestEngine()
+    trade = {"action": "BUY", "stop_loss": 48_000.0, "take_profit": 52_000.0}
+    price, reason = engine._check_exits(trade, high=50_000.0, low=47_000.0, close=47_500.0)
+    assert price == 48_000.0
+    assert reason == "stop_loss"
+
+
 def test_check_exits_buy_take_profit_hit():
     """Line 186: BUY + high >= tp → returns (tp, 'take_profit')."""
     engine = BacktestEngine()
@@ -74,6 +83,15 @@ def test_check_exits_buy_take_profit_hit():
     price, reason = engine._check_exits(trade, high=53_000.0, low=50_000.0, close=53_000.0)
     assert price == 52_000.0
     assert reason == "take_profit"
+
+
+def test_check_exits_unknown_action():
+    """Line 187->193: action is neither BUY nor SELL → returns (None, '')."""
+    engine = BacktestEngine()
+    trade = {"action": "HOLD", "stop_loss": 48_000.0, "take_profit": 52_000.0}
+    price, reason = engine._check_exits(trade, high=53_000.0, low=47_000.0, close=50_000.0)
+    assert price is None
+    assert reason == ""
 
 
 def test_check_exits_sell_stop_loss_hit():
@@ -124,9 +142,10 @@ async def test_run_strategy_exception_continues(tmp_path):
 
     engine = BacktestEngine(initial_capital=10_000.0)
     ts = 1_700_000_000_000
+    # Need at least WARMUP_CANDLES (50) + 10 = 60 candles to bypass the warmup guard
     ohlcv = [
         [ts + i * 3600_000, 50_000.0, 50_500.0, 49_500.0, 50_000.0, 100.0]
-        for i in range(30)
+        for i in range(65)
     ]
     result = await engine.run(FailingStrategy(), ohlcv)
     # Should complete without crash (all candles skipped due to exception)
