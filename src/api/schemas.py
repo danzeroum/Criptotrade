@@ -207,6 +207,15 @@ class CandleOut(BaseModel):
     v: float
 
 
+class TickerOut(BaseModel):
+    """Current price + 24h stats, derived from OHLCV (dry-run = synthetic)."""
+
+    last: float
+    change_24h_pct: float
+    high_24h: float
+    low_24h: float
+
+
 class MacdOut(BaseModel):
     macd: float
     signal: float
