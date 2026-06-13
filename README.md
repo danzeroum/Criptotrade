@@ -156,7 +156,10 @@ print(result["ran"])                     # ex.: ['strategy', 'risk', 'execution'
 | Variável | Default | Descrição |
 |---|---|---|
 | `EXCHANGE_DRY_RUN` | **(obrigatória)** | `true` = sintético/offline · `false` = exchange real (produção) |
-| `DRY_RUN_BASE_PRICE` | `50000` | Preço-base do mercado sintético (determinístico) |
+| `DRY_RUN_BASE_PRICE` | `50000` | Preço-base sintético do BTC/USDT (âncora determinística) |
+| `DRY_RUN_BASE_PRICES` | — | Overrides por par (`BTC/USDT=50000,ETH/USDT=3000`); pares não mapeados ganham preço determinístico próprio |
+| `MARKET_PAIRS` | `BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT,XRP/USDT` | Allowlist de pares (API, loop e dashboards) |
+| `SYMBOLS` | `BTC/USDT` | Pares que o loop opera por ciclo (opt-in multi-cripto; subconjunto de `MARKET_PAIRS`) |
 | `AUTONOMY_LEVEL` | `2` | Nível HITL 0–3 (threshold de auto-aprovação por valor) |
 | `INITIAL_CAPITAL` | `10000` | Capital base (dimensiona quantidade e métricas) |
 | `LEDGER_DIR` | `.buildtovalue/ledger` | Diretório do ledger JSONL + `criptotrade.db` (montar volume em prod) |
