@@ -86,3 +86,48 @@ def test_guardrail_sink_failure_does_not_break_validation(store):
     # Validation must still return its verdict even if the sink raises.
     ok, violations = gs.validate_order({"position_size_pct": 99.0})
     assert ok is False and violations
+
+
+def test_store_history_since_filter(tmp_path):
+    """History with a `since` cutoff — covers AlertStore.history lines 84-87."""
+    import json
+    from datetime import datetime, timezone
+
+    path = tmp_path / "alerts_since.jsonl"
+    old_alert = Alert(severity="high", type="test", message="old").to_dict()
+    new_alert = Alert(severity="high", type="test", message="new").to_dict()
+    old_alert["occurred_at"] = "2020-06-01T00:00:00+00:00"
+    new_alert["occurred_at"] = "2026-06-01T00:00:00+00:00"
+
+    with path.open("w") as f:
+        f.write(json.dumps(old_alert) + "\n")
+        f.write(json.dumps(new_alert) + "\n")
+
+    store = AlertStore(path)
+    since = datetime(2021, 1, 1, tzinfo=timezone.utc)
+    rows, total = store.history(since=since)
+    assert total == 1
+    assert rows[0]["message"] == "new"
+
+
+def test_store_history_skips_blank_lines(tmp_path):
+    """Blank lines in the JSONL file are skipped gracefully (line 80 branch)."""
+    import json
+    path = tmp_path / "alerts.jsonl"
+    alert = Alert(severity="low", type="t", message="valid")
+    with path.open("w") as f:
+        f.write("\n")                                         # blank line
+        f.write(json.dumps(alert.to_dict()) + "\n")           # real entry
+        f.write("   \n")                                      # whitespace-only line
+
+    store = AlertStore(path)
+    rows, total = store.history()
+    assert total == 1
+    assert rows[0]["message"] == "valid"
+
+
+def test_parse_ts_invalid_string_returns_none():
+    from src.core.alerts import _parse_ts
+    assert _parse_ts("not-a-date") is None
+    assert _parse_ts("") is None
+    assert _parse_ts(None) is None
