@@ -6,16 +6,35 @@ later if the ledger grows large (documented in the architecture plan).
 """
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.api.deps import get_ledger, get_metrics_calculator
 from src.api.schemas import APIResponse, EquityPoint, Links, PortfolioMetricsOut
 from src.core.ledger import TradingLedger
 from src.core.metrics import PortfolioMetricsCalculator
+from src.core.pairs import allowed_pairs, is_allowed
 
 router = APIRouter(prefix="/metrics", tags=["metrics"])
+
+
+def _validated_symbol(symbol: Optional[str]) -> Optional[str]:
+    """Normalize + allowlist-check an optional ``?symbol`` filter (None = all pairs)."""
+    if symbol is None or not symbol.strip():
+        return None
+    sym = symbol.replace("-", "/").upper() if "/" not in symbol else symbol.upper()
+    if not is_allowed(sym):
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "invalid_pair",
+                "message": f"Par '{sym}' não permitido.",
+                "valid": allowed_pairs(),
+                "docs": "/v1/docs",
+            },
+        )
+    return sym
 
 
 @router.get(
@@ -25,13 +44,16 @@ router = APIRouter(prefix="/metrics", tags=["metrics"])
 )
 async def get_metrics(
     period: str = Query("7d", pattern="^(1d|7d|30d|90d|all)$"),
+    symbol: Optional[str] = Query(None, description="Filtrar por par (ex.: BTC/USDT). Vazio = portfólio inteiro."),
     calc: PortfolioMetricsCalculator = Depends(get_metrics_calculator),
 ) -> APIResponse[PortfolioMetricsOut]:
-    metrics = calc.compute(period=period)
+    sym = _validated_symbol(symbol)
+    metrics = calc.compute(period=period, symbol=sym)
+    self_link = f"/v1/metrics?period={period}" + (f"&symbol={sym}" if sym else "")
     return APIResponse(
         data=PortfolioMetricsOut(**metrics.to_dict()),
         links=Links(
-            self=f"/v1/metrics?period={period}",
+            self=self_link,
             related={"alerts": "/v1/alerts/history", "hitl": "/v1/hitl/config"},
         ),
     )
@@ -44,12 +66,15 @@ async def get_metrics(
 )
 async def get_equity(
     period: str = Query("90d", pattern="^(7d|30d|90d|all)$"),
+    symbol: Optional[str] = Query(None, description="Filtrar por par (ex.: BTC/USDT). Vazio = portfólio inteiro."),
     ledger: TradingLedger = Depends(get_ledger),
     calc: PortfolioMetricsCalculator = Depends(get_metrics_calculator),
 ) -> APIResponse[List[EquityPoint]]:
+    sym = _validated_symbol(symbol)
     entries = [
         e for e in ledger.read_all()
         if e.get("event_type") == "position_closed"
+        and (sym is None or str(e.get("data", {}).get("symbol", "")).upper() == sym)
     ]
     initial_capital = calc.initial_capital
     equity = initial_capital

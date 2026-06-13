@@ -2330,6 +2330,8 @@ export interface operations {
         parameters: {
             query?: {
                 period?: string;
+                /** @description Filtrar por par (ex.: BTC/USDT). Vazio = portfólio inteiro. */
+                symbol?: string | null;
             };
             header?: never;
             path?: never;
@@ -2361,6 +2363,8 @@ export interface operations {
         parameters: {
             query?: {
                 period?: string;
+                /** @description Filtrar por par (ex.: BTC/USDT). Vazio = portfólio inteiro. */
+                symbol?: string | null;
             };
             header?: never;
             path?: never;

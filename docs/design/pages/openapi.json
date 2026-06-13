@@ -4608,6 +4608,24 @@
               "title": "Period",
               "type": "string"
             }
+          },
+          {
+            "description": "Filtrar por par (ex.: BTC/USDT). Vazio = portf\u00f3lio inteiro.",
+            "in": "query",
+            "name": "symbol",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por par (ex.: BTC/USDT). Vazio = portf\u00f3lio inteiro.",
+              "title": "Symbol"
+            }
           }
         ],
         "responses": {
@@ -4651,6 +4669,24 @@
               "pattern": "^(7d|30d|90d|all)$",
               "title": "Period",
               "type": "string"
+            }
+          },
+          {
+            "description": "Filtrar por par (ex.: BTC/USDT). Vazio = portf\u00f3lio inteiro.",
+            "in": "query",
+            "name": "symbol",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por par (ex.: BTC/USDT). Vazio = portf\u00f3lio inteiro.",
+              "title": "Symbol"
             }
           }
         ],
