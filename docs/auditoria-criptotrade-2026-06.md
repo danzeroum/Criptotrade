@@ -1,7 +1,7 @@
 # Auditoria de Código & Plano de Remediação — CriptoTrade
-**Versão:** 2.0 · **Data:** 2026-06-12 · **Idioma:** pt-BR  
+**Versão:** 3.0 · **Data:** 2026-06-12 · **Idioma:** pt-BR  
 **Coordenador:** Agente AI (Claude) · **Repositório:** `danzeroum/criptotrade`  
-**Histórico:** v1.0 2026-06-11 (auditoria inicial) · v2.0 2026-06-12 (P1 concluído; roadmap P0→P2→P3)
+**Histórico:** v1.0 2026-06-11 (auditoria inicial) · v2.0 2026-06-12 (P1 concluído; roadmap P0→P2→P3) · v3.0 2026-06-12 (Sprint A/B/C + Fase 5b concluídos; auditoria de validação pós-entrega)
 
 ---
 
@@ -45,11 +45,11 @@ Consequências diretas:
 | 500 em texto plano para exceções não tratadas | ✅ **Confirmado** | `main.py` — **CORRIGIDO em P1-1** (`commit 9adbc00`) + **P1-2** (`commit d68e2fa`) |
 | `/openapi.json` 404 em produção | ✅ **Confirmado como risco** | `main.py:70-77` — **CORRIGIDO em P1-6** (`commit 9adbc00`) |
 | `GET /v1/orders` sem paginação real | ✅ **Confirmado** | `orders.py:42-45` — **CORRIGIDO em P1-3** (`commit d68e2fa`) |
-| Sem validação de par de mercado | ✅ **Confirmado** | `market.py:40-43` — **ABERTO** (P2-2) |
+| Sem validação de par de mercado | ✅ **Confirmado** | `market.py:40-43` — **CORRIGIDO P2-2** (PR #39) |
 | Dados sintéticos (exchange simulada) | ✅ **Confirmado como by-design** | `docker-compose.yml` define `EXCHANGE_DRY_RUN=true`; ADR-001 documenta formalmente a estratégia Paper Trading First |
 | API aberta sem `API_KEYS` | ⚠️ **Não verificável aqui — deferido P0-0** | `main.py:46-48` confirma fail-open; estado real da variável em prod desconhecido |
 | `dry_run` desligável sem auth | ⚠️ **Parcialmente improcedente** | `PATCH /v1/config` só altera `initial_capital` + `orchestrator_interval_seconds` — **`dry_run` não é mutável via API**. Risco real: mutações sem auth quando `API_KEYS` vazio (coberto por P0-1/P0-4) |
-| CORS `*` em produção | ⚠️ **Código confirma, prod não verificada** | `main.py:82` — **ABERTO** (P0-2) |
+| CORS `*` em produção | ⚠️ **Código confirma, prod não verificada** | `main.py:82` — **CORRIGIDO P0-2** (Sprint A, PR #38); fail-closed em `APP_ENV=production` (PR #40) |
 | `open_positions` com contagem crescente | ✅ **Causa-raiz confirmada no código** | `log_position_closed` nunca era chamado — **CORRIGIDO em P1-5** (`commit 980c562`) |
 | "`GET /v1/orders` congela a conexão com a exchange" | ⚠️ **Corrigido/discordância técnica** | `orders.py:42` — `store.list()` lê SQLite local; **causa real**: resultado ilimitado + lock WAL — **CORRIGIDO em P1-3** |
 | Console React = protótipo sem valor de produção | ❌ **Discordância** | `index.html` + `app.jsx` usam `API_BASE=""` (relativo, sem mock); PRs #25–35 integrados; `USE_MOCK_DATA` é flag de fallback, não default ativo |
@@ -182,14 +182,14 @@ Rota retornava todas as ordens em uma página (pseudo-meta). Com ~10k ordens, re
 
 ---
 
-### Bug 5 — Sem validação de par de mercado ⚠️ ABERTO (P2-2)
+### Bug 5 — Sem validação de par de mercado ✅ CORRIGIDO (P2-2, PR #39)
 **Arquivo:** `src/api/routes/market.py:40-43`
 
 Qualquer string URL-decodificável é aceita como par. Sem whitelist, a exchange sintética retorna dados para qualquer símbolo — enganando o usuário.
 
 ---
 
-### Bug 6 — Jobs de backtest perdidos em restart ⚠️ ABERTO (P2-1)
+### Bug 6 — Jobs de backtest perdidos em restart ✅ CORRIGIDO (P2-1, PR #39)
 **Arquivo:** `src/api/routes/backtest.py:33`
 
 ```python
@@ -226,33 +226,33 @@ KPI "Preço atual" usava `CT.symbol.price` (mock) enquanto o gráfico buscava ca
 
 | ID | Descrição | Estado | Evidência |
 |----|-----------|--------|-----------|
-| G-01 | Autenticação fail-open: sem `API_KEYS`, a API é pública | **ABERTO** (P0-1) | `main.py:46-48` |
-| G-02 | CORS `*` por default: qualquer origem pode chamar a API | **ABERTO** (P0-2) | `main.py:82` |
-| G-03 | Mutações sem auth quando `API_KEYS` vazio | **ABERTO** (P0-4; resolvido por P0-1) | `config.py` + `hitl.py` |
-| G-04 | Ausência de rate limiting: sem throttle em mutações ou mercado | **ABERTO** (P0-3) | Nenhum middleware |
+| G-01 | Autenticação fail-open: sem `API_KEYS`, a API é pública | ✅ **RESOLVIDO** P0-1 + P3-6 | Sprint A PR #38 (middleware); PR #40 (fail-closed em prod) |
+| G-02 | CORS `*` por default: qualquer origem pode chamar a API | ✅ **RESOLVIDO** P0-2 + P3-6 | Sprint A PR #38 + fail-closed guard PR #40 |
+| G-03 | Mutações sem auth quando `API_KEYS` vazio | ✅ **RESOLVIDO** P0-1 + P0-4 | Sprint A PR #38 |
+| G-04 | Ausência de rate limiting: sem throttle em mutações ou mercado | ✅ **RESOLVIDO** P0-3 | Sprint A PR #38 (`RateLimitMiddleware`) |
 | G-05 | Guardrails não eram chamados até 2026-06-04 (ADR-003): auditoria retroativa impossível | Histórico | ADR-003 |
 
 #### 🟡 Importante / Deve corrigir antes de ampliar usuários
 
 | ID | Descrição | Estado | Evidência |
 |----|-----------|--------|-----------|
-| G-06 | Sem headers de segurança HTTP (CSP, HSTS, X-Frame-Options) | **ABERTO** (P0-5) | Nenhum middleware/nginx config no repo |
+| G-06 | Sem headers de segurança HTTP (CSP, HSTS, X-Frame-Options) | ✅ **RESOLVIDO** P0-5 | Sprint A PR #38 (`SecurityHeadersMiddleware`); HSTS longo via nginx PR #40 |
 | G-07 | Kelly enganoso com ledger vazio (Bug 1) | ✅ **RESOLVIDO** P1-4 | `commit 9adbc00` |
 | G-08 | 500 texto plano para exceções não tratadas (Bug 2) | ✅ **RESOLVIDO** P1-1+P1-2 | `commit 9adbc00` + `d68e2fa` |
 | G-09 | `GET /v1/orders` sem paginação real (Bug 3) | ✅ **RESOLVIDO** P1-3 | `commit d68e2fa` |
-| G-10 | `_jobs` backtest em memória — volátil (Bug 6) | **ABERTO** (P2-1) | `backtest.py:33` |
-| G-11 | Cola de deploy (nginx/compose) ausente do repo | **ABERTO** (P3-2) | Nenhum `infra/` no repo |
+| G-10 | `_jobs` backtest em memória — volátil (Bug 6) | ✅ **RESOLVIDO** P2-1 | Sprint B PR #39 (`backtest_jobs` SQLite) |
+| G-11 | Cola de deploy (nginx/compose) ausente do repo | ✅ **RESOLVIDO** P3-2 | PR #40 (`docker-compose.prod.yml`, nginx TLS) |
 | G-16 | `open_positions` crescia indefinidamente (Bug 7) | ✅ **RESOLVIDO** P1-5 | `commit 980c562` |
 
 #### 🟢 Menor / Melhorias de qualidade
 
 | ID | Descrição | Estado | Evidência |
 |----|-----------|--------|-----------|
-| G-12 | Sem validação de par de mercado (Bug 5) | **ABERTO** (P2-2) | `market.py:40-43` |
+| G-12 | Sem validação de par de mercado (Bug 5) | ✅ **RESOLVIDO** P2-2 | Sprint B PR #39 (allowlist `MARKET_PAIRS`) |
 | G-13 | `openapi.json` inacessível via nginx (Bug 4) | ✅ **RESOLVIDO** P1-6 | `commit 9adbc00` |
-| G-14 | Console React usa Babel no browser em dev | **ABERTO** (P3-1) | `index.html` |
-| G-15 | `GET /v1/process/events` sem consumidor conhecido | **ABERTO** (P2-3) | `process.py` |
-| G-17 | README cita "138 testes" e não documenta separação Streamlit×Console | **ABERTO** (P2-4) | `README.md` |
+| G-14 | Console React usa Babel no browser em dev | ✅ **RESOLVIDO** P3-1 | PR #41 (esbuild), PR #46 (IIFE fix) |
+| G-15 | `GET /v1/process/events` sem consumidor conhecido | ✅ **RESOLVIDO** P2-3 | Sprint B PR #39 (`docs/integrations/process-mining.md`) |
+| G-17 | README cita "138 testes" e não documenta separação Streamlit×Console | ✅ **RESOLVIDO** P2-4 | Sprint B PR #39 (324 testes, design note) |
 | G-18 | Tela de Mercado misturava dados mock e API (Bug 8) | ✅ **RESOLVIDO** P1-7 | `commit a1e677f`+`5ce8283` |
 
 ### 5.2 O Que Está Bem
@@ -270,7 +270,12 @@ O sistema tem uma base sólida para um MVP de trading:
 - **Progressive Autonomy** (`hitl.py`): níveis 0-3 de autonomia configuráveis.
 - **Envelope de resposta consistente** `APIResponse<T>` com `data` + `meta`: contrato de API estável.
 - **Tratamento gracioso de falhas no Dashboard** (`app.py:27-48`): degrada para "API offline" sem travar.
-- **P1 integralmente concluído** (7 itens, PRs #32/#33/#34/#35, ~180 linhas de prod + ~121 testes ao todo — contagem exata a confirmar em P2-4).
+- **P1 integralmente concluído** (7 itens, PRs #32/#33/#34/#35, ~180 linhas de prod).
+- **P0 + Sprint A** concluído (auth fail-closed, CORS, rate limiting, security headers, confirm em mutações — PR #38 + fail-closed guard PR #40).
+- **Sprint B (P2)** concluído — market pair allowlist, backtest SQLite, process-mining doc, README corrigido (PR #39).
+- **Sprint C (P3)** concluído — console build, nginx TLS, Sentry, OpenAPI snapshot, E2E Playwright, config gate (PRs #40–#46).
+- **Fase 5b** concluída — TODO(5b) tech-debts, pruning de `cycle_events`, ledger JSONL→SQLite, cobertura de posição short, micro cleanups (PRs #48–#52).
+- **324 testes** passando em master (verificado 2026-06-12).
 
 ---
 
@@ -407,6 +412,24 @@ O sistema tem uma base sólida para um MVP de trading:
 
 ---
 
+### Fase 5b — Janitorial / Observabilidade ✅ CONCLUÍDA
+
+- [x] **5b-1 — TODO(5b) tech-debts** (`hitl/orders.py`, `squad_orchestrator.py`, `dashboard/app.py`)  
+  ✅ PR #48 — `_last_order_ref` reset no final de cada `analyze_and_trade()`; `wait_for_decision()` falha rápido (`<1 s`) para `order_id` inexistente (em vez de bloquear até timeout); stubs `not_implemented` filtrados no dashboard por checkbox.
+
+- [x] **5b-2 — Pruning de `cycle_events`**  
+  ✅ PR #49 — `AgentRegistry.prune_cycle_events(retention_days=30)` chamado na fronteira de dia; XES events → SQLite adiado formalmente (ADR-003 atualizado).
+
+- [x] **5b-3 — Ledger JSONL → SQLite (ADR-003)**  
+  ✅ PR #52 — `TradingLedger` agora persiste em `trades.db` (SQLite WAL); `scripts/migrate_ledger.py` migra histórico JSONL existente. Leitura e queries via `connection()`.
+
+- [x] **5b-4 — Cobertura de posição short + micro cleanups**  
+  ✅ PR #51 — Testes de `_exit_price`/`_check_open_positions` cobrindo ramo `sell`; `macdData` morto removido de `screen_market.jsx`; `Optional[float]` → `float | None` em `squad_orchestrator.py`.
+
+> **✅ Fase 5b concluída — 2026-06-12.** PRs #48–#52 entregues e em `master`.
+
+---
+
 ## 7. Modelo de Coordenação e Próximos Passos
 
 ### 7.1 Papéis
@@ -451,29 +474,40 @@ Sprint C — P3 (build / infra / qualidade)
 
 Além dos critérios do ADR-001 (Sharpe > 1.5, DD < 10%, Win Rate > 55%, 100 trades mínimos), os seguintes itens são **pré-requisitos técnicos** independentes de performance:
 
-- [ ] P0-1: auth habilitada em prod
-- [ ] P0-2: CORS travado
-- [ ] P0-3: rate limiting ativo
-- [ ] P0-4: mutações de alto impacto protegidas
-- [ ] P0-5: headers de segurança presentes
+- [ ] P0-1: auth habilitada em prod *(código entregue PR #38 + fail-closed guard PR #40 — pendente: dono setar `API_KEYS` em prod)*
+- [ ] P0-2: CORS travado *(código entregue — pendente: dono setar `CORS_ORIGINS` em prod)*
+- [x] P0-3: rate limiting ativo ✅ `RateLimitMiddleware` (PR #38)
+- [x] P0-4: mutações de alto impacto protegidas ✅ `confirm=true` (PR #38)
+- [x] P0-5: headers de segurança presentes ✅ `SecurityHeadersMiddleware` (PR #38) + nginx HSTS (PR #40)
 - [x] P1-1: sem 500 texto plano ✅ `commit 9adbc00`
 - [x] P3-2: cola de deploy versionada (rastreabilidade) ✅ #40
-- [ ] P0-0 / P0-1..P0-5 acima: **verificar ativos no host** após o deploy (impl. fail-closed pronta; ver `docs/acaoPendenteDono.md`)
+- [ ] P0-0 / P0-1/P0-2 acima: **verificar ativos no host** após o deploy (ver `docs/acaoPendenteDono.md`)
 
 ### 7.4 Micro Follow-ups (baratos — junto do Sprint que tocar o arquivo)
 
-- `screen_market.jsx`: remover `macdData` morto (declarado na linha ~151, nunca renderizado).
-- `squad_orchestrator.py`: `Optional[float]` → `float | None`, dropar import `Optional` (convenção do repo; ruff UP é informativo, não bloqueante).
-- (Produto) "Variação 24h" e título do gráfico: dar fonte real (ticker ou derivado de candles) → remover dependência de `CT.symbol`.
-- Teste de posição **short** (`sell`) para `_exit_price` / `_check_open_positions` — ramo sell está sem cobertura em `tests/integration/test_trading_flow.py`.
+- ~~`screen_market.jsx`: remover `macdData` morto (declarado na linha ~151, nunca renderizado).~~ ✅ PR #51
+- ~~`squad_orchestrator.py`: `Optional[float]` → `float | None`, dropar import `Optional`.~~ ✅ PR #51
+- ~~Teste de posição **short** (`sell`) para `_exit_price` / `_check_open_positions`.~~ ✅ PR #51
+- (Produto) "Variação 24h" e título do gráfico em `screen_market.jsx`: ainda usa `CT.symbol.change24h` (mock de design). Dependente de decisão de produto — quando houver endpoint real de ticker 24h na API, conectar aqui.
 
 ### 7.5 Housekeeping de Branches
 
-Branches remotas mescladas no master — podem ser apagadas:
+Branches remotas mescladas no master — ~~podem ser apagadas~~ ✅ já apagadas:
 
-- `origin/remediacao/p1-baixo-risco` (PR #32, conteúdo em master desde `9adbc00`)
-- `origin/remediacao/p1-confiabilidade` (PRs #33+#34, conteúdo em master desde `d68e2fa`)
-- `origin/remediacao/p1-7-hotfix` (PR #35, conteúdo em master desde `5ce8283`)
+- ~~`origin/remediacao/p1-baixo-risco`~~ ✅ deletada
+- ~~`origin/remediacao/p1-confiabilidade`~~ ✅ deletada
+- ~~`origin/remediacao/p1-7-hotfix`~~ ✅ deletada
+
+### 7.6 Auditoria de Validação Pós-Entrega (2026-06-12)
+
+Revisão do código após Fase 5b. **4 achados corrigidos em `remediacao/audit-fixes`:**
+
+| # | Arquivo | Problema | Severidade | Fix |
+|---|---------|----------|------------|-----|
+| A-01 | `squad_orchestrator.py:84,94` | `CircuitBreaker._trip/_reset()` chamava `ledger.log_event()` inexistente — falha silenciosa via `except Exception: pass`; eventos de trip/reset nunca chegavam ao ledger | Médio | Substituído por `log_decision()` |
+| A-02 | `dashboard/app.py:276` | `total_cycles` somava `agents["data"]` (lista bruta) em vez de `agent_list` (filtrada) — stubs inflavam contador mesmo ocultos | Baixo | Trocado para `agent_list` |
+| A-03 | `scripts/migrate_ledger.py:43` | `json.loads()` sem `try/except` abortava migração em linha corrompida, deixando histórico parcialmente importado sem aviso | Baixo | Adicionado `try/except JSONDecodeError` com skip+warn por linha |
+| A-04 | `README.md` | Contagem de testes desatualizada (273 → 324, duas ocorrências) | Doc | Atualizado |
 
 ---
 

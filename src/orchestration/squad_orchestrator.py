@@ -81,7 +81,7 @@ class CircuitBreaker:
         logger.critical(msg)
         if self._ledger is not None:
             try:
-                self._ledger.log_event("circuit_breaker_tripped", {"reason": reason})
+                self._ledger.log_decision("circuit_breaker_tripped", {"reason": reason})
             except Exception:
                 pass
 
@@ -91,7 +91,7 @@ class CircuitBreaker:
         logger.info("Circuit breaker RESET: %s.", reason)
         if self._ledger is not None:
             try:
-                self._ledger.log_event("circuit_breaker_reset", {"reason": reason})
+                self._ledger.log_decision("circuit_breaker_reset", {"reason": reason})
             except Exception:
                 pass
 
