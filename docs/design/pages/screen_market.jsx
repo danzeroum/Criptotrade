@@ -44,7 +44,7 @@ function SRLevelRow({ label, price, strength, color }) {
   );
 }
 
-function ScreenMarket() {
+function ScreenMarket({ navigate, addToast } = {}) {
   const mock = !!window.USE_MOCK_DATA;
   const [pair, setPair] = useState(CT_PAIR.get());
   const [tf, setTf] = useState('1h');
@@ -118,6 +118,7 @@ function ScreenMarket() {
       valid_until: new Date(Date.now() + 3600e3).toISOString(),
       as_of: new Date().toISOString(),
     },
+    confluence: CT.confluence,
   }), []);
 
   const [candles,       setCandles]       = useState(mock ? mockData.candles : null);
@@ -128,12 +129,14 @@ function ScreenMarket() {
   const [volumeProfile, setVolumeProfile] = useState(mock ? mockData.volumeProfile : null);
   const [patterns,      setPatterns]      = useState(mock ? mockData.patterns : null);
   const [signal,        setSignal]        = useState(mock ? mockData.signal : null);
+  const [confluence,    setConfluence]    = useState(mock ? mockData.confluence : null);  // M12
   const [ticker,        setTicker]        = useState(null);
   const [loading,       setLoading]       = useState(!mock);
   const [error,         setError]         = useState(null);
   const [auto,          setAuto]          = useState(false);   // M3: auto-refresh
   const [showFactors,   setShowFactors]   = useState(false);   // M6: confidence breakdown
   const [showBB,        setShowBB]        = useState(true);    // M4: Bollinger overlay
+  const [ordering,      setOrdering]      = useState(false);   // M13: paper-order confirm
 
   // Mercado exige um par concreto; se o escopo global for 'ALL', usa o default.
   const effPair = effectivePair(pair, pairs);
@@ -149,9 +152,10 @@ function ScreenMarket() {
       CT_API.getVolumeProfile(effPair),
       CT_API.getPatterns(effPair),
       CT_API.getSignal(effPair),
-      CT_API.getTicker(effPair).catch(() => null),  // non-critical: never fail the load
+      CT_API.getTicker(effPair).catch(() => null),       // non-critical: never fail the load
+      CT_API.getConfluence(effPair).catch(() => null),   // non-critical: MTF strip (M12)
     ])
-      .then(([c, ind, reg, lvl, vp, pat, sig, tk]) => {
+      .then(([c, ind, reg, lvl, vp, pat, sig, tk, conf]) => {
         setCandles(c);
         setIndicators(ind);
         setRegime(reg);
@@ -160,6 +164,7 @@ function ScreenMarket() {
         setPatterns(Array.isArray(pat) ? pat : []);
         setSignal(sig);
         setTicker(tk);
+        setConfluence(conf);
         setLoading(false);
       })
       .catch(e => { setError(e); setLoading(false); });
@@ -184,6 +189,24 @@ function ScreenMarket() {
   // M4: Bollinger series derived client-side from the fetched candles.
   const bbSeries = useMemo(() => (candles ? computeBB(candles) : []), [candles]);
 
+  // M13: fire stored price alerts when the live ticker crosses them (client-side MVP).
+  useEffect(() => {
+    if (mock || ticker?.last == null) return;
+    let list;
+    try { list = JSON.parse(localStorage.getItem('ct.alerts') || '[]'); } catch (_) { return; }
+    if (!Array.isArray(list) || !list.length) return;
+    const price = ticker.last;
+    const remaining = [];
+    let fired = false;
+    for (const a of list) {
+      if (a.pair !== effPair) { remaining.push(a); continue; }
+      const crossed = a.side === 'sell' ? price >= a.target : price <= a.target;
+      if (crossed) { addToast?.(`Alerta: ${a.pair} cruzou ${fmtUsd(a.target)}.`, 'bell'); fired = true; }
+      else remaining.push(a);
+    }
+    if (fired) { try { localStorage.setItem('ct.alerts', JSON.stringify(remaining)); } catch (_) { /* ignore */ } }
+  }, [ticker, effPair]);
+
   // Full-screen spinner only on the first load; refreshes keep the cards visible.
   if (loading && !candles) return <LoadingState label="Carregando análise de mercado…" />;
   if (error)   return <ErrorState message="Erro ao carregar mercado" onRetry={() => { setError(null); load(); }} />;
@@ -191,6 +214,43 @@ function ScreenMarket() {
   const sym = CT.symbol;
   const lastClose = candles?.length ? candles[candles.length - 1].c : null;
   const ind = indicators;
+
+  // M13: paper-order submission (prefilled from the signal) + price-alert creation.
+  const submitOrder = () => {
+    setOrdering(false);
+    if (!signal || signal.action === 'hold' || signal.stop == null) return;
+    if (mock) { addToast?.('Modo demo: ordem paper não enviada (sem backend).', 'check'); return; }
+    const notional = (signal.position_size_pct ?? 2) / 100 * 10000;
+    const body = {
+      pair: effPair,
+      side: signal.action,
+      quantity: Math.max(0.0001, +(notional / (signal.entry || 1)).toFixed(6)),
+      price: signal.entry,
+      strategy: signal.strategy || 'manual',
+      agent_id: 'manual-ui',
+      confidence: signal.confidence ?? 0.5,
+      reason: (signal.reason && signal.reason.length >= 10)
+        ? signal.reason
+        : 'Ordem simulada a partir do sinal de Mercado (paper).',
+      position_size_pct: signal.position_size_pct ?? 2.0,
+      stop_loss: signal.stop,
+      ...(signal.take_profit != null ? { take_profit: signal.take_profit } : {}),
+    };
+    CT_API.createOrder(body)
+      .then(() => addToast?.('Ordem paper enviada ao HITL.', 'check'))
+      .catch((e) => addToast?.(`Falha ao enviar ordem: ${e?.message || 'erro'}`, 'alert'));
+  };
+
+  const createAlert = () => {
+    const target = signal?.entry ?? ticker?.last ?? lastClose;
+    if (target == null) return;
+    try {
+      const list = JSON.parse(localStorage.getItem('ct.alerts') || '[]');
+      list.push({ pair: effPair, target, side: signal?.action || 'buy', createdAt: Date.now() });
+      localStorage.setItem('ct.alerts', JSON.stringify(list));
+    } catch (_) { /* private mode: ignore */ }
+    addToast?.(`Alerta criado para ${effPair} em ${fmtUsd(target)}.`, 'bell');
+  };
 
   const patternVariant = (d) => d === 'bullish' ? 'ok' : d === 'bearish' ? 'down' : 'neutral';
   const patternLabel = (d) => d === 'bullish' ? '↑' : d === 'bearish' ? '↓' : '→';
@@ -220,7 +280,8 @@ function ScreenMarket() {
             value={tf}
             onChange={setTf}
           />
-          <Btn variant={auto ? '' : 'ghost'} size="sm" onClick={() => setAuto(a => !a)}>
+          <Btn variant={auto ? '' : 'ghost'} size="sm" onClick={() => setAuto(a => !a)}
+            aria-pressed={auto} aria-label="Atualização automática">
             {auto ? 'Auto · on' : 'Auto'}
           </Btn>
           <Btn variant="ghost" size="sm" onClick={load}>
@@ -356,10 +417,63 @@ function ScreenMarket() {
                   )}
                 </div>
               )}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
+                <Btn variant="primary" size="sm" onClick={() => navigate?.('hitl')}>Ver no HITL</Btn>
+                {signal.action !== 'hold' && signal.stop != null && (
+                  ordering ? (
+                    <>
+                      <Btn variant="up" size="sm" onClick={submitOrder}>Confirmar paper</Btn>
+                      <Btn variant="ghost" size="sm" onClick={() => setOrdering(false)}>Cancelar</Btn>
+                    </>
+                  ) : (
+                    <Btn variant="ghost" size="sm" onClick={() => setOrdering(true)}>Simular ordem</Btn>
+                  )
+                )}
+                <Btn variant="ghost" size="sm" onClick={createAlert}>Criar alerta</Btn>
+              </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Multi-timeframe confluence (M12) */}
+      {confluence && Array.isArray(confluence.timeframes) && confluence.timeframes.length > 0 && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div className="card-head">
+            <span className="card-title"><Icon name="activity" />Confluência multi-timeframe</span>
+            <Badge variant={confluence.aligned ? (confluence.direction === 'bullish' ? 'ok' : 'down') : 'neutral'}>
+              {confluence.aligned ? `Alinhado · ${confluence.direction === 'bullish' ? 'alta' : 'baixa'}` : 'Misto'}
+            </Badge>
+          </div>
+          <div className="card-pad">
+            <div className="grid grid-3" style={{ gap: 12 }}>
+              {confluence.timeframes.map((s, i) => {
+                const trendVariant = s.trend === 'bullish' ? 'ok' : s.trend === 'bearish' ? 'down' : 'neutral';
+                const div = s.rsi_divergence || s.macd_divergence;
+                return (
+                  <div key={i} style={{ border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', padding: '10px 12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <span style={{ fontFamily: 'var(--mono)', fontWeight: 600 }}>{s.tf}</span>
+                      <Badge variant={trendVariant}>
+                        {s.trend === 'unknown' ? '—' : s.trend === 'bullish' ? '▲ alta' : '▼ baixa'}
+                      </Badge>
+                    </div>
+                    <div className="stat-row"><span className="stat-k">RSI</span><span className="stat-v">{s.rsi != null ? s.rsi.toFixed(1) : '—'}</span></div>
+                    <div className="stat-row"><span className="stat-k">Regime</span><span className="stat-v">{REGIME_LABEL[s.regime] ?? s.regime}</span></div>
+                    {div && (
+                      <div style={{ marginTop: 6 }}>
+                        <Badge variant={/bullish/.test(div) ? 'ok' : 'down'}>
+                          Divergência {/bullish/.test(div) ? '▲' : '▼'}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MACD + Indicators + S/R + Volume Profile */}
       <div className="grid grid-3" style={{ marginBottom: 20 }}>
@@ -367,10 +481,10 @@ function ScreenMarket() {
         <div className="card">
           <div className="card-head"><span className="card-title"><Icon name="activity" />Indicadores</span></div>
           <div className="card-pad">
-            {ind ? (
+            <DataState empty={!ind} emptyLabel="Sem dados">{ind && (
               <>
-                <IndicatorRow label="RSI 14" value={ind.rsi?.toFixed(1)} variant={ind.rsi < 30 ? 'up' : ind.rsi > 70 ? 'down' : ''} />
-                <IndicatorRow label="MACD" value={ind.macd?.macd?.toFixed(1)} />
+                <IndicatorRow label="RSI 14" value={`${ind.rsi < 30 ? '▲ ' : ind.rsi > 70 ? '▼ ' : ''}${ind.rsi?.toFixed(1)}`} variant={ind.rsi < 30 ? 'up' : ind.rsi > 70 ? 'down' : ''} />
+                <IndicatorRow label="MACD" value={`${(ind.macd?.hist ?? 0) >= 0 ? '▲' : '▼'} ${ind.macd?.macd?.toFixed(1)}`} variant={(ind.macd?.hist ?? 0) >= 0 ? 'up' : 'down'} />
                 <IndicatorRow label="MACD Signal" value={ind.macd?.signal?.toFixed(1)} />
                 <IndicatorRow label="Stoch %K" value={ind.stoch?.k?.toFixed(1)} />
                 <IndicatorRow label="BB %B" value={ind.bb?.pct_b?.toFixed(2)} />
@@ -380,7 +494,7 @@ function ScreenMarket() {
                 <IndicatorRow label="Vol ratio" value={ind.volume_ratio?.toFixed(2)} />
                 <IndicatorRow label="OBV trend" value={ind.obv_trend === 1 ? 'Acumulação' : 'Distribuição'} variant={ind.obv_trend === 1 ? 'up' : 'down'} />
               </>
-            ) : <EmptyState label="Sem dados" />}
+            )}</DataState>
           </div>
         </div>
 
@@ -388,7 +502,7 @@ function ScreenMarket() {
         <div className="card">
           <div className="card-head"><span className="card-title"><Icon name="bar" />S/R & Fibonacci</span></div>
           <div className="card-pad">
-            {levels ? (
+            <DataState empty={!levels} emptyLabel="Sem níveis">{levels && (
               <>
                 <div className="label-xs" style={{ marginBottom: 8 }}>Resistência</div>
                 {(levels.resistance ?? []).map((r, i) => (
@@ -414,7 +528,7 @@ function ScreenMarket() {
                   </>
                 )}
               </>
-            ) : <EmptyState label="Sem níveis" />}
+            )}</DataState>
           </div>
         </div>
 
@@ -423,7 +537,7 @@ function ScreenMarket() {
           <div className="card">
             <div className="card-head"><span className="card-title"><Icon name="bar" />Volume Profile</span></div>
             <div className="card-pad">
-              {volumeProfile ? (
+              <DataState empty={!volumeProfile} emptyLabel="Sem dados">{volumeProfile && (
                 <>
                   <div className="stat-row">
                     <span className="stat-k">POC</span>
@@ -444,14 +558,14 @@ function ScreenMarket() {
                     </div>
                   ))}
                 </>
-              ) : <EmptyState label="Sem dados" />}
+              )}</DataState>
             </div>
           </div>
 
           <div className="card">
             <div className="card-head"><span className="card-title"><Icon name="eye" />Padrões</span></div>
             <div className="card-pad">
-              {patterns && patterns.length > 0 ? patterns.map((p, i) => (
+              <DataState empty={!(patterns && patterns.length)} emptyLabel="Sem padrões detectados">{(patterns || []).map((p, i) => (
                 <div key={i} style={{
                   display: 'flex', flexDirection: 'column', gap: 4,
                   padding: '10px 0', borderBottom: i < patterns.length - 1 ? '1px solid var(--border)' : 'none',
@@ -471,7 +585,7 @@ function ScreenMarket() {
                     )}
                   </div>
                 </div>
-              )) : <EmptyState label="Sem padrões detectados" />}
+              ))}</DataState>
             </div>
           </div>
         </div>

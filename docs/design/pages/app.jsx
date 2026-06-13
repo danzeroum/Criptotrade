@@ -208,7 +208,7 @@ function App() {
         <div className="content">
           <div className="content-inner screen-enter">
             <ErrorBoundary key={screen}>
-              <ActiveScreen />
+              <ActiveScreen navigate={navigate} addToast={addToast} />
             </ErrorBoundary>
           </div>
         </div>

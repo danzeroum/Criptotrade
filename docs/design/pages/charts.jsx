@@ -106,7 +106,7 @@ function CandleChart({ candles = [], bb = [], width = 680, height = 280, tf = '1
       {gridYs.map((p, i) => (
         <g key={i}>
           <line x1={PAD.l} y1={sy(p)} x2={PAD.l + w} y2={sy(p)} stroke="var(--border)" strokeWidth="0.5" />
-          <text x={PAD.l - 6} y={sy(p) + 4} fontSize="10" fill="var(--ink-4)" textAnchor="end">{fmtPrice(p)}</text>
+          <text x={PAD.l - 6} y={sy(p) + 4} fontSize="10" fill="var(--ink-3)" textAnchor="end">{fmtPrice(p)}</text>
         </g>
       ))}
 
@@ -147,7 +147,7 @@ function CandleChart({ candles = [], bb = [], width = 680, height = 280, tf = '1
       <line x1={PAD.l} y1={volBase} x2={PAD.l + w} y2={volBase} stroke="var(--border)" strokeWidth="0.5" />
 
       {tickIdx.map(i => (
-        <text key={i} x={sx(i)} y={height - 8} fontSize="9.5" fill="var(--ink-4)" textAnchor="middle">
+        <text key={i} x={sx(i)} y={height - 8} fontSize="9.5" fill="var(--ink-3)" textAnchor="middle">
           {fmtTime(get(visible[i], 't', 't'))}
         </text>
       ))}
@@ -199,7 +199,9 @@ function EquityChart({ points = [], width = 680, height = 200 }) {
   const labels = [eMin, (eMin + eMax) / 2, eMax].map(v => fmtUsd(v, 0));
 
   return (
-    <svg width="100%" viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}>
+    <svg width="100%" viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}
+      role="img" aria-label="Curva de patrimônio (equity)">
+      <title>Curva de patrimônio</title>
       <defs>
         <linearGradient id="eq-grad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="var(--up)" stopOpacity="0.2" />
@@ -232,7 +234,9 @@ function Gauge({ value, min = 0, max = 100, label, unit = '', size = 120 }) {
   const start = toXY(-180), end = toXY(angle);
   const large = angle - -180 > 180 ? 1 : 0;
   return (
-    <svg width={size} height={size * 0.7} viewBox={`0 0 ${size} ${size * 0.7}`}>
+    <svg width={size} height={size * 0.7} viewBox={`0 0 ${size} ${size * 0.7}`}
+      role="img" aria-label={`${label || 'Medidor'}: ${value}${unit}`}>
+      <title>{`${label || 'Medidor'}: ${value}${unit}`}</title>
       <path d={`M${toXY(-180).x},${toXY(-180).y} A${r},${r} 0 0,1 ${toXY(0).x},${toXY(0).y}`}
         fill="none" stroke="var(--surface-3)" strokeWidth="8" strokeLinecap="round" />
       <path d={`M${start.x},${start.y} A${r},${r} 0 ${large},1 ${end.x},${end.y}`}
@@ -282,7 +286,9 @@ function MACDChart({ macdLine = [], signalLine = [], hist = [], width = 400, hei
   const sy = (v) => PAD.t + ((max - v) / range) * h;
   const barW = w / hist.length;
   return (
-    <svg width="100%" viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}>
+    <svg width="100%" viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}
+      role="img" aria-label="Histograma MACD">
+      <title>MACD</title>
       <line x1={PAD.l} y1={sy(0)} x2={PAD.l + w} y2={sy(0)} stroke="var(--border)" strokeWidth="0.5" />
       {hist.map((v, i) => (
         <rect key={i} x={sx(i) - barW * 0.4} y={v >= 0 ? sy(v) : sy(0)}

@@ -161,6 +161,38 @@
         "title": "APIResponse[ConfigOut]",
         "type": "object"
       },
+      "APIResponse_ConfluenceOut_": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/ConfluenceOut"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[ConfluenceOut]",
+        "type": "object"
+      },
       "APIResponse_Dict_str__float__": {
         "properties": {
           "_links": {
@@ -1681,6 +1713,43 @@
           }
         },
         "title": "ConfigPatch",
+        "type": "object"
+      },
+      "ConfluenceOut": {
+        "properties": {
+          "aligned": {
+            "title": "Aligned",
+            "type": "boolean"
+          },
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction"
+          },
+          "timeframes": {
+            "items": {
+              "$ref": "#/components/schemas/TFSnapshot"
+            },
+            "title": "Timeframes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "aligned",
+          "timeframes"
+        ],
+        "title": "ConfluenceOut",
         "type": "object"
       },
       "EmotionBand": {
@@ -3353,6 +3422,74 @@
         "title": "StochOut",
         "type": "object"
       },
+      "TFSnapshot": {
+        "description": "One timeframe's reading for the multi-timeframe confluence strip (M12).",
+        "properties": {
+          "macd_divergence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Macd Divergence"
+          },
+          "macd_hist": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Macd Hist"
+          },
+          "regime": {
+            "title": "Regime",
+            "type": "string"
+          },
+          "rsi": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rsi"
+          },
+          "rsi_divergence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rsi Divergence"
+          },
+          "tf": {
+            "title": "Tf",
+            "type": "string"
+          },
+          "trend": {
+            "title": "Trend",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tf",
+          "trend",
+          "regime"
+        ],
+        "title": "TFSnapshot",
+        "type": "object"
+      },
       "TickerOut": {
         "description": "Current price + 24h stats, derived from OHLCV (dry-run = synthetic).",
         "properties": {
@@ -4424,6 +4561,60 @@
           }
         },
         "summary": "OHLCV candles para o par (dry-run = sint\u00e9tico)",
+        "tags": [
+          "market"
+        ]
+      }
+    },
+    "/v1/market/{pair}/confluence": {
+      "get": {
+        "operationId": "get_confluence_v1_market__pair__confluence_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pair",
+            "required": true,
+            "schema": {
+              "title": "Pair",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 150,
+              "maximum": 500,
+              "minimum": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_ConfluenceOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Conflu\u00eancia multi-timeframe (1h/4h/1d) + diverg\u00eancias RSI/MACD",
         "tags": [
           "market"
         ]

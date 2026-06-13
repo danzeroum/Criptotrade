@@ -39,6 +39,7 @@ const CT_API = (() => {
     patchHITL:        (body)       => req('/v1/hitl/config', { method: 'PATCH', body: JSON.stringify(body) }),
     getOrders:        (limit = 50, offset = 0, q = '') =>
       req(`/v1/orders?limit=${limit}&offset=${offset}${q}`),
+    createOrder:      (body)       => req('/v1/orders', { method: 'POST', body: JSON.stringify(body) }),
     decideOrder:      (id, body)   => req(`/v1/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify(body) }),
     getAgents:        ()           => req('/v1/agents'),
     getAgentConfig:   (id)         => req(`/v1/agents/${id}/config`),
@@ -63,6 +64,7 @@ const CT_API = (() => {
     getVolumeProfile: (pair) => req(`/v1/market/${pair.replace('/', '-')}/volume-profile`),
     getPatterns:      (pair) => req(`/v1/market/${pair.replace('/', '-')}/patterns`),
     getSignal:        (pair) => req(`/v1/market/${pair.replace('/', '-')}/signal`),
+    getConfluence:    (pair) => req(`/v1/market/${pair.replace('/', '-')}/confluence`),
 
     // ---- Phase 2: risk ----
     getProtections:    ()     => req('/v1/risk/protections'),

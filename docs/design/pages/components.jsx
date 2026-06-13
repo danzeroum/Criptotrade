@@ -309,6 +309,27 @@ function FreshnessBadge({ asOf, staleSec = 120 }) {
 }
 window.FreshnessBadge = FreshnessBadge;
 
+// ---- DataState (S1): one wrapper for loading / empty / error / stale ----
+// Composes the honest-state components above so every data panel behaves the
+// same. Reusable across screens (orders, risk, backtest…), not just Mercado.
+// Pass children guarded (e.g. {data && <>…</>}) so they don't evaluate when empty.
+function DataState({ loading, error, empty, stale, onRetry, emptyLabel = 'Sem dados', children }) {
+  if (error) return <ErrorState message={typeof error === 'string' ? error : 'Erro ao carregar'} onRetry={onRetry} />;
+  if (loading) return <LoadingState />;
+  if (empty) return <EmptyState label={emptyLabel} />;
+  return (
+    <>
+      {stale && (
+        <div style={{ fontSize: 11, color: 'var(--warn)', padding: '0 0 8px' }}>
+          ⚠ dados possivelmente desatualizados
+        </div>
+      )}
+      {children}
+    </>
+  );
+}
+window.DataState = DataState;
+
 // ---- Global pair scope (store lives on window.CT_PAIR, set in apiClient.js) ----
 // 'ALL' = portfólio consolidado; senão um par concreto (ex.: 'BTC/USDT').
 let _pairsPromise = null;

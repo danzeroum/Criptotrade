@@ -329,6 +329,25 @@ class SignalOut(BaseModel):
     as_of: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class TFSnapshot(BaseModel):
+    """One timeframe's reading for the multi-timeframe confluence strip (M12)."""
+
+    tf: str
+    trend: str                              # "bullish" | "bearish" | "unknown"
+    rsi: Optional[float] = None
+    macd_hist: Optional[float] = None
+    regime: str
+    rsi_divergence: Optional[str] = None    # "bullish_divergence" | "bearish_divergence" | None
+    macd_divergence: Optional[str] = None
+
+
+class ConfluenceOut(BaseModel):
+    aligned: bool                           # all timeframes agree on direction
+    direction: Optional[str] = None         # "bullish" | "bearish" | None (mixed)
+    timeframes: List[TFSnapshot]
+    as_of: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 # ----------------------------------------------------------------- risk
 class ProtectionOut(BaseModel):
     scope: str
@@ -523,7 +542,7 @@ __all__ = [
     "CandleOut", "MacdOut", "StochOut", "BollingerOut", "IndicatorsOut",
     "RegimeOut", "SRLevelOut", "LevelsOut",
     "VolumeProfileBin", "VolumeProfileOut", "PatternOut",
-    "ConfidenceFactor", "SignalOut",
+    "ConfidenceFactor", "SignalOut", "TFSnapshot", "ConfluenceOut",
     # risk
     "ProtectionOut", "CircuitBreakerOut", "KellyOut",
     "RiskConfigOut", "RiskConfigPatch",

@@ -5,6 +5,7 @@ Candles are fetched from ExchangeClient (dry-run = synthetic, live = CCXT).
 """
 from __future__ import annotations
 
+import asyncio
 import urllib.parse
 from datetime import datetime, timedelta, timezone
 from typing import Any, List
@@ -17,6 +18,7 @@ from src.api.schemas import (
     APIResponse,
     CandleOut,
     ConfidenceFactor,
+    ConfluenceOut,
     IndicatorsOut,
     LevelsOut,
     MacdOut,
@@ -26,6 +28,7 @@ from src.api.schemas import (
     RegimeOut,
     SRLevelOut,
     SignalOut,
+    TFSnapshot,
     TickerOut,
     VolumeProfileBin,
     VolumeProfileOut,
@@ -551,4 +554,70 @@ async def get_signal(
         confidence_factors=confidence_factors,
         valid_until=valid_until,
         as_of=as_of,
+    ))
+
+
+@router.get(
+    "/{pair}/confluence",
+    response_model=APIResponse[ConfluenceOut],
+    summary="Confluência multi-timeframe (1h/4h/1d) + divergências RSI/MACD",
+)
+async def get_confluence(
+    pair: str,
+    limit: int = Query(150, ge=50, le=500),
+    client: Any = Depends(get_exchange_client),
+) -> APIResponse[ConfluenceOut]:
+    from src.analysis.indicators import DivergenceDetector, TechnicalAnalyzer  # lazy
+    from src.analysis.regime_detector import detect_regime  # lazy
+    symbol = _decode_pair(pair)
+
+    tfs = ["1h", "4h", "1d"]
+    # Fetch every timeframe concurrently to bound latency (one extra fetch each).
+    fetched = await asyncio.gather(
+        *(_fetch_candles(symbol, tf, limit, client) for tf in tfs),
+        return_exceptions=True,
+    )
+
+    detector = DivergenceDetector()
+    snapshots: list[TFSnapshot] = []
+    base_ohlcv: list | None = None
+    for tf, ohlcv in zip(tfs, fetched):
+        if isinstance(ohlcv, Exception) or not ohlcv:
+            snapshots.append(TFSnapshot(tf=tf, trend="unknown", regime="unknown"))
+            continue
+        try:
+            analyzer = TechnicalAnalyzer(ohlcv)
+            ind = analyzer.get_latest()
+        except ValueError:
+            snapshots.append(TFSnapshot(tf=tf, trend="unknown", regime="unknown"))
+            continue
+        if tf == "1h":
+            base_ohlcv = ohlcv
+        trend = "unknown"
+        if ind.ema_fast is not None and ind.ema_slow is not None:
+            trend = "bullish" if ind.ema_fast > ind.ema_slow else "bearish"
+        rsi_div = detector.check_rsi_price(ohlcv, analyzer.get_series("rsi"))
+        macd_div = detector.check_macd_price(ohlcv, analyzer.get_series("macd_hist"))
+        snapshots.append(TFSnapshot(
+            tf=tf,
+            trend=trend,
+            rsi=ind.rsi,
+            macd_hist=ind.macd_hist,
+            regime=detect_regime(
+                ema_fast=ind.ema_fast, ema_slow=ind.ema_slow,
+                atr=ind.atr, current_price=ind.current_price,
+            ),
+            rsi_divergence=rsi_div.kind if rsi_div.detected else None,
+            macd_divergence=macd_div.kind if macd_div.detected else None,
+        ))
+
+    known = [s.trend for s in snapshots if s.trend != "unknown"]
+    aligned = len(known) == len(tfs) and len(set(known)) == 1
+    direction = known[0] if (aligned and known) else None
+
+    return APIResponse(data=ConfluenceOut(
+        aligned=aligned,
+        direction=direction,
+        timeframes=snapshots,
+        as_of=_as_of(base_ohlcv or []),
     ))

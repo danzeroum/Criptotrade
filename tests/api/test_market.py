@@ -157,6 +157,18 @@ def test_signal_confidence_factors_reconcile_with_aggregate(uptrend_client):
     assert round(positive, 2) == round(d["confidence"], 2)
 
 
+def test_confluence_returns_three_timeframes(client):
+    """M12: confluence reports 1h/4h/1d snapshots + an alignment flag."""
+    r = client.get("/v1/market/BTC-USDT/confluence")
+    assert r.status_code == 200
+    d = r.json()["data"]
+    assert [s["tf"] for s in d["timeframes"]] == ["1h", "4h", "1d"]
+    assert "aligned" in d and "as_of" in d
+    for s in d["timeframes"]:
+        assert s["trend"] in ("bullish", "bearish", "unknown")
+        assert "regime" in s
+
+
 def test_custom_market_pairs_env_restricts_allowlist(monkeypatch):
     """MARKET_PAIRS env var restricts the validation allowlist."""
     import importlib
