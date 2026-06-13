@@ -52,6 +52,8 @@ const CT_API = (() => {
     },
 
     // ---- Phase 1: market ----
+    getPairs:         ()           => req('/v1/market/pairs'),
+    getTicker:        (pair)       => req(`/v1/market/${pair.replace('/', '-')}/ticker`),
     getCandles:       (pair, tf = '1h', limit = 100) =>
       req(`/v1/market/${pair.replace('/', '-')}/candles?tf=${tf}&limit=${limit}`),
     getIndicators:    (pair) => req(`/v1/market/${pair.replace('/', '-')}/indicators`),
@@ -89,3 +91,31 @@ const CT_API = (() => {
 })();
 
 window.CT_API = CT_API;
+
+/* ============================================================
+   Global selected-pair store — shared between the header and the
+   Market screen. Classic-scripts app => lives on window. Persists to
+   localStorage and notifies subscribers via a 'ct:pair' CustomEvent.
+   ============================================================ */
+const CT_PAIR = (() => {
+  const KEY = 'ct.pair';
+  let current = (() => {
+    try { return localStorage.getItem(KEY) || 'BTC/USDT'; } catch (_) { return 'BTC/USDT'; }
+  })();
+  return {
+    get: () => current,
+    set: (pair) => {
+      if (!pair || pair === current) return;
+      current = pair;
+      try { localStorage.setItem(KEY, pair); } catch (_) { /* private mode: ignore */ }
+      window.dispatchEvent(new CustomEvent('ct:pair', { detail: pair }));
+    },
+    /** Subscribe to changes; returns an unsubscribe fn. */
+    subscribe: (fn) => {
+      const handler = (e) => fn(e.detail);
+      window.addEventListener('ct:pair', handler);
+      return () => window.removeEventListener('ct:pair', handler);
+    },
+  };
+})();
+window.CT_PAIR = CT_PAIR;

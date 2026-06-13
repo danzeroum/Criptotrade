@@ -44,9 +44,17 @@ function Sidebar({ active, onNavigate, pendingCount }) {
 }
 window.Sidebar = Sidebar;
 
+function fmtPrice(p) {
+  // Majors render as integers; sub-$10 coins (e.g. XRP) keep precision.
+  return p >= 10 ? Math.round(p).toLocaleString('en') : p.toLocaleString('en', { maximumFractionDigits: 4 });
+}
+
 function Header({ onToggleAlerts, alertCount }) {
+  const mock = !!window.USE_MOCK_DATA;
   const [health, setHealth] = useState(null);
   const [hitl, setHitl] = useState(null);
+  const [pair, setPair] = useState(CT_PAIR.get());
+  const [ticker, setTicker] = useState(null);
 
   useEffect(() => {
     CT_API.getHealth()
@@ -55,17 +63,27 @@ function Header({ onToggleAlerts, alertCount }) {
     CT_API.getHITL()
       .then(d => setHitl(d))
       .catch(() => {});
+    return CT_PAIR.subscribe(setPair);  // reflect the pair chosen on the Market screen
   }, []);
 
-  const sym = CT.symbol;
-  const change = sym?.change24h ?? 0;
+  useEffect(() => {
+    if (mock) { setTicker(null); return; }
+    let alive = true;
+    CT_API.getTicker(pair)
+      .then(t => { if (alive) setTicker(t); })
+      .catch(() => { if (alive) setTicker(null); });
+    return () => { alive = false; };
+  }, [pair, mock]);
+
+  const price = ticker?.last ?? CT.symbol?.price ?? 65200;
+  const change = ticker?.change_24h_pct ?? CT.symbol?.change24h ?? 0;
 
   return (
     <header className="header">
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
-        <span style={{ fontFamily: 'var(--mono)', fontWeight: 600 }}>{sym?.pair ?? 'BTC/USDT'}</span>
+        <span style={{ fontFamily: 'var(--mono)', fontWeight: 600 }}>{pair}</span>
         <span style={{ fontFamily: 'var(--mono)', fontSize: 15, fontWeight: 500 }}>
-          ${Math.round(sym?.price ?? 65200).toLocaleString('en')}
+          ${fmtPrice(price)}
         </span>
         <Badge variant={change >= 0 ? 'ok' : 'down'}>
           {change >= 0 ? '+' : ''}{change.toFixed(2)}%
