@@ -69,3 +69,62 @@ def test_dry_run_ohlcv_and_order_book(dry_run_env, monkeypatch):
     book = asyncio.run(client.fetch_order_book("BTC/USDT", limit=5))
     assert len(book["bids"]) == 5 and len(book["asks"]) == 5
     assert book["bids"][0][0] < book["asks"][0][0]  # bid below ask
+
+
+# --------------------------------------------------------- per-symbol pricing
+def test_dry_run_price_differs_per_symbol(dry_run_env, monkeypatch):
+    # The whole point: paper analysis must not show every coin at one price.
+    monkeypatch.setattr("time.time", lambda: 1_700_000_000.0)
+    client = ExchangeClient()
+    btc = asyncio.run(client.fetch_ticker("BTC/USDT"))["last"]
+    eth = asyncio.run(client.fetch_ticker("ETH/USDT"))["last"]
+    sol = asyncio.run(client.fetch_ticker("SOL/USDT"))["last"]
+    assert btc != eth != sol and btc != sol  # three distinct price levels
+    # Built-in anchors: BTC ~50k, ETH ~3k, SOL ~150 (± oscillation).
+    assert eth < btc and sol < eth
+
+
+def test_dry_run_ohlcv_differs_per_symbol(dry_run_env, monkeypatch):
+    monkeypatch.setattr("time.time", lambda: 1_700_000_000.0)
+    client = ExchangeClient()
+    btc_close = asyncio.run(client.fetch_ohlcv("BTC/USDT", "1h", limit=5))[-1][4]
+    eth_close = asyncio.run(client.fetch_ohlcv("ETH/USDT", "1h", limit=5))[-1][4]
+    assert btc_close != eth_close
+
+
+def test_dry_run_per_symbol_is_deterministic(dry_run_env, monkeypatch):
+    monkeypatch.setattr("time.time", lambda: 1_700_000_000.0)
+    client = ExchangeClient()
+    prices = {asyncio.run(client.fetch_ticker("SOL/USDT"))["last"] for _ in range(100)}
+    assert len(prices) == 1  # one symbol, one timestamp -> one price, 100x
+
+
+def test_dry_run_base_prices_env_override(monkeypatch):
+    monkeypatch.setenv("EXCHANGE_DRY_RUN", "true")
+    monkeypatch.setenv("DRY_RUN_BASE_PRICES", "ETH/USDT=4242,XRP/USDT=0.5")
+    monkeypatch.setattr("time.time", lambda: 0.0)  # sin(0)=0 -> last == base
+    client = ExchangeClient()
+    assert asyncio.run(client.fetch_ticker("ETH/USDT"))["last"] == 4242.0
+
+
+def test_dry_run_unmapped_symbol_is_stable_and_distinct(dry_run_env, monkeypatch):
+    monkeypatch.setattr("time.time", lambda: 0.0)
+    client = ExchangeClient()
+    ada = asyncio.run(client.fetch_ticker("ADA/USDT"))["last"]
+    doge = asyncio.run(client.fetch_ticker("DOGE/USDT"))["last"]
+    assert ada > 0 and doge > 0
+    assert ada != doge  # unmapped pairs do not collapse onto one value
+    assert ada != 50000.0  # and not the BTC default
+    # Stable across processes (hashlib, not salted hash()).
+    assert ada == asyncio.run(client.fetch_ticker("ADA/USDT"))["last"]
+
+
+def test_base_price_for_precedence():
+    # overrides > built-in defaults > BTC legacy knob > hash fallback
+    assert synth.base_price_for("ETH/USDT", 50000, {"ETH/USDT": 1.0}) == 1.0
+    assert synth.base_price_for("ETH/USDT", 50000, None) == 3000.0
+    assert synth.base_price_for("BTC/USDT", 50000, None) == 50000.0
+    assert synth.base_price_for("BTC/USDT", 61000, None) == 61000.0  # legacy knob
+    fallback = synth.base_price_for("ADA/USDT", 50000, None)
+    assert fallback > 0 and fallback != 50000.0
+    assert fallback == synth.base_price_for("ada/usdt", 50000, None)  # case-insensitive
