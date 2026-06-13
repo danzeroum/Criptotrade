@@ -5,13 +5,13 @@ Candles are fetched from ExchangeClient (dry-run = synthetic, live = CCXT).
 """
 from __future__ import annotations
 
-import os
 import urllib.parse
 from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.api.deps import get_exchange_client
+from src.core.pairs import allowed_pairs
 from src.api.schemas import (
     APIResponse,
     CandleOut,
@@ -29,12 +29,9 @@ from src.api.schemas import (
 )
 router = APIRouter(prefix="/market", tags=["market"])
 
-_DEFAULT_PAIRS = "BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT,XRP/USDT"
-_ALLOWED_PAIRS: frozenset[str] = frozenset(
-    p.strip().upper()
-    for p in os.getenv("MARKET_PAIRS", _DEFAULT_PAIRS).split(",")
-    if p.strip()
-)
+# Computed at import (re-evaluated on importlib.reload, which the tests use to
+# pick up a changed MARKET_PAIRS). Single source of truth lives in core.pairs.
+_ALLOWED_PAIRS: frozenset[str] = frozenset(allowed_pairs())
 
 _REGIME_LABELS = {
     "strong_uptrend": "Alta forte",

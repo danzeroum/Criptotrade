@@ -8,6 +8,7 @@ from src.core.ledger import TradingLedger
 from src.orchestration.orchestrator_loop import (
     AgentExecutionError,
     OrchestratorLoop,
+    _symbols_from_env,
     validated_interval,
 )
 
@@ -164,3 +165,44 @@ async def test_run_forever_stops_cleanly(ledger):
     await asyncio.wait_for(task, timeout=2.0)  # would time out if stop() blocked
 
     assert orch.calls >= 1
+
+
+# ----------------------------------------------------------- multi-symbol env
+def test_symbols_from_env_unset_defaults_btc(monkeypatch):
+    monkeypatch.delenv("SYMBOLS", raising=False)
+    assert _symbols_from_env() == ["BTC/USDT"]
+
+
+def test_symbols_from_env_explicit_list(monkeypatch):
+    monkeypatch.delenv("MARKET_PAIRS", raising=False)  # default allowlist
+    monkeypatch.setenv("SYMBOLS", "ETH/USDT, btc/usdt")
+    assert _symbols_from_env() == ["BTC/USDT", "ETH/USDT"]  # sorted, upper-cased
+
+
+def test_symbols_from_env_drops_pairs_outside_allowlist(monkeypatch):
+    monkeypatch.delenv("MARKET_PAIRS", raising=False)
+    monkeypatch.setenv("SYMBOLS", "BTC/USDT,FOO/BAR")
+    assert _symbols_from_env() == ["BTC/USDT"]  # FOO/BAR not allowed -> dropped
+
+
+def test_symbols_from_env_all_invalid_defaults_btc(monkeypatch):
+    monkeypatch.delenv("MARKET_PAIRS", raising=False)
+    monkeypatch.setenv("SYMBOLS", "FOO/BAR")
+    assert _symbols_from_env() == ["BTC/USDT"]
+
+
+def test_from_env_reads_symbols_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("EXCHANGE_DRY_RUN", "true")
+    monkeypatch.setenv("LEDGER_DIR", str(tmp_path / "ledger_sym"))
+    monkeypatch.delenv("MARKET_PAIRS", raising=False)
+    monkeypatch.setenv("SYMBOLS", "BTC/USDT,ETH/USDT")
+    loop = OrchestratorLoop.from_env()
+    assert loop.symbols == ["BTC/USDT", "ETH/USDT"]
+
+
+def test_from_env_explicit_symbols_override_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("EXCHANGE_DRY_RUN", "true")
+    monkeypatch.setenv("LEDGER_DIR", str(tmp_path / "ledger_sym2"))
+    monkeypatch.setenv("SYMBOLS", "ETH/USDT,SOL/USDT")  # must be ignored
+    loop = OrchestratorLoop.from_env(symbols=["BTC/USDT"])
+    assert loop.symbols == ["BTC/USDT"]
