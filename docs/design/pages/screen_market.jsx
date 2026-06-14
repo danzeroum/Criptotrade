@@ -35,7 +35,7 @@ function SRLevelRow({ label, price, strength, color }) {
     <div className="stat-row">
       <span className="stat-k">{label}</span>
       <span className="stat-v" style={{ color, fontFamily: 'var(--mono)' }}>
-        ${price?.toLocaleString('en', { minimumFractionDigits: 2 })}
+        {fmtUsd(price)}
         <span style={{ color: 'var(--ink-4)', fontSize: 11, marginLeft: 6 }}>
           {'★'.repeat(Math.min(5, Math.round(strength ?? 0)))}
         </span>
@@ -296,7 +296,7 @@ function ScreenMarket({ navigate, addToast } = {}) {
           <KPI label="Preço atual" value={lastClose} format="usd" icon="dollar" />
         </div>
         <div className="card">
-          <KPI label="Variação 24h" value={ticker?.change_24h_pct ?? sym?.change24h} format="pct_direct" delta={ticker?.change_24h_pct ?? sym?.change24h} icon="trending" />
+          <KPI label="Variação 24h" value={mock ? sym?.change24h : ticker?.change_24h_pct} format="pct_direct" delta={mock ? sym?.change24h : ticker?.change_24h_pct} icon="trending" />
         </div>
         <div className="card">
           <KPI label="RSI" value={ind?.rsi?.toFixed(1)} sub={ind?.rsi < 30 ? 'Sobrevendido' : ind?.rsi > 70 ? 'Sobrecomprado' : 'Neutro'} />
@@ -350,24 +350,24 @@ function ScreenMarket({ navigate, addToast } = {}) {
               <div style={{ marginBottom: 14 }}>
                 <div className="stat-row">
                   <span className="stat-k">Entrada</span>
-                  <span className="stat-v">${signal.entry?.toLocaleString('en', { minimumFractionDigits: 2 })}</span>
+                  <span className="stat-v">{fmtUsd(signal.entry)}</span>
                 </div>
                 <div className="stat-row">
                   <span className="stat-k">Stop</span>
-                  <span className="stat-v down">${signal.stop?.toLocaleString('en', { minimumFractionDigits: 2 })}</span>
+                  <span className="stat-v down">{fmtUsd(signal.stop)}</span>
                 </div>
                 <div className="stat-row">
                   <span className="stat-k">Alvo</span>
-                  <span className="stat-v up">${signal.take_profit?.toLocaleString('en', { minimumFractionDigits: 2 })}</span>
+                  <span className="stat-v up">{fmtUsd(signal.take_profit)}</span>
                 </div>
                 <div className="stat-row">
                   <span className="stat-k">Tamanho</span>
-                  <span className="stat-v">{signal.position_size_pct?.toFixed(1)}%</span>
+                  <span className="stat-v">{signal.position_size_pct != null ? `${fmtNum(signal.position_size_pct, 1)}%` : '—'}</span>
                 </div>
                 <div className="stat-row">
                   <span className="stat-k">R/R</span>
                   <span className="stat-v" style={{ color: (signal.rr ?? 0) >= 2.5 ? 'var(--up)' : 'var(--warn)' }}>
-                    {signal.rr?.toFixed(1)}×
+                    {signal.rr != null ? `${fmtNum(signal.rr, 1)}×` : '—'}
                   </span>
                 </div>
                 <div className="stat-row">
@@ -488,9 +488,9 @@ function ScreenMarket({ navigate, addToast } = {}) {
                 <IndicatorRow label="MACD Signal" value={ind.macd?.signal?.toFixed(1)} />
                 <IndicatorRow label="Stoch %K" value={ind.stoch?.k?.toFixed(1)} />
                 <IndicatorRow label="BB %B" value={ind.bb?.pct_b?.toFixed(2)} />
-                <IndicatorRow label="EMA 9" value={`$${Math.round(ind.ema9).toLocaleString('en')}`} />
-                <IndicatorRow label="EMA 21" value={`$${Math.round(ind.ema21).toLocaleString('en')}`} />
-                <IndicatorRow label="SMA 200" value={`$${Math.round(ind.sma200).toLocaleString('en')}`} />
+                <IndicatorRow label="EMA 9" value={fmtUsd(ind.ema9, 0)} />
+                <IndicatorRow label="EMA 21" value={fmtUsd(ind.ema21, 0)} />
+                <IndicatorRow label="SMA 200" value={fmtUsd(ind.sma200, 0)} />
                 <IndicatorRow label="Vol ratio" value={ind.volume_ratio?.toFixed(2)} />
                 <IndicatorRow label="OBV trend" value={ind.obv_trend === 1 ? 'Acumulação' : 'Distribuição'} variant={ind.obv_trend === 1 ? 'up' : 'down'} />
               </>
@@ -521,7 +521,7 @@ function ScreenMarket({ navigate, addToast } = {}) {
                       return (
                         <div key={i} className="stat-row">
                           <span className="stat-k" style={{ fontFamily: 'var(--mono)', fontSize: 11.5 }}>{pct}%</span>
-                          <span className="stat-v">${Math.round(price).toLocaleString('en')}</span>
+                          <span className="stat-v">{fmtUsd(price, 0)}</span>
                         </div>
                       );
                     })}
@@ -541,20 +541,20 @@ function ScreenMarket({ navigate, addToast } = {}) {
                 <>
                   <div className="stat-row">
                     <span className="stat-k">POC</span>
-                    <span className="stat-v">${Math.round(volumeProfile.poc).toLocaleString('en')}</span>
+                    <span className="stat-v">{fmtUsd(volumeProfile.poc, 0)}</span>
                   </div>
                   <div className="stat-row">
                     <span className="stat-k">VAH</span>
-                    <span className="stat-v">${Math.round(volumeProfile.vah).toLocaleString('en')}</span>
+                    <span className="stat-v">{fmtUsd(volumeProfile.vah, 0)}</span>
                   </div>
                   <div className="stat-row">
                     <span className="stat-k">VAL</span>
-                    <span className="stat-v">${Math.round(volumeProfile.val).toLocaleString('en')}</span>
+                    <span className="stat-v">{fmtUsd(volumeProfile.val, 0)}</span>
                   </div>
                   {(volumeProfile.lvn ?? []).map((l, i) => (
                     <div key={i} className="stat-row">
                       <span className="stat-k">LVN {i + 1}</span>
-                      <span className="stat-v" style={{ color: 'var(--ink-3)' }}>${Math.round(l).toLocaleString('en')}</span>
+                      <span className="stat-v" style={{ color: 'var(--ink-3)' }}>{fmtUsd(l, 0)}</span>
                     </div>
                   ))}
                 </>
@@ -580,7 +580,7 @@ function ScreenMarket({ navigate, addToast } = {}) {
                     </span>
                     {p.target && (
                       <span style={{ fontSize: 11.5, fontFamily: 'var(--mono)', color: 'var(--up)' }}>
-                        alvo ${Math.round(p.target).toLocaleString('en')}
+                        alvo {fmtUsd(p.target, 0)}
                       </span>
                     )}
                   </div>
