@@ -126,6 +126,30 @@ async def test_from_env_wires_real_handler_and_executes(tmp_path, monkeypatch):
     monkeypatch.setenv("LEDGER_DIR", str(tmp_path / "ledger"))
     monkeypatch.setenv("AUTONOMY_LEVEL", "3")  # threshold $5000 -> small order auto-approves
 
+    # Drive the pipeline with a controlled *sideways* market so the Grid strategy
+    # clears the 0.60 confidence gate deterministically. The production dry-run
+    # generator is intentionally realistic (trends + choppiness) and legitimately
+    # HOLDs in most conditions, so this end-to-end wiring test pins both the clock
+    # and a flat/ranging series rather than depending on the live generator's stats.
+    import math
+    import src.core.synthetic_market as synth
+
+    def _sideways_price(base, ts, amplitude=0.02):
+        return base * (1 + amplitude * math.sin(2 * math.pi * ts / 3600))
+
+    def _sideways_ohlcv(base, ts, timeframe="1h", limit=100):
+        tf = synth.timeframe_seconds(timeframe)
+        rows = []
+        for i in range(limit):
+            bucket = ts - (limit - 1 - i) * tf
+            close, open_ = _sideways_price(base, bucket), _sideways_price(base, bucket - tf)
+            rows.append([bucket * 1000, open_, max(open_, close) * 1.001, min(open_, close) * 0.999, close, 1.0])
+        return rows
+
+    monkeypatch.setattr("time.time", lambda: 1_700_000_000.0)
+    monkeypatch.setattr(synth, "synthetic_price", _sideways_price)
+    monkeypatch.setattr(synth, "synthetic_ohlcv", _sideways_ohlcv)
+
     loop = OrchestratorLoop.from_env(symbols=["BTC/USDT"])
     assert loop.orchestrator.approval_handler is not None  # real handler wired
 
