@@ -1,0 +1,118 @@
+# VPS topology for Criptotrade — sits BEHIND the shared global-ingress gateway.
+#
+# IMPORTANT: this is NOT a `-f` overlay. It is a complete stack, deployed as:
+#   docker compose -f docker-compose.vps.yml up -d --build
+#
+# Unlike docker-compose.prod.yml (self-contained nginx + Let's Encrypt + certbot),
+# this stack publishes NO host ports. TLS termination and per-domain routing live
+# in the external `global-ingress` gateway (btv-nginx-prod) on the shared
+# `btv-prod-net` network, which reverse-proxies criptotrade.buildtovalue.cloud:
+#   /v1/    -> criptotrade-app:8000        (API)
+#   /health -> criptotrade-app:8000
+#   /       -> criptotrade-frontend:80     (console)
+# The gateway targets containers BY NAME, so `container_name` and the external
+# `btv-prod-net` membership below are load-bearing — do not rename them.
+#
+# Difference vs the previous hand-edited compose on the host: `frontend` now
+# BUILDS the console from source (deploy/console.Dockerfile: esbuild pre-transpiles
+# + minifies the JSX, self-hosts production React, drops @babel/standalone and the
+# CDN) instead of bind-mounting docs/design/pages raw and transpiling in the
+# browser. So `docker compose build` rebuilds the UI deterministically on every
+# deploy — no more "backend updated, console stuck in dev mode".
+services:
+  app:
+    build: .
+    container_name: criptotrade-app
+    env_file:
+      - .env
+    environment:
+      - LEDGER_DIR=/app/data/ledger
+      - EXCHANGE_DRY_RUN=true
+    expose:
+      - "8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - prometheus
+    networks:
+      - criptotrade_internal
+      - btv-prod-net
+    restart: unless-stopped
+
+  # React console (docs/design/pages) built + minified into nginx by
+  # deploy/console.Dockerfile. Serves the static console at :80 with default nginx;
+  # the gateway routes everything except /v1 and /health here. The console calls
+  # /v1 same-origin (window.API_BASE = ""), which the gateway resolves to app.
+  frontend:
+    build:
+      context: .
+      dockerfile: deploy/console.Dockerfile
+    container_name: criptotrade-frontend
+    expose:
+      - "80"
+    depends_on:
+      - app
+    networks:
+      - criptotrade_internal
+      - btv-prod-net
+    restart: unless-stopped
+
+  # Streamlit operational dashboard (separate from the React console).
+  dashboard:
+    build: .
+    container_name: criptotrade-dashboard
+    env_file:
+      - .env
+    environment:
+      - API_URL=http://criptotrade-app:8000
+      - EXCHANGE_DRY_RUN=true
+    command: ["streamlit","run","src/dashboard/app.py","--server.port=8501","--server.address=0.0.0.0","--server.headless=true","--server.enableCORS=false","--server.enableXsrfProtection=false"]
+    expose:
+      - "8501"
+    depends_on:
+      - app
+    networks:
+      - criptotrade_internal
+      - btv-prod-net
+    restart: unless-stopped
+
+  # Continuous orchestrator loop — separate process, shares the ./data volume.
+  orchestrator:
+    build: .
+    container_name: criptotrade-orchestrator
+    env_file:
+      - .env
+    environment:
+      - LEDGER_DIR=/app/data/ledger
+      - EXCHANGE_DRY_RUN=true
+      - ORCHESTRATOR_INTERVAL_SECONDS=60
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    command: ["python","-m","src.orchestration.main_loop"]
+    networks:
+      - criptotrade_internal
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - criptotrade_internal
+    restart: unless-stopped
+
+networks:
+  criptotrade_internal:
+    driver: bridge
+  # Shared with the global-ingress gateway; created outside this stack.
+  btv-prod-net:
+    external: true
+    name: btv-prod-net
+
+volumes:
+  prometheus_data:
