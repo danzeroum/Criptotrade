@@ -57,12 +57,14 @@ jobs:
       - name: Build Python image
         run: docker build -t criptotrade:ci .
 
-      - name: Validate prod compose (nginx/certbot overlay)
-        # Catches syntax/reference errors in docker-compose.prod.yml. The throwaway
+      - name: Validate prod & VPS compose files
+        # Catches syntax/reference errors in the non-dev compose files. The throwaway
         # .env just satisfies the env_file reference; real secrets live on the host.
+        # (External networks like btv-prod-net are not checked by `config`.)
         run: |
           cp .env.prod.example .env
           docker compose -f docker-compose.prod.yml config -q
+          docker compose -f docker-compose.vps.yml config -q
 
       - name: Build console image (nginx + baked console)
         run: docker build -f deploy/console.Dockerfile -t criptotrade-console:ci .
