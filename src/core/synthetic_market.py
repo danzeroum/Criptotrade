@@ -87,9 +87,33 @@ def base_price_for(
     return _hash_base(sym)
 
 
-def synthetic_price(base: float, ts: int, amplitude: float = 0.02) -> float:
-    """Price oscillating ±``amplitude`` over a 1h cycle. Pure in ``(base, ts)``."""
-    return base * (1 + amplitude * math.sin(2 * math.pi * ts / 3600))
+def synthetic_price(base: float, ts: int, amplitude: float = 0.006) -> float:
+    """Deterministic multi-scale price path: a slow trend, a daily swing, an
+    intraday wave and a fine ripple, summed. Pure in ``(base, ts)`` — no randomness.
+
+    Every term is a sine that vanishes at ``ts == 0``, so ``synthetic_price(base, 0)
+    == base`` (relied on by tests and the env-override anchor). The periods are
+    deliberately non-harmonic with the candle grid (15m/1h/4h) so the series trends
+    and swings instead of collapsing into a mechanical sawtooth. The combined
+    amplitude is ~12%, so the multiplier stays positive. ``amplitude`` scales the
+    fine ripple (kept as a tunable knob).
+    """
+    t = float(ts)
+    trend  = 0.07 * math.sin(2 * math.pi * t / 1_036_800)   # ~12-day drift  (±7%)
+    swing  = 0.03 * math.sin(2 * math.pi * t / 93_600)      # ~26-hour swing (±3%)
+    intra  = 0.015 * math.sin(2 * math.pi * t / 19_800)     # ~5.5-hour wave (±1.5%)
+    ripple = amplitude * math.sin(2 * math.pi * t / 4_680)  # ~1.3-hour ripple
+    return base * (1 + trend + swing + intra + ripple)
+
+
+def _noise(seed: int) -> float:
+    """Deterministic pseudo-random in ``[0, 1)`` from an integer seed.
+
+    Uses ``hashlib`` (stable across processes, unlike the salted built-in
+    ``hash()``) so wick sizes and volumes stay reproducible like everything else.
+    """
+    digest = hashlib.sha256(str(seed).encode()).hexdigest()
+    return int(digest[:8], 16) / 0x1_0000_0000
 
 
 def synthetic_ticker(symbol: str, base: float, ts: int) -> Dict[str, Any]:
@@ -106,15 +130,28 @@ def synthetic_ticker(symbol: str, base: float, ts: int) -> Dict[str, Any]:
 
 
 def synthetic_ohlcv(base: float, ts: int, timeframe: str = "1h", limit: int = 100) -> List[List[float]]:
+    """Synthetic OHLCV with realistic, deterministic wicks and volume.
+
+    Bodies follow ``synthetic_price`` (candles are continuous: each open equals the
+    previous close). Wicks extend past the body by a per-candle amount and volume
+    rises with the size of the move — both driven by ``_noise`` keyed on the bucket,
+    so the chart looks alive while staying fully reproducible.
+    """
     tf = timeframe_seconds(timeframe)
     candles: List[List[float]] = []
     for i in range(limit):
         bucket = ts - (limit - 1 - i) * tf
-        close = synthetic_price(base, bucket)
         open_ = synthetic_price(base, bucket - tf)
-        high = max(open_, close) * 1.001
-        low = min(open_, close) * 0.999
-        candles.append([bucket * 1000, open_, high, low, close, 1.0])
+        close = synthetic_price(base, bucket)
+        body_hi, body_lo = max(open_, close), min(open_, close)
+        # Wick span = body size + a small floor so even flat candles print a wick.
+        span = abs(close - open_) + base * 0.0015
+        high = body_hi + _noise(bucket) * span * 0.9
+        low = max(body_lo - _noise(bucket + 7) * span * 0.9, 1e-9)
+        # Volume scales with the move plus a per-candle jitter (never below 1).
+        move = abs(close - open_) / base if base else 0.0
+        volume = max(1.0, 80.0 * (0.4 + 6.0 * move) * (0.6 + 0.8 * _noise(bucket + 13)))
+        candles.append([bucket * 1000, open_, high, low, close, round(volume, 2)])
     return candles
 
 
