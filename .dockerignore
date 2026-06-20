@@ -1,0 +1,18 @@
+# Keep the build context small & secret-free (faster, smaller images → scale).
+.git/
+.github/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.env
+.env.prod
+data/
+logs/
+**/node_modules/
+docs/design/pages/dist/
+.venv/
+venv/
+tests/

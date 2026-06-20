@@ -1,11 +1,15 @@
-version: '3.8'
-
+# Dev stack — everything in Docker. Start with: `docker compose up -d`
+#   app          API (FastAPI)         http://localhost:8000  (/metrics, /health/ready)
+#   dashboard    Streamlit console     http://localhost:8501
+#   orchestrator continuous loop       (no port; shares ./data)
+#   prometheus   metrics scraper       http://localhost:9090
+# Scale-out (shared rate limit across API replicas):
+#   REDIS_URL=redis://redis:6379/0 docker compose --profile scale up -d
 services:
   app:
     build: .
     ports:
       - "8000:8000"
-      - "8501:8501"
     env_file:
       - .env
     environment:
@@ -15,18 +19,25 @@ services:
       # Synthetic market data, zero network. Never set =false in a versioned file:
       # real trading must be an explicit, deliberate override in the deploy env.
       - EXCHANGE_DRY_RUN=true
+      # To scale the API horizontally, set REDIS_URL (e.g. redis://redis:6379/0)
+      # in .env and bring up the 'scale' profile so the rate limiter is shared.
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/ready"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_started
     restart: unless-stopped
 
   # Continuous orchestrator loop — a SEPARATE process from the API (Option A).
-  # Shares the ./data volume so the loop's XES events/ledger are the same files
-  # the API reads. NOTE (ADR-001): this makes two processes append to the JSONL
-  # ledger — the documented trigger toward SQLite/PostgreSQL. Tolerable for
-  # dry-run dev (POSIX appends are atomic under PIPE_BUF); revisit before live.
+  # Shares the ./data volume so the loop's ledger/events are the same files the
+  # API reads. Single instance by design (see docs/adr/005-scaling-path.md).
   orchestrator:
     build: .
     env_file:
@@ -41,6 +52,33 @@ services:
     command: ["python", "-m", "src.orchestration.main_loop"]
     restart: unless-stopped
 
+  # Streamlit operational console (consumes the API over HTTP).
+  dashboard:
+    build: .
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    environment:
+      - API_URL=http://app:8000
+    command:
+      - streamlit
+      - run
+      - src/dashboard/app.py
+      - --server.port=8501
+      - --server.address=0.0.0.0
+      - --server.headless=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+
   prometheus:
     image: prom/prometheus:latest
     ports:
@@ -50,6 +88,27 @@ services:
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Shared rate-limit / cache backend for horizontal API scaling. OFF by default;
+  # enable with the 'scale' profile + REDIS_URL (see header). The API fails open
+  # to in-memory if Redis is unset or unreachable.
+  redis:
+    image: redis:7-alpine
+    profiles: ["scale"]
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
 volumes:
