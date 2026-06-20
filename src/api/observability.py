@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import time
 
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST, REGISTRY, Counter, Histogram, generate_latest
+from prometheus_client.core import GaugeMetricFamily
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
@@ -50,4 +51,56 @@ def metrics_response() -> Response:
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
-__all__ = ["PrometheusMiddleware", "metrics_response", "REQUESTS", "LATENCY"]
+def _default_ledger():
+    from src.core.ledger import TradingLedger
+
+    return TradingLedger()
+
+
+class DomainMetricsCollector:
+    """Expose trading-domain gauges on /metrics by reading the shared ledger.
+
+    Cross-process-correct: domain state lives in the ledger/DB, so reading it on
+    each scrape reflects what the orchestrator (a *separate* process) did — plain
+    process-local counters in the API could not. Fail-safe: on any error it emits
+    nothing rather than breaking the scrape.
+    """
+
+    def __init__(self, ledger_factory=None) -> None:
+        self._ledger_factory = ledger_factory or _default_ledger
+
+    def collect(self):
+        try:
+            from src.core.metrics import PortfolioMetricsCalculator
+
+            data = PortfolioMetricsCalculator(self._ledger_factory()).compute(period="all").to_dict()
+        except Exception:  # pragma: no cover - scrape must never raise
+            return
+        gauges = (
+            ("criptotrade_open_positions", "Open paper positions", data.get("open_positions")),
+            ("criptotrade_total_trades", "Closed trades (all time)", data.get("total_trades")),
+            ("criptotrade_portfolio_value_usdt", "Portfolio value (USDT)", data.get("portfolio_value_usdt")),
+            ("criptotrade_realized_pnl_usdt", "Realised P&L all time (USDT)", data.get("pnl_period_usdt")),
+            ("criptotrade_win_rate", "Win rate (0-1)", data.get("win_rate")),
+            ("criptotrade_sharpe_ratio", "Sharpe ratio (annualised)", data.get("sharpe_ratio")),
+        )
+        for name, doc, value in gauges:
+            if value is not None:
+                yield GaugeMetricFamily(name, doc, value=float(value))
+
+
+# Register the domain collector once (idempotent across re-imports).
+_DOMAIN_COLLECTOR = DomainMetricsCollector()
+try:
+    REGISTRY.register(_DOMAIN_COLLECTOR)
+except ValueError:  # pragma: no cover - already registered
+    pass
+
+
+__all__ = [
+    "PrometheusMiddleware",
+    "metrics_response",
+    "DomainMetricsCollector",
+    "REQUESTS",
+    "LATENCY",
+]
