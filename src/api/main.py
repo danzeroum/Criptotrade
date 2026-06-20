@@ -32,6 +32,7 @@ from src.api.routes import (
     trades,
 )
 from src.api.observability import PrometheusMiddleware, metrics_response
+from src.api.request_id import RequestIdMiddleware
 from src.core.db import init_db
 from src.core.ratelimit import build_rate_limiter
 
@@ -220,8 +221,10 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RateLimitMiddleware)
-    # Outermost: measures total latency incl. the other middleware (and 429s).
+    # Measures total latency incl. the other middleware (and 429s).
     app.add_middleware(PrometheusMiddleware)
+    # Outermost: bind a correlation id before anything else runs or logs.
+    app.add_middleware(RequestIdMiddleware)
 
     app.include_router(metrics.router, prefix=PREFIX)
     app.include_router(hitl.router, prefix=PREFIX)
