@@ -52,7 +52,22 @@ class ExchangeClient:
         # paper analysis differ per coin instead of every pair sharing one price.
         self.base_prices = synth.parse_base_prices(os.getenv("DRY_RUN_BASE_PRICES", ""))
 
-        self.paper_trading = True
+        # Order routing is INDEPENDENT of the market-data source (``dry_run``):
+        #   * ORDER_ROUTING=paper (default) → simulated fills (paper trading)
+        #   * ORDER_ROUTING=live            → real orders on the exchange
+        # This makes the "real price + paper execution" mode explicit:
+        # ``EXCHANGE_DRY_RUN=false`` (real market data) + ``ORDER_ROUTING=paper``.
+        # Live routing needs a real exchange client, so it is incompatible with
+        # dry-run — fail loud rather than silently dropping real orders.
+        routing = (os.getenv("ORDER_ROUTING", "paper") or "paper").strip().lower()
+        if routing not in {"paper", "live"}:
+            raise RuntimeError(f"ORDER_ROUTING inválido: {routing!r}. Use 'paper' ou 'live'.")
+        if routing == "live" and self.dry_run:
+            raise RuntimeError(
+                "ORDER_ROUTING=live exige EXCHANGE_DRY_RUN=false "
+                "(ordens reais precisam de dados reais da exchange)."
+            )
+        self.paper_trading = routing != "live"
         self.simulated_orders: Dict[str, Dict[str, Any]] = {}
 
         if self.dry_run:

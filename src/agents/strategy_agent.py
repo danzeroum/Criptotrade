@@ -1,6 +1,7 @@
 """Strategy agent for generating trading signals."""
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -21,7 +22,7 @@ class StrategyAgent(BaseAgent):
     detected market regime.
     """
 
-    def __init__(self, exchange_client: Any = None) -> None:
+    def __init__(self, exchange_client: Any = None, llm_client: Any = "auto") -> None:
         super().__init__("strategy")
         self.tools = ["market_data", "technical_indicators", "pattern_recognition"]
         self.exchange_client = exchange_client
@@ -29,6 +30,15 @@ class StrategyAgent(BaseAgent):
         self._div_detector = DivergenceDetector()
         # Strategy instances loaded lazily to avoid circular imports
         self._strategy_cache: dict[str, Any] = {}
+        # Optional LLM for Chain-of-Thought reasoning over the TA context.
+        # "auto" → resolve lazily from env; None → disabled; object → injected.
+        self._llm = llm_client
+
+    def _resolve_llm(self) -> Any:
+        if self._llm == "auto":
+            from src.core.llm_client import get_llm_client
+            return get_llm_client()
+        return self._llm
 
     # ---------------------------------------------------------------------- public
 
@@ -51,12 +61,28 @@ class StrategyAgent(BaseAgent):
         else:
             confidence = agent_confidence
 
+        # Chain-of-Thought via LLM (advisory, optional). Blends LLM confidence
+        # with the deterministic score and attaches a human-readable thesis.
+        # Skipped for HOLD and whenever the LLM is disabled/unavailable.
+        llm_used = False
+        llm_thesis: str | None = None
+        llm = self._resolve_llm()
+        if llm is not None and signal.get("action") != "HOLD":
+            blended, llm_thesis = await self._llm_assess(llm, analysis, signal, confidence)
+            if blended is not None:
+                confidence = blended
+                llm_used = True
+
+        stub_used = bool(analysis.get("stub_used"))
         decision = {
             "task": task,
             "analysis": self._sanitize_for_log(analysis),
             "signal": signal,
             "confidence": confidence,
             "reasoning": self._explain_reasoning(analysis, signal),
+            "llm_used": llm_used,
+            "llm_thesis": llm_thesis,
+            "stub_used": stub_used,
         }
         self.log_decision(decision)
 
@@ -66,6 +92,9 @@ class StrategyAgent(BaseAgent):
             "signal": signal,
             "confidence": confidence,
             "analysis": self._sanitize_for_log(analysis),
+            "llm_used": llm_used,
+            "llm_thesis": llm_thesis,
+            "stub_used": stub_used,
         }
 
     # ------------------------------------------------------------------- analysis
@@ -142,6 +171,7 @@ class StrategyAgent(BaseAgent):
             "rsi_divergence": rsi_div,
             "macd_divergence": macd_div,
             "market_extreme": market_extreme,
+            "stub_used": False,
             "_ohlcv": ohlcv,   # kept for strategy access, stripped before logging
         }
 
@@ -296,6 +326,53 @@ class StrategyAgent(BaseAgent):
 
         return round(max(0.10, min(0.95, score)), 4)
 
+    # ------------------------------------------------------------------ LLM (CoT)
+
+    async def _llm_assess(
+        self,
+        llm: Any,
+        analysis: dict[str, Any],
+        signal: dict[str, Any],
+        base_confidence: float,
+    ) -> tuple[float | None, str | None]:
+        """Consult the LLM for a thesis + confidence on the proposed signal.
+
+        Returns ``(blended_confidence, thesis)``. On any failure returns
+        ``(None, <thesis or None>)`` so the caller keeps the deterministic score.
+        """
+        ind = analysis.get("indicators")
+        context = {
+            "symbol": analysis.get("symbol"),
+            "regime": analysis.get("regime"),
+            "trend": analysis.get("trend"),
+            "action": signal.get("action"),
+            "strategy": signal.get("strategy"),
+            "entry_price": signal.get("entry_price"),
+            "stop_loss": signal.get("stop_loss"),
+            "take_profit": signal.get("take_profit"),
+            "deterministic_confidence": base_confidence,
+            "rsi": getattr(ind, "rsi", None),
+            "macd_hist": getattr(ind, "macd_hist", None),
+            "bb_percent": getattr(ind, "bb_percent", None),
+            "volume_ratio": getattr(ind, "volume_ratio", None),
+        }
+        system = (
+            "You are a senior crypto trading analyst. Assess the proposed action "
+            "given the technical-analysis context. Think step by step but respond "
+            'ONLY with JSON: {"confidence": <0..1>, "thesis": "<=240 chars"}. '
+            "Be conservative: if indicators conflict or context is thin, lower the confidence."
+        )
+        result = await llm.reason_json(system, json.dumps(context, default=str))
+        if not result:
+            return None, None
+        thesis = result.get("thesis")
+        raw = result.get("confidence")
+        if not isinstance(raw, (int, float)):
+            return None, thesis
+        # Blend equally: deterministic TA floor + LLM judgement, clamped.
+        blended = round(max(0.10, min(0.95, 0.5 * base_confidence + 0.5 * float(raw))), 4)
+        return blended, thesis
+
     # ------------------------------------------------------------------ helpers
 
     def _build_market_data(self, analysis: dict[str, Any]) -> dict[str, Any]:
@@ -380,6 +457,7 @@ class StrategyAgent(BaseAgent):
             "rsi_divergence": None,
             "macd_divergence": None,
             "market_extreme": None,
+            "stub_used": True,
             "_ohlcv": [],
         }
 

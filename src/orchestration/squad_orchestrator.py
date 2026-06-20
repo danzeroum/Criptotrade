@@ -12,6 +12,7 @@ from src.agents.risk_agent import RiskAgent
 from src.agents.strategy_agent import StrategyAgent
 from src.core.alerts import Alert, AlertBus, AlertStore
 from src.core.ledger import TradingLedger
+from src.orchestration.position_store import PositionStore
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +30,39 @@ class CircuitBreaker:
     CONSECUTIVE_LOSS_LIMIT: int = 3
     COOLDOWN_SECONDS: float = 24 * 3600
 
-    def __init__(self, ledger: TradingLedger | None = None) -> None:
+    def __init__(
+        self,
+        ledger: TradingLedger | None = None,
+        state_db_provider: Callable[[], Any] | None = None,
+    ) -> None:
         self._ledger = ledger
         self._tripped_at: float | None = None
         self._consecutive_losses: int = 0
         self._daily_loss_pct: float = 0.0
+        # Optional SQLite persistence so the breaker survives a loop restart.
+        # None = in-memory only (default; behaviour unchanged).
+        self._state_db = state_db_provider
+
+    def reload(self) -> None:
+        """Restore persisted breaker state (no-op when persistence is disabled)."""
+        if self._state_db is None:
+            return
+        from src.orchestration.position_store import load_circuit_state
+
+        state = load_circuit_state(self._state_db)
+        if state:
+            self._tripped_at = state["tripped_at"]
+            self._consecutive_losses = int(state["consecutive_losses"])
+            self._daily_loss_pct = float(state["daily_loss_pct"])
+
+    def _persist(self) -> None:
+        if self._state_db is None:
+            return
+        from src.orchestration.position_store import save_circuit_state
+
+        save_circuit_state(
+            self._state_db, self._tripped_at, self._consecutive_losses, self._daily_loss_pct
+        )
 
     @property
     def is_open(self) -> bool:
@@ -64,6 +93,7 @@ class CircuitBreaker:
                 f"{self._consecutive_losses} consecutive losses"
                 f" reached limit {self.CONSECUTIVE_LOSS_LIMIT}"
             )
+        self._persist()
 
     def reset_daily(self) -> None:
         """Call once per trading day to reset the daily loss counter."""
@@ -72,6 +102,7 @@ class CircuitBreaker:
             elapsed = time.time() - self._tripped_at
             if elapsed >= self.COOLDOWN_SECONDS:
                 self._reset("daily reset")
+        self._persist()
 
     def _trip(self, reason: str) -> None:
         if self._tripped_at is not None:
@@ -94,6 +125,7 @@ class CircuitBreaker:
                 self._ledger.log_decision("circuit_breaker_reset", {"reason": reason})
             except Exception:
                 pass
+        self._persist()
 
 
 class SquadOrchestrator:
@@ -112,7 +144,9 @@ class SquadOrchestrator:
         self.risk_agent = RiskAgent()
         self.execution_agent = ExecutionAgent(exchange_client)
         self.ledger = TradingLedger()
-        self.circuit_breaker = CircuitBreaker(ledger=self.ledger)
+        self.circuit_breaker = CircuitBreaker(
+            ledger=self.ledger, state_db_provider=lambda: self.ledger.db_path
+        )
         # Real HITL hook. When None, approvals are denied (fail-closed).
         self.approval_handler = approval_handler
         # Used to size paper fills (qty = capital * position_size_pct / price).
@@ -126,6 +160,8 @@ class SquadOrchestrator:
         self._last_order_ref: str | None = None
         # Paper position book: tracks open fills so stop/TP exits can be logged.
         self._open_positions: dict[str, dict[str, Any]] = {}
+        # SQLite mirror so the book survives a loop restart (no zombie positions).
+        self._positions = PositionStore(lambda: self.ledger.db_path)
         # Wire the RiskAgent's guardrails to publish each violation as an alert.
         if alert_store is not None:
             from src.core.alerts import make_guardrail_sink
@@ -143,6 +179,19 @@ class SquadOrchestrator:
         # handlers return a bool. Keep the id to mark_filled post-execution.
         self._last_order_ref = result if isinstance(result, str) else None
         return bool(result)
+
+    def reload_open_positions(self) -> None:
+        """Restore the paper position book + breaker state from SQLite.
+
+        Call once at loop startup so a restart doesn't strand open positions
+        (they'd otherwise never be closed at stop/TP — "zombie" positions) or
+        forget a loss streak in the circuit breaker.
+        """
+        restored = self._positions.load_all()
+        if restored:
+            self._open_positions = restored
+            logger.info("Restored %d open paper position(s) from disk", len(restored))
+        self.circuit_breaker.reload()
 
     async def analyze_and_trade(self, symbol: str, timeframe: str = "1h") -> dict[str, Any]:
         """Full trading pipeline with agent collaboration."""
@@ -163,6 +212,11 @@ class SquadOrchestrator:
         # Ensure the signal carries the symbol so the order records the real pair
         # (the demo strategy stub omits it) — fixes orders showing pair="UNKNOWN".
         strategy_result["signal"].setdefault("symbol", symbol)
+
+        # Surface a silent data fallback: trading on synthetic stub data (e.g. a
+        # failed live OHLCV fetch) must not pass unnoticed by the operator.
+        if strategy_result.get("stub_used"):
+            await self._emit_stub_alert(symbol)
 
         # Check open paper positions against current price on every cycle, even
         # when this cycle generates no new trade (fail-safe: wrap so a close error
@@ -186,7 +240,10 @@ class SquadOrchestrator:
 
         risk_result = await self.risk_agent.execute({
             "signal": strategy_result["signal"],
-            "portfolio": {},
+            "portfolio": {
+                "available_capital": self._available_capital(),
+                "capital_base": self.initial_capital,
+            },
         })
 
         self.ledger.log_validation(agent="risk", validation=risk_result["validation"])
@@ -243,6 +300,28 @@ class SquadOrchestrator:
             "signal": strategy_result["signal"],
             "confidence": strategy_result["confidence"],
         }
+
+    def _realized_pnl(self) -> float:
+        """Sum realised P&L from closed paper positions in the ledger."""
+        total = 0.0
+        try:
+            for entry in self.ledger.get_events("position_closed"):
+                data = entry.get("data") or {}
+                try:
+                    total += float(data.get("pnl") or 0.0)
+                except (TypeError, ValueError):
+                    continue
+        except Exception:  # pragma: no cover - defensive (ledger read)
+            logger.warning("Could not read realised P&L", exc_info=True)
+        return total
+
+    def _available_capital(self) -> float:
+        """Capital available for a new position: base + realised − open exposure."""
+        open_notional = sum(
+            float(p.get("entry_price", 0) or 0) * float(p.get("quantity", 0) or 0)
+            for p in self._open_positions.values()
+        )
+        return self.initial_capital + self._realized_pnl() - open_notional
 
     def _position_quantity(self, signal: dict[str, Any]) -> float:
         """Quantity for a paper fill: ``capital * position_size_pct / entry price``.
@@ -301,6 +380,7 @@ class SquadOrchestrator:
                 "take_profit": float(tp) if tp is not None else None,
                 "opened_at": datetime.now(UTC).isoformat(),
             }
+            self._positions.upsert(order_id, self._open_positions[order_id])
         except (TypeError, ValueError):  # pragma: no cover - defensive
             logger.warning("Could not record fill for %s", symbol, exc_info=True)
 
@@ -319,6 +399,7 @@ class SquadOrchestrator:
         for oid, pos in to_close:
             exit_price = self._exit_price(pos, current_price)
             del self._open_positions[oid]
+            self._positions.delete(oid)
             self.ledger.log_position_closed(
                 order_id=oid,
                 symbol=pos["symbol"],
@@ -355,6 +436,25 @@ class SquadOrchestrator:
             if tp is not None and current_price <= tp:
                 return tp
         return None
+
+    async def _emit_stub_alert(self, symbol: str) -> None:
+        """Alert when the strategy fell back to synthetic stub data (no-op without a sink)."""
+        if self.alert_store is None and self.alert_bus is None:
+            return
+        alert = Alert(
+            severity="high",
+            type="data_fallback",
+            message=(
+                f"Strategy Agent em modo fallback para {symbol}: decisão baseada em "
+                "dados sintéticos (stub). Verifique a conectividade com a exchange."
+            ),
+            agent_id="strategy_agent",
+            pair=symbol,
+        )
+        if self.alert_store is not None:
+            self.alert_store.append(alert)
+        if self.alert_bus is not None:
+            await self.alert_bus.publish(alert)
 
     async def _emit_alert(self, symbol: str, issues: Any) -> None:
         """Emit a guardrail alert when risk rejects a signal (no-op without a sink)."""

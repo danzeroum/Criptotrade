@@ -3,7 +3,7 @@
 ## Executando
 
 ```bash
-# Suíte completa (138 testes)
+# Suíte completa (383 testes)
 pytest -q
 
 # Com cobertura

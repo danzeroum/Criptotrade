@@ -208,6 +208,7 @@ class OrchestratorLoop:
             exchange, approval_handler=handler, fill_callback=order_store.mark_filled,
         )
         orchestrator.ledger = ledger  # share one ledger between pipeline and loop
+        orchestrator.reload_open_positions()  # restore positions + breaker after a restart
         # Explicit symbols win; otherwise resolve from SYMBOLS env (default BTC).
         loop = cls(orchestrator, registry, ledger, symbols=symbols or _symbols_from_env())
         loop.order_store = order_store  # exposed for inspection / future mark_filled

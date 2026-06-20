@@ -51,7 +51,7 @@ Dois processos separados (não compartilham lifecycle — um restart da API não
          │ Dashboard (Streamlit)│  KPIs · Console HITL · Agentes · Alertas
          └────────────────────┘
 
-> **Design:** existe um protótipo de console React em `docs/design/pages/` (mockups estáticos, não buildado/deployado).
+> **Design:** o console React em `docs/design/pages/` é buildado no CI (esbuild) e servido pelo nginx em produção (`docker-compose.prod.yml`) — o `dist/` é gitignored. A UI operacional padrão continua sendo o dashboard Streamlit.
 
 ```
 
@@ -89,7 +89,7 @@ cd Criptotrade
 cp .env.example .env          # ajuste conforme a tabela de env vars abaixo
 pip install -r requirements.txt
 
-pytest -q                     # 324 testes
+pytest -q                     # 383 testes
 ```
 
 ### Rodando (3 processos independentes)
@@ -155,7 +155,9 @@ print(result["ran"])                     # ex.: ['strategy', 'risk', 'execution'
 
 | Variável | Default | Descrição |
 |---|---|---|
-| `EXCHANGE_DRY_RUN` | **(obrigatória)** | `true` = sintético/offline · `false` = exchange real (produção) |
+| `EXCHANGE_DRY_RUN` | **(obrigatória)** | Fonte de dados: `true` = sintético/offline · `false` = dados reais da exchange |
+| `ORDER_ROUTING` | `paper` | Roteamento de ordens (independente do dado): `paper` = fills simulados · `live` = ordens reais (exige `EXCHANGE_DRY_RUN=false`). "preço real + paper" = `false` + `paper` |
+| `LLM_ENABLED` / `LLM_PROVIDER` / `LLM_MODEL` | `false` / `google` / — | Camada de IA (CoT/Reflection). OFF por padrão → pipeline determinístico/offline; liga com `LLM_ENABLED=true` + chave do provider (`google`/`openai`/`anthropic`) |
 | `DRY_RUN_BASE_PRICE` | `50000` | Preço-base sintético do BTC/USDT (âncora determinística) |
 | `DRY_RUN_BASE_PRICES` | — | Overrides por par (`BTC/USDT=50000,ETH/USDT=3000`); pares não mapeados ganham preço determinístico próprio |
 | `MARKET_PAIRS` | `BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT,XRP/USDT` | Allowlist de pares (API, loop e dashboards) |
@@ -185,6 +187,11 @@ Veja `.env.example` para a lista completa.
 | 1 | $500 | Semiautônomo baixo |
 | 2 (padrão) | $1.000 | Semiautônomo médio |
 | 3 | $5.000 | Semiautônomo alto (alertas críticos ainda requerem humano) |
+
+> **Nota (dois modelos de autonomia):** o loop vivo usa o modelo **por-threshold**
+> acima (`src/hitl/config.py`). Existe também um `ProgressiveAutonomyManager`
+> (trust-score, `src/hitl/progressive_autonomy.py`) usado pelo `unified_orchestrator`
+> — caminho alternativo. A reconciliação dos dois está adiada (ver `docs/roadmap_v1.md`).
 
 **Lifecycle de uma ordem** (cross-process via SQLite):
 - **Auto** (notional ≤ threshold, não-crítica): `pending → filled` direto.
@@ -242,7 +249,7 @@ Criptotrade/
 ## 🧪 Testes
 
 ```bash
-pytest -q                                   # suíte completa (324 testes)
+pytest -q                                   # suíte completa (383 testes)
 pytest tests/unit/test_orders.py -v         # bridge HITL (OrderStore SQLite)
 pytest tests/unit/test_db.py -v             # backend SQLite + migrations
 pytest tests/integration/test_trading_flow.py -v

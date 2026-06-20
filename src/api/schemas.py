@@ -159,6 +159,21 @@ class OrderOut(BaseModel):
     filled_at: Optional[str] = None
 
 
+# ----------------------------------------------------------------- closed trades
+class ClosedTradeOut(BaseModel):
+    order_id: str
+    symbol: str
+    side: str
+    entry_price: float
+    exit_price: float
+    quantity: float
+    fee: float = 0.0
+    pnl: float
+    pnl_pct: float
+    opened_at: Optional[str] = None
+    closed_at: Optional[str] = None
+
+
 # ----------------------------------------------------------------- agents
 class AgentStatusOut(BaseModel):
     id: str
