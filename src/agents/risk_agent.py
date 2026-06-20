@@ -89,6 +89,22 @@ class RiskAgent(BaseAgent):
         if position_size > self.max_position_size_pct:
             issues.append(f"Position size {position_size}% exceeds limit {self.max_position_size_pct}%")
 
+        # Pre-trade balance gate: requested notional must not exceed available
+        # capital (initial + realised P&L − open exposure). Skipped when the
+        # caller supplies no portfolio context (backward compatible).
+        available = portfolio.get("available_capital")
+        capital_base = portfolio.get("capital_base")
+        if available is not None and capital_base:
+            try:
+                requested = float(capital_base) * float(position_size or 0) / 100.0
+                if requested > float(available) + 1e-9:
+                    issues.append(
+                        f"Insufficient capital: requested notional ${requested:.2f} "
+                        f"exceeds available ${float(available):.2f}"
+                    )
+            except (TypeError, ValueError):  # pragma: no cover - defensive
+                pass
+
         # Check stop loss
         entry = signal.get("entry_price", 0)
         stop = signal.get("stop_loss", 0)
