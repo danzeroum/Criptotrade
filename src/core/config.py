@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     # Application
     app_env: str = Field(default="development", alias="APP_ENV")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
+    log_format: str = Field(default="text", alias="LOG_FORMAT")  # text | json
 
     # AI Models
     google_api_key: Optional[str] = Field(default=None, alias="GOOGLE_API_KEY")
@@ -71,6 +72,10 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
+        # Ignore keys meant for other services in a shared .env (POSTGRES_*, GF_*,
+        # etc.). Without this, the documented `cp .env.example .env` would crash
+        # startup with extra_forbidden.
+        extra = "ignore"
 
 
 # Global settings instance
@@ -90,20 +95,45 @@ LOGS_DIR.mkdir(exist_ok=True)
 LEDGER_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def _build_formatter() -> logging.Formatter:
+    """Text by default; JSON when LOG_FORMAT=json (for log aggregation at scale).
+
+    JSON uses python-json-logger (a declared dep) imported lazily, so lean
+    environments that don't install it still work in text mode.
+    """
+    text_fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    if settings.log_format.strip().lower() == "json":
+        try:
+            from pythonjsonlogger import jsonlogger
+
+            return jsonlogger.JsonFormatter(
+                "%(asctime)s %(name)s %(levelname)s %(message)s %(request_id)s",
+                rename_fields={"asctime": "ts", "levelname": "level", "name": "logger"},
+            )
+        except ImportError:
+            logger.warning("LOG_FORMAT=json but python-json-logger missing; using text")
+    return logging.Formatter(text_fmt)
+
+
 def configure_logging() -> None:
     """Configure application-wide logging."""
-    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    from src.core.request_context import RequestIdLogFilter
+
+    formatter = _build_formatter()
+    rid_filter = RequestIdLogFilter()
     level = getattr(logging, settings.log_level.upper(), logging.INFO)
 
     root_logger = logging.getLogger()
     if not root_logger.handlers:
         console_handler = logging.StreamHandler()
         console_handler.setLevel(level)
-        console_handler.setFormatter(logging.Formatter(log_format))
+        console_handler.setFormatter(formatter)
+        console_handler.addFilter(rid_filter)
 
         file_handler = logging.FileHandler(LOGS_DIR / "trading.log")
         file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(logging.Formatter(log_format))
+        file_handler.setFormatter(formatter)
+        file_handler.addFilter(rid_filter)
 
         root_logger.setLevel(logging.DEBUG)
         root_logger.addHandler(console_handler)

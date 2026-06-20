@@ -22,11 +22,13 @@ import logging
 import os
 import time
 import uuid
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 from src.agents.registry import AgentRegistry
 from src.core.ledger import TradingLedger
 from src.core.pairs import allowed_pairs, parse_pairs
+from src.orchestration.heartbeat import HEARTBEAT_FILENAME, write_heartbeat
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +106,9 @@ class OrchestratorLoop:
         # asyncio.Event gives a clean, race-free shutdown: stop() wakes the
         # interval wait immediately instead of waiting out the full sleep.
         self._stop_event = asyncio.Event()
+        # Heartbeat next to the ledger so a no-HTTP loop is still observable
+        # (scripts/healthcheck_loop.py reads it for the container healthcheck).
+        self._heartbeat_path = Path(self.ledger.ledger_path).parent / HEARTBEAT_FILENAME
 
     # ------------------------------------------------------------------- cycle
     async def run_cycle(self) -> Dict[str, Any]:
@@ -140,6 +145,7 @@ class OrchestratorLoop:
                 cycle_id, "agent_cycle_completed", "orchestrator",
                 {"duration_ms": duration_ms, "ran": ran_agents, "failures": len(failures)},
             )
+            write_heartbeat(self._heartbeat_path, cycle_id)
         return {"cycle_id": cycle_id, "ran": ran_agents, "failures": failures}
 
     # -------------------------------------------------------------------- loop
