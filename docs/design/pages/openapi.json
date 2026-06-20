@@ -493,6 +493,42 @@
         "title": "APIResponse[List[CandleOut]]",
         "type": "object"
       },
+      "APIResponse_List_ClosedTradeOut__": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ClosedTradeOut"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[List[ClosedTradeOut]]",
+        "type": "object"
+      },
       "APIResponse_List_EquityPoint__": {
         "properties": {
           "_links": {
@@ -1610,6 +1646,81 @@
           "cooldown_remaining"
         ],
         "title": "CircuitBreakerOut",
+        "type": "object"
+      },
+      "ClosedTradeOut": {
+        "properties": {
+          "closed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          },
+          "entry_price": {
+            "title": "Entry Price",
+            "type": "number"
+          },
+          "exit_price": {
+            "title": "Exit Price",
+            "type": "number"
+          },
+          "fee": {
+            "default": 0.0,
+            "title": "Fee",
+            "type": "number"
+          },
+          "opened_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opened At"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "pnl": {
+            "title": "Pnl",
+            "type": "number"
+          },
+          "pnl_pct": {
+            "title": "Pnl Pct",
+            "type": "number"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "number"
+          },
+          "side": {
+            "title": "Side",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "symbol",
+          "side",
+          "entry_price",
+          "exit_price",
+          "quantity",
+          "pnl",
+          "pnl_pct"
+        ],
+        "title": "ClosedTradeOut",
         "type": "object"
       },
       "ConfidenceFactor": {
@@ -5544,6 +5655,80 @@
         "summary": "Prote\u00e7\u00f5es de drawdown (di\u00e1rio / semanal / mensal)",
         "tags": [
           "risk"
+        ]
+      }
+    },
+    "/v1/trades/closed": {
+      "get": {
+        "operationId": "list_closed_trades_v1_trades_closed_get",
+        "parameters": [
+          {
+            "description": "Filtrar por par (ex.: BTC/USDT).",
+            "in": "query",
+            "name": "symbol",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por par (ex.: BTC/USDT).",
+              "title": "Symbol"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_List_ClosedTradeOut__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Hist\u00f3rico de trades fechados com P&L individual",
+        "tags": [
+          "trades"
         ]
       }
     }

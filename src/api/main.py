@@ -30,6 +30,7 @@ from src.api.routes import (
     orders,
     process,
     risk,
+    trades,
 )
 from src.core.db import init_db
 
@@ -233,6 +234,7 @@ def create_app() -> FastAPI:
     app.include_router(backtest.router, prefix=PREFIX)
     app.include_router(journal.router, prefix=PREFIX)
     app.include_router(config.router, prefix=PREFIX)
+    app.include_router(trades.router, prefix=PREFIX)
 
     @app.get("/health", tags=["infra"])
     async def health() -> dict:

@@ -70,6 +70,18 @@ def _auto_refresh() -> None:
 st.title("📊 Crypto AI Trading Platform")
 _auto_refresh()
 
+# ── Synthetic-data fallback banner (CT-017) ───────────────────────────────────
+# If the strategy recently fell back to synthetic stub data, warn the operator
+# persistently at the top (the underlying alert is also in the alerts panel).
+_alerts_top, _ = _get("/v1/alerts/history?limit=20")
+if _alerts_top and any(
+    a.get("type") == "data_fallback" for a in (_alerts_top.get("data") or [])
+):
+    st.warning(
+        "⚠️ Strategy Agent em modo fallback — decisões recentes podem usar dados "
+        "sintéticos (stub). Verifique a conectividade com a exchange."
+    )
+
 # ── System status bar ─────────────────────────────────────────────────────────
 health, health_err = _get("/health")
 hitl, _ = _get("/v1/hitl/config")
@@ -325,6 +337,35 @@ elif orders and orders["data"]:
         st.caption(f"Nenhuma ordem recente para {selected_symbol}.")
 else:
     st.caption("Nenhuma ordem registrada ainda.")
+
+st.divider()
+
+# ── Closed trades (realised P&L) ──────────────────────────────────────────────
+st.subheader("💰 Trades fechados")
+_trades_qs = "" if selected_symbol == "Todos" else f"&symbol={selected_symbol}"
+closed, closed_err = _get(f"/v1/trades/closed?limit=50{_trades_qs}")
+if closed_err:
+    st.warning(f"Não foi possível carregar trades fechados ({closed_err}).")
+elif closed and closed["data"]:
+    st.dataframe(
+        [
+            {
+                "Par": t["symbol"],
+                "Lado": t["side"].upper(),
+                "Entrada": f"${t['entry_price']:,.2f}",
+                "Saída": f"${t['exit_price']:,.2f}",
+                "Qtd": t["quantity"],
+                "P&L": f"${t['pnl']:,.2f}",
+                "P&L %": f"{t['pnl_pct'] * 100:.2f}%",
+                "Fechado": t["closed_at"] or "—",
+            }
+            for t in closed["data"]
+        ],
+        hide_index=True,
+        use_container_width=True,
+    )
+else:
+    st.caption("Nenhum trade fechado ainda.")
 
 st.divider()
 

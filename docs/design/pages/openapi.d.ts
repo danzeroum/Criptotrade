@@ -588,6 +588,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/trades/closed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Histórico de trades fechados com P&L individual */
+        get: operations["list_closed_trades_v1_trades_closed_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -685,6 +702,13 @@ export interface components {
             _links?: components["schemas"]["Links"] | null;
             /** Data */
             data: components["schemas"]["CandleOut"][];
+            meta?: components["schemas"]["Meta"] | null;
+        };
+        /** APIResponse[List[ClosedTradeOut]] */
+        APIResponse_List_ClosedTradeOut__: {
+            _links?: components["schemas"]["Links"] | null;
+            /** Data */
+            data: components["schemas"]["ClosedTradeOut"][];
             meta?: components["schemas"]["Meta"] | null;
         };
         /** APIResponse[List[EquityPoint]] */
@@ -1004,6 +1028,34 @@ export interface components {
             status: string;
             /** Triggers */
             triggers: string[];
+        };
+        /** ClosedTradeOut */
+        ClosedTradeOut: {
+            /** Closed At */
+            closed_at?: string | null;
+            /** Entry Price */
+            entry_price: number;
+            /** Exit Price */
+            exit_price: number;
+            /**
+             * Fee
+             * @default 0
+             */
+            fee: number;
+            /** Opened At */
+            opened_at?: string | null;
+            /** Order Id */
+            order_id: string;
+            /** Pnl */
+            pnl: number;
+            /** Pnl Pct */
+            pnl_pct: number;
+            /** Quantity */
+            quantity: number;
+            /** Side */
+            side: string;
+            /** Symbol */
+            symbol: string;
         };
         /**
          * ConfidenceFactor
@@ -2887,6 +2939,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["APIResponse_List_ProtectionOut__"];
+                };
+            };
+        };
+    };
+    list_closed_trades_v1_trades_closed_get: {
+        parameters: {
+            query?: {
+                /** @description Filtrar por par (ex.: BTC/USDT). */
+                symbol?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_List_ClosedTradeOut__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

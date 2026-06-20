@@ -60,12 +60,10 @@ def init_db(
     Returns the list of migration versions applied on this call (empty if the DB
     was already up to date). Safe to call from both processes on startup.
 
-    WARNING (tech debt): ``executescript()`` issues an implicit COMMIT before
-    running, so a migration that fails halfway is NOT rolled back by the context
-    manager's transaction. It's safe here because migration 001 is idempotent
-    (``CREATE TABLE IF NOT EXISTS``). For future migrations with multiple
-    statements, run them via ``conn.execute()`` statement-by-statement inside the
-    context manager's transaction instead of ``executescript()``.
+    Migrations run **statement-by-statement inside the context manager's
+    transaction** (not ``executescript``, which issues an implicit COMMIT and
+    would leave a half-applied migration on failure). A failing migration is
+    therefore rolled back atomically.
     """
     mdir = Path(migrations_dir) if migrations_dir else MIGRATIONS_DIR
     applied: List[str] = []
@@ -79,13 +77,24 @@ def init_db(
             version = sql_file.name
             if version in done:
                 continue
-            conn.executescript(sql_file.read_text(encoding="utf-8"))
+            for statement in _split_sql_statements(sql_file.read_text(encoding="utf-8")):
+                conn.execute(statement)
             conn.execute(
                 "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
                 (version, datetime.now(timezone.utc).isoformat()),
             )
             applied.append(version)
     return applied
+
+
+def _split_sql_statements(sql: str) -> List[str]:
+    """Split a migration file into individual statements.
+
+    Strips ``--`` line comments then splits on ``;``. Adequate for the project's
+    simple DDL migrations (no ``;`` or ``--`` inside string literals).
+    """
+    cleaned = "\n".join(line.split("--", 1)[0] for line in sql.splitlines())
+    return [stmt.strip() for stmt in cleaned.split(";") if stmt.strip()]
 
 
 __all__ = ["connection", "get_db_path", "init_db", "MIGRATIONS_DIR"]
