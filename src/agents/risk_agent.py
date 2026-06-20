@@ -1,4 +1,6 @@
 """Risk management agent."""
+import json
+import os
 from typing import Any, Dict
 from src.agents.base_agent import BaseAgent
 from src.safety.guardrails import GuardrailSystem
@@ -10,13 +12,31 @@ logger = logging.getLogger(__name__)
 class RiskAgent(BaseAgent):
     """Validates trades against risk management rules."""
 
-    def __init__(self) -> None:
+    def __init__(self, llm_client: Any = "auto") -> None:
         super().__init__("risk")
         self.tools = ["portfolio_analyzer", "risk_calculator"]
         self.guardrails = GuardrailSystem()
-        self.max_position_size_pct = 5.0
-        self.stop_loss_pct = 3.0
-        self.max_daily_loss_pct = 5.0
+        # Risk limits read from the environment (config-driven, not hardcoded).
+        self.max_position_size_pct = self._env_float("MAX_POSITION_SIZE_PCT", 5.0)
+        self.stop_loss_pct = self._env_float("STOP_LOSS_PCT", 3.0)
+        self.max_daily_loss_pct = self._env_float("MAX_DAILY_LOSS_PCT", 5.0)
+        # Optional LLM for the Reflection step. "auto" → resolve lazily from env;
+        # None → disabled; an object → injected (tests). Never raises / can only
+        # tighten the decision (advisory).
+        self._llm = llm_client
+
+    @staticmethod
+    def _env_float(name: str, default: float) -> float:
+        try:
+            return float(os.getenv(name, str(default)))
+        except (TypeError, ValueError):
+            return default
+
+    def _resolve_llm(self) -> Any:
+        if self._llm == "auto":
+            from src.core.llm_client import get_llm_client
+            return get_llm_client()
+        return self._llm
 
     async def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
         """Validate trade proposal against risk rules."""
@@ -28,7 +48,7 @@ class RiskAgent(BaseAgent):
 
         # Reflection pattern: validate → reflect → refine
         initial_validation = await self._validate_signal(signal, portfolio)
-        reflection = await self._reflect_on_validation(initial_validation)
+        reflection = await self._reflect_on_validation(initial_validation, signal)
         final_validation = self._refine_validation(initial_validation, reflection)
 
         decision = {
@@ -87,19 +107,69 @@ class RiskAgent(BaseAgent):
             "confidence": confidence
         }
 
-    async def _reflect_on_validation(self, validation: Dict[str, Any]) -> Dict[str, Any]:
-        """Reflect on validation to catch edge cases."""
-        reflection = {
+    async def _reflect_on_validation(
+        self, validation: Dict[str, Any], signal: Dict[str, Any] | None = None
+    ) -> Dict[str, Any]:
+        """Reflect on validation to catch edge cases (heuristic + optional LLM)."""
+        reflection: Dict[str, Any] = {
             "missed_anything": False,
             "too_strict": False,
-            "suggestions": []
+            "suggestions": [],
         }
 
         if validation["approved"] and len(validation["warnings"]) > 2:
             reflection["missed_anything"] = True
             reflection["suggestions"].append("Review warnings for hidden risks")
 
+        # Optional LLM reflection (advisory): may surface hidden risks, never
+        # loosens the decision. Best-effort — any failure is ignored.
+        llm = self._resolve_llm()
+        if llm is not None and signal:
+            try:
+                await self._llm_reflect(llm, validation, signal, reflection)
+            except Exception:  # pragma: no cover - advisory must never break risk
+                logger.warning("LLM reflection failed", exc_info=True)
+
         return reflection
+
+    async def _llm_reflect(
+        self,
+        llm: Any,
+        validation: Dict[str, Any],
+        signal: Dict[str, Any],
+        reflection: Dict[str, Any],
+    ) -> None:
+        """Ask the LLM to flag hidden risks. Can only add caution, never approve."""
+        system = (
+            "You are a conservative crypto risk auditor. Given a proposed order and "
+            "its rule-based validation, identify HIDDEN risks not covered by the hard "
+            "checks. Respond ONLY with JSON: "
+            '{"hidden_risk": <true|false>, "note": "<=200 chars"}.'
+        )
+        user = json.dumps(
+            {
+                "signal": {
+                    k: signal.get(k)
+                    for k in (
+                        "action", "entry_price", "stop_loss", "take_profit",
+                        "position_size_pct", "regime", "strategy",
+                    )
+                },
+                "validation": {
+                    "approved": validation.get("approved"),
+                    "issues": validation.get("issues"),
+                    "warnings": validation.get("warnings"),
+                },
+            },
+            default=str,
+        )
+        result = await llm.reason_json(system, user)
+        if not result:
+            return
+        reflection["llm_note"] = result.get("note")
+        if result.get("hidden_risk"):
+            reflection["missed_anything"] = True
+            reflection["suggestions"].append(f"LLM: {result.get('note') or 'hidden risk flagged'}")
 
     def _refine_validation(self, validation: Dict[str, Any], reflection: Dict[str, Any]) -> Dict[str, Any]:
         """Refine validation based on reflection."""

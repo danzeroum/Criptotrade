@@ -164,6 +164,11 @@ class SquadOrchestrator:
         # (the demo strategy stub omits it) — fixes orders showing pair="UNKNOWN".
         strategy_result["signal"].setdefault("symbol", symbol)
 
+        # Surface a silent data fallback: trading on synthetic stub data (e.g. a
+        # failed live OHLCV fetch) must not pass unnoticed by the operator.
+        if strategy_result.get("stub_used"):
+            await self._emit_stub_alert(symbol)
+
         # Check open paper positions against current price on every cycle, even
         # when this cycle generates no new trade (fail-safe: wrap so a close error
         # never blocks the trading pipeline).
@@ -355,6 +360,25 @@ class SquadOrchestrator:
             if tp is not None and current_price <= tp:
                 return tp
         return None
+
+    async def _emit_stub_alert(self, symbol: str) -> None:
+        """Alert when the strategy fell back to synthetic stub data (no-op without a sink)."""
+        if self.alert_store is None and self.alert_bus is None:
+            return
+        alert = Alert(
+            severity="high",
+            type="data_fallback",
+            message=(
+                f"Strategy Agent em modo fallback para {symbol}: decisão baseada em "
+                "dados sintéticos (stub). Verifique a conectividade com a exchange."
+            ),
+            agent_id="strategy_agent",
+            pair=symbol,
+        )
+        if self.alert_store is not None:
+            self.alert_store.append(alert)
+        if self.alert_bus is not None:
+            await self.alert_bus.publish(alert)
 
     async def _emit_alert(self, symbol: str, issues: Any) -> None:
         """Emit a guardrail alert when risk rejects a signal (no-op without a sink)."""

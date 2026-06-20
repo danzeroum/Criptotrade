@@ -2,11 +2,21 @@
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+def _max_position_size_pct() -> float:
+    """Max position size (% of capital) from ``MAX_POSITION_SIZE_PCT`` env (default 5.0)."""
+    try:
+        return float(os.getenv("MAX_POSITION_SIZE_PCT", "5.0"))
+    except (TypeError, ValueError):
+        return 5.0
+
 
 Guardrail = Callable[[dict[str, Any]], tuple[bool, str]]
 # Sink called once per violation message. Kept as a plain str callback so this
@@ -51,7 +61,7 @@ class GuardrailSystem:
 
     def check_position_size(self, order: dict[str, Any]) -> tuple[bool, str]:
         """Validate position size."""
-        max_size = 5.0
+        max_size = _max_position_size_pct()
         position_size = order.get("position_size_pct", 0)
 
         if position_size > max_size:
