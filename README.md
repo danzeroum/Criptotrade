@@ -222,6 +222,29 @@ Docs interativas (OpenAPI auto-gerado): **`http://localhost:8000/v1/docs`**.
 
 ---
 
+## 📈 Observabilidade & Escala
+
+**Probes & métricas (Prometheus):**
+- `GET /metrics` — métricas HTTP (contagem/latência por rota) **+ domínio**
+  (`criptotrade_open_positions`, `criptotrade_total_trades`,
+  `criptotrade_realized_pnl_usdt`, `criptotrade_win_rate`, `criptotrade_sharpe_ratio`,
+  `criptotrade_portfolio_value_usdt`), lidas do ledger compartilhado (corretas
+  mesmo com o loop em outro processo).
+- `GET /health` (liveness) · `GET /health/ready` (readiness — checa o SQLite).
+- Orchestrator (sem HTTP): heartbeat por ciclo + `scripts/healthcheck_loop.py`.
+
+**Logs:** `LOG_FORMAT=json` ativa logs estruturados; todo request carrega
+`X-Request-ID` (propagado + nos logs) para rastreio entre réplicas.
+
+**Escala horizontal** (pronta, ativável por env/infra — ver [ADR-005](docs/adr/005-scaling-path.md)):
+- API stateless → N réplicas atrás do nginx (`docker-compose.prod.yml`).
+- Rate limit compartilhado: `REDIS_URL=redis://redis:6379/0` + `docker compose --profile scale up` (fail-open p/ in-memory).
+- Estado compartilhado → PostgreSQL quando >1 host escrever (camada única `src/core/db.py`); loop singleton com leader election futura.
+
+Tudo em Docker: `docker compose up -d` sobe **app, dashboard, orchestrator, prometheus**.
+
+---
+
 ## 📁 Estrutura do projeto
 
 ```
