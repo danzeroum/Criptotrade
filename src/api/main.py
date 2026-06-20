@@ -8,13 +8,12 @@ from __future__ import annotations
 import logging
 import os
 import secrets
-import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -32,13 +31,17 @@ from src.api.routes import (
     risk,
     trades,
 )
+from src.api.observability import PrometheusMiddleware, metrics_response
 from src.core.db import init_db
+from src.core.ratelimit import build_rate_limiter
 
 _log = logging.getLogger(__name__)
 
 PREFIX = "/v1"
 PUBLIC_PATHS: set[str] = {
     "/health",
+    "/health/ready",
+    "/metrics",
     "/v1/docs",
     "/v1/redoc",
     "/v1/openapi.json",
@@ -136,19 +139,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     def __init__(self, app) -> None:
         super().__init__(app)
-        self._buckets: dict[tuple, list[float]] = {}
+        # Backend selected from env: Redis (shared across replicas) when REDIS_URL
+        # is set, else per-process in-memory. Fails open to in-memory on Redis error.
+        self._limiter = build_rate_limiter(self._WINDOW)
 
     async def dispatch(self, request: Request, call_next):
         ip = request.client.host if request.client else "unknown"
         is_write = request.method in ("POST", "PATCH", "PUT", "DELETE")
         limit = self._WRITE_LIMIT if is_write else self._READ_LIMIT
-        key = (ip, "w" if is_write else "r")
+        key = f"{ip}:{'w' if is_write else 'r'}"
 
-        now = time.monotonic()
-        cutoff = now - self._WINDOW
-        bucket = [t for t in self._buckets.get(key, []) if t > cutoff]
-
-        if len(bucket) >= limit:
+        if not self._limiter.allow(key, limit):
             return JSONResponse(
                 status_code=429,
                 content={
@@ -159,9 +160,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 },
                 headers={"Retry-After": "60"},
             )
-
-        bucket.append(now)
-        self._buckets[key] = bucket
         return await call_next(request)
 
 
@@ -222,6 +220,8 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RateLimitMiddleware)
+    # Outermost: measures total latency incl. the other middleware (and 429s).
+    app.add_middleware(PrometheusMiddleware)
 
     app.include_router(metrics.router, prefix=PREFIX)
     app.include_router(hitl.router, prefix=PREFIX)
@@ -239,6 +239,25 @@ def create_app() -> FastAPI:
     @app.get("/health", tags=["infra"])
     async def health() -> dict:
         return {"status": "healthy", "version": "1.0.0"}
+
+    @app.get("/health/ready", tags=["infra"], include_in_schema=False)
+    async def readiness() -> JSONResponse:
+        """Readiness probe — the SQLite backend is reachable (503 if not)."""
+        try:
+            from src.core.db import connection
+
+            with connection() as conn:
+                conn.execute("SELECT 1")
+        except Exception:  # pragma: no cover - exercised only on a broken DB
+            return JSONResponse(
+                status_code=503, content={"status": "not_ready", "checks": {"db": "error"}}
+            )
+        return JSONResponse(content={"status": "ready", "checks": {"db": "ok"}})
+
+    @app.get("/metrics", tags=["infra"], include_in_schema=False)
+    async def prometheus_metrics() -> Response:
+        """Prometheus exposition endpoint (scraped by the prometheus service)."""
+        return metrics_response()
 
     @app.exception_handler(RequestValidationError)
     async def validation_handler(request: Request, exc: RequestValidationError):
