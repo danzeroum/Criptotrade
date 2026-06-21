@@ -125,6 +125,27 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # Shared state backend for horizontal scale (multiple hosts/replicas writing
+  # state). OFF by default; enable with the 'scale' profile and point the app at
+  # it: DATABASE_URL=postgresql://ct:ct@postgres:5432/criptotrade (see ADR-005).
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["scale"]
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-ct}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ct}
+      - POSTGRES_DB=${POSTGRES_DB:-criptotrade}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ct} -d ${POSTGRES_DB:-criptotrade}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   # Shared rate-limit / cache backend for horizontal API scaling. OFF by default;
   # enable with the 'scale' profile + REDIS_URL (see header). The API fails open
   # to in-memory if Redis is unset or unreachable.
@@ -144,3 +165,4 @@ services:
 volumes:
   prometheus_data:
   grafana_data:
+  postgres_data:

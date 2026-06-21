@@ -17,7 +17,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Optional
 
-from src.core.db import connection
+from src.core.db import connection, upsert as db_upsert
 
 logger = logging.getLogger(__name__)
 
@@ -56,15 +56,19 @@ class PositionStore:
         try:
             with connection(self._db()) as conn:
                 conn.execute(_CREATE_POSITIONS)
-                conn.execute(
-                    "INSERT OR REPLACE INTO open_positions"
-                    "(order_id, symbol, side, entry_price, quantity, stop_loss,"
-                    " take_profit, opened_at) VALUES (?,?,?,?,?,?,?,?)",
+                cols = [
+                    "order_id", "symbol", "side", "entry_price", "quantity",
+                    "stop_loss", "take_profit", "opened_at",
+                ]
+                db_upsert(
+                    conn, "open_positions", cols,
                     (
                         order_id, pos["symbol"], pos["side"], pos["entry_price"],
                         pos["quantity"], pos.get("stop_loss"), pos.get("take_profit"),
                         pos.get("opened_at"),
                     ),
+                    conflict="order_id",
+                    update_cols=cols[1:],
                 )
         except Exception:  # pragma: no cover - persistence must never break a trade
             logger.warning("PositionStore.upsert failed for %s", order_id, exc_info=True)
@@ -108,10 +112,12 @@ def save_circuit_state(
     try:
         with connection(db_path_provider()) as conn:
             conn.execute(_CREATE_BREAKER)
-            conn.execute(
-                "INSERT OR REPLACE INTO circuit_breaker_state"
-                "(id, tripped_at, consecutive_losses, daily_loss_pct) VALUES (1,?,?,?)",
-                (tripped_at, consecutive_losses, daily_loss_pct),
+            db_upsert(
+                conn, "circuit_breaker_state",
+                ["id", "tripped_at", "consecutive_losses", "daily_loss_pct"],
+                (1, tripped_at, consecutive_losses, daily_loss_pct),
+                conflict="id",
+                update_cols=["tripped_at", "consecutive_losses", "daily_loss_pct"],
             )
     except Exception:  # pragma: no cover
         logger.warning("save_circuit_state failed", exc_info=True)

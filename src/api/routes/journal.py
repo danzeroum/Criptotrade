@@ -5,9 +5,8 @@ Tabela criada por migrations/002_journal.sql.
 """
 from __future__ import annotations
 
-import sqlite3
 from statistics import correlation, mean
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Body, Query
 
@@ -19,12 +18,12 @@ from src.api.schemas import (
     JournalMetricsOut,
     Meta,
 )
-from src.core.db import connection
+from src.core.db import connection, is_postgres
 
 router = APIRouter(prefix="/journal", tags=["journal"])
 
 
-def _row_to_out(row: sqlite3.Row) -> JournalEntryOut:
+def _row_to_out(row: Any) -> JournalEntryOut:
     return JournalEntryOut(
         id=row["id"],
         setup=row["setup"],
@@ -70,22 +69,25 @@ async def create_entry(
     payload: JournalEntryCreate = Body(...),
 ) -> APIResponse[JournalEntryOut]:
     with connection() as conn:
-        cursor = conn.execute(
-            """INSERT INTO journal_entries
+        insert_sql = """INSERT INTO journal_entries
                (setup, emotion_before, emotion_after, stop_defined, plan_followed, pnl_pct, note)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (
-                payload.setup,
-                payload.emotion_before,
-                payload.emotion_after,
-                int(payload.stop_defined),
-                int(payload.plan_followed),
-                payload.pnl_pct,
-                payload.note,
-            ),
+               VALUES (?, ?, ?, ?, ?, ?, ?)"""
+        params = (
+            payload.setup,
+            payload.emotion_before,
+            payload.emotion_after,
+            int(payload.stop_defined),
+            int(payload.plan_followed),
+            payload.pnl_pct,
+            payload.note,
         )
+        # Postgres has no lastrowid → use RETURNING; SQLite uses cursor.lastrowid.
+        if is_postgres():  # pragma: no cover - Postgres-only (gated PG test)
+            new_id = conn.execute(insert_sql + " RETURNING id", params).fetchone()[0]
+        else:
+            new_id = conn.execute(insert_sql, params).lastrowid
         row = conn.execute(
-            "SELECT * FROM journal_entries WHERE id = ?", (cursor.lastrowid,)
+            "SELECT * FROM journal_entries WHERE id = ?", (new_id,)
         ).fetchone()
     return APIResponse(data=_row_to_out(row))
 

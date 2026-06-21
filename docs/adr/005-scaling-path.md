@@ -25,9 +25,11 @@ extensão para escala horizontal, ativáveis por env/infra:
    (`src/core/ratelimit.py`); default in-memory. Fail-open se o Redis cair.
 3. **Observabilidade.** `GET /metrics` (Prometheus) + `GET /health/ready`
    (readiness gating para compose/k8s) + `GET /health` (liveness).
-4. **Estado compartilhado → PostgreSQL.** Quando houver >1 host que **escreve**
-   estado, migrar a camada única `src/core/db.py` de SQLite para Postgres
-   (`sqlalchemy` já é dependência). É o **único** ponto a trocar.
+4. **Estado compartilhado → PostgreSQL (implementado, opcional).** Definir
+   `DATABASE_URL=postgresql://…` faz toda a camada `src/core/db.py` rodar em
+   Postgres — placeholders (`?`→`%s`), rows híbridas, upserts (`ON CONFLICT`) e
+   migrations (`migrations/postgres/`) são tratados automaticamente. O default
+   permanece SQLite. Validado por `tests/integration/test_postgres_backend.py`.
 5. **Orchestrator é singleton por design.** Um único loop escreve ledger/posições.
    Para HA, fazer **leader election** (ex.: advisory lock no Postgres) **antes**
    de rodar 2 loops. Nunca rodar 2 loops sobre o mesmo estado.
@@ -43,9 +45,9 @@ extensão para escala horizontal, ativáveis por env/infra:
 ## Consequências
 - **Positivas:** caminho incremental; cada degrau é ativável por env/infra; o
   código já tem os ganchos (rate-limit pluggable, /metrics, /health/ready).
-- **Negativas:** o backend Postgres e o leader-election ainda **não** estão
-  implementados — são trabalho futuro guiado pelos gatilhos acima
-  (ver `docs/pendencia.v2.md`).
+- **Negativas:** o **leader-election** do loop ainda **não** está implementado —
+  trabalho futuro guiado pelos gatilhos acima (ver `docs/pendencia.v2.md`). O
+  backend Postgres já está disponível (opcional, via `DATABASE_URL`).
 
 ## Referências
 - ADR-001 (paper trading / WAL não sobre NFS), ADR-003 (persistência SQLite WAL).
