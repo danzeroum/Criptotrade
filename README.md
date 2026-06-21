@@ -241,7 +241,9 @@ Docs interativas (OpenAPI auto-gerado): **`http://localhost:8000/v1/docs`**.
 - Rate limit compartilhado: `REDIS_URL=redis://redis:6379/0` + `docker compose --profile scale up` (fail-open p/ in-memory).
 - Estado compartilhado → PostgreSQL quando >1 host escrever (camada única `src/core/db.py`); loop singleton com leader election futura.
 
-Tudo em Docker: `docker compose up -d` sobe **app, dashboard, orchestrator, prometheus**.
+Tudo em Docker: `docker compose up -d` sobe **app, dashboard, orchestrator, prometheus e grafana**.
+O **Grafana** (http://localhost:3000) já vem com datasource + dashboard provisionados
+(posições, trades, P&L, win-rate, taxa/latência HTTP).
 
 ---
 
