@@ -1,5 +1,10 @@
 FROM python:3.11-slim
 
+LABEL org.opencontainers.image.title="Criptotrade" \
+      org.opencontainers.image.description="Crypto AI trading platform (paper trading, HITL)" \
+      org.opencontainers.image.source="https://github.com/danzeroum/Criptotrade" \
+      org.opencontainers.image.licenses="MIT"
+
 WORKDIR /app
 
 # Install system dependencies

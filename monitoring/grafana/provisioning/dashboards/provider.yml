@@ -1,0 +1,13 @@
+apiVersion: 1
+
+# Load dashboards committed under monitoring/grafana/dashboards/ at startup.
+providers:
+  - name: criptotrade
+    orgId: 1
+    type: file
+    disableDeletion: false
+    editable: true
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false
