@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
-from src.core.db import connection
+from src.core.db import autoincrement_pk, connection
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ class TradingLedger:
         with connection(self.db_path) as conn:
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS ledger_events ("
-                "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                f"  id {autoincrement_pk()},"
                 "  timestamp TEXT NOT NULL,"
                 "  event_type TEXT NOT NULL,"
                 "  data TEXT NOT NULL"  # JSON payload

@@ -158,6 +158,7 @@ print(result["ran"])                     # ex.: ['strategy', 'risk', 'execution'
 | `EXCHANGE_DRY_RUN` | **(obrigatória)** | Fonte de dados: `true` = sintético/offline · `false` = dados reais da exchange |
 | `ORDER_ROUTING` | `paper` | Roteamento de ordens (independente do dado): `paper` = fills simulados · `live` = ordens reais (exige `EXCHANGE_DRY_RUN=false`). "preço real + paper" = `false` + `paper` |
 | `LLM_ENABLED` / `LLM_PROVIDER` / `LLM_MODEL` | `false` / `google` / — | Camada de IA (CoT/Reflection). OFF por padrão → pipeline determinístico/offline; liga com `LLM_ENABLED=true` + chave do provider (`google`/`openai`/`anthropic`) |
+| `DATABASE_URL` | — (SQLite) | `postgresql://user:pass@host/db` ativa o backend **Postgres** do estado compartilhado (escala horizontal). Vazio/`sqlite://` = SQLite local |
 | `DRY_RUN_BASE_PRICE` | `50000` | Preço-base sintético do BTC/USDT (âncora determinística) |
 | `DRY_RUN_BASE_PRICES` | — | Overrides por par (`BTC/USDT=50000,ETH/USDT=3000`); pares não mapeados ganham preço determinístico próprio |
 | `MARKET_PAIRS` | `BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT,XRP/USDT` | Allowlist de pares (API, loop e dashboards) |
@@ -239,7 +240,7 @@ Docs interativas (OpenAPI auto-gerado): **`http://localhost:8000/v1/docs`**.
 **Escala horizontal** (pronta, ativável por env/infra — ver [ADR-005](docs/adr/005-scaling-path.md)):
 - API stateless → N réplicas atrás do nginx (`docker-compose.prod.yml`).
 - Rate limit compartilhado: `REDIS_URL=redis://redis:6379/0` + `docker compose --profile scale up` (fail-open p/ in-memory).
-- Estado compartilhado → PostgreSQL quando >1 host escrever (camada única `src/core/db.py`); loop singleton com leader election futura.
+- Estado compartilhado → **PostgreSQL** já suportado: `DATABASE_URL=postgresql://…` (default SQLite; migrations em `migrations/postgres/`). Loop singleton; leader election futura.
 
 Tudo em Docker: `docker compose up -d` sobe **app, dashboard, orchestrator, prometheus e grafana**.
 O **Grafana** (http://localhost:3000) já vem com datasource + dashboard provisionados

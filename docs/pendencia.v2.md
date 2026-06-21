@@ -11,9 +11,11 @@
   3. Subir o perfil de escala: `docker compose --profile scale up -d`.
   Sem isso, o rate limit é per-processo (correto para 1 réplica).
 
-- [ ] **PostgreSQL para estado compartilhado.** Necessário quando houver >1 host
-  escrevendo estado (ver gatilhos no ADR-005). Migração concentrada em
-  `src/core/db.py` (SQLAlchemy já é dependência). Hoje: SQLite WAL (1 host).
+- [x] **PostgreSQL para estado compartilhado — IMPLEMENTADO (opcional, v6).**
+  Basta `DATABASE_URL=postgresql://user:pass@host/db` (default = SQLite). Toda a
+  camada `src/core/db.py` passa a usar Postgres; migrations em
+  `migrations/postgres/`. Validado por `tests/integration/test_postgres_backend.py`.
+  **Falta do dono:** provisionar um Postgres gerenciado em produção e setar a env.
 
 - [ ] **Leader election do orchestrator.** Para HA do loop (rodar réplica passiva
   sem dois loops escrevendo o mesmo estado). Implementar via advisory lock no
