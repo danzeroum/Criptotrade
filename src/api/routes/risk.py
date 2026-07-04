@@ -25,7 +25,8 @@ from src.core.metrics import PortfolioMetricsCalculator
 
 router = APIRouter(prefix="/risk", tags=["risk"])
 
-_RISK_PARAMS_PATH = Path(__file__).resolve().parents[4] / "config" / "strategies" / "risk_params.yaml"
+# parents[3] = repo root (routes/ -> api/ -> src/ -> root)
+_RISK_PARAMS_PATH = Path(__file__).resolve().parents[3] / "config" / "strategies" / "risk_params.yaml"
 _MIN_KELLY_TRADES = 10
 
 
@@ -45,11 +46,13 @@ def _daily_loss_pct(ledger: TradingLedger, initial_capital: float) -> float:
     """Compute today's realised loss as a % of initial capital."""
     today = datetime.now(timezone.utc).date().isoformat()
     entries = ledger.read_all()
+    # The close time is the entry-level ledger timestamp (the ``data`` payload
+    # only carries ``opened_at``).
     daily_pnl = sum(
         e.get("data", {}).get("pnl", 0.0)
         for e in entries
         if e.get("event_type") == "position_closed"
-        and (e.get("data", {}).get("timestamp") or "").startswith(today)
+        and (e.get("timestamp") or "").startswith(today)
     )
     if initial_capital <= 0:
         return 0.0

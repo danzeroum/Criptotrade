@@ -166,8 +166,14 @@ class ExchangeClient:
     async def fetch_balance(self) -> Dict[str, Any]:
         """Fetch account balance."""
         if self.paper_trading:
+            # Paper balance mirrors the configured capital so what the API and
+            # dashboards show stays coherent with position sizing.
+            try:
+                capital = float(os.getenv("INITIAL_CAPITAL", "10000"))
+            except ValueError:
+                capital = 10000.0
             return {
-                "USDT": {"free": 10000.0, "used": 0.0, "total": 10000.0},
+                "USDT": {"free": capital, "used": 0.0, "total": capital},
                 "BTC": {"free": 0.0, "used": 0.0, "total": 0.0},
             }
 

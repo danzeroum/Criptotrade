@@ -121,8 +121,25 @@ class LLMClient:
 
     # -------------------------------------------------------------------- public
     async def reason(self, system: str, user: str) -> Optional[str]:
-        """Async completion (runs the blocking SDK call in a worker thread)."""
-        return await asyncio.to_thread(self._complete_sync, system, user)
+        """Async completion (runs the blocking SDK call in a worker thread).
+
+        Bounded by ``LLM_TIMEOUT_SECONDS`` (default 30) so a hung provider call
+        can never stall a trading cycle — on timeout the advisory layer simply
+        yields ``None`` and callers fall back to deterministic logic.
+        """
+        try:
+            timeout = float(os.getenv("LLM_TIMEOUT_SECONDS", "30"))
+        except ValueError:
+            timeout = 30.0
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(self._complete_sync, system, user), timeout=timeout
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "LLM completion timed out after %.0fs (%s/%s)", timeout, self.provider, self.model
+            )
+            return None
 
     async def reason_json(self, system: str, user: str) -> Optional[dict[str, Any]]:
         """Completion expected to return JSON. Returns parsed dict or None."""

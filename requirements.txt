@@ -44,7 +44,8 @@ pytest-cov==4.1.0
 
 # Security
 cryptography==42.0.2
-slowapi==0.1.9  # Rate limiting — available for per-route @limiter.limit() decorators (P0-3)
+# NOTE: rate limiting is implemented in-house (src/core/ratelimit.py +
+# RateLimitMiddleware) — do not re-add slowapi; it was an unused dependency.
 
 # Async support
 aiohttp==3.9.3

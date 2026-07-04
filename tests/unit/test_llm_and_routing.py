@@ -37,6 +37,18 @@ def test_extract_json_handles_fenced_and_bare():
     assert llm_client._extract_json("no json here") is None
 
 
+@pytest.mark.asyncio
+async def test_reason_times_out_and_returns_none(monkeypatch):
+    # A hung provider call must not stall the trading cycle: bounded by
+    # LLM_TIMEOUT_SECONDS, the advisory layer yields None on timeout.
+    import time
+
+    monkeypatch.setenv("LLM_TIMEOUT_SECONDS", "0.1")
+    client = llm_client.LLMClient(provider="google")
+    monkeypatch.setattr(client, "_complete_sync", lambda s, u: time.sleep(5))
+    assert await client.reason("sys", "user") is None
+
+
 # ----------------------------------------------------------------- StrategyAgent
 class _FakeLLM:
     def __init__(self, payload):

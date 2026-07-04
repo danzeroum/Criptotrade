@@ -182,6 +182,21 @@ class TestCircuitBreaker:
         cb.reset_daily()
         assert cb._daily_loss_pct == 0.0
 
+    def test_daily_counter_rolls_over_on_new_utc_day(self):
+        # Losses accumulated "yesterday" must not count toward today's limit.
+        cb = CircuitBreaker()
+        cb._daily_loss_pct = -3.5
+        cb._loss_day = "2020-01-01"  # simulate a counter from a past day
+        cb.record_trade_result(-0.5)
+        assert cb._daily_loss_pct == -0.5  # reset first, then today's trade
+        assert cb.is_open is False
+
+    def test_same_day_losses_still_accumulate(self):
+        cb = CircuitBreaker()
+        cb.record_trade_result(-2.5)
+        cb.record_trade_result(-2.0)  # same day: -4.5 total → trips at -4%
+        assert cb.is_open is True
+
 
 # ---------------------------------------------------------------------------
 # Guardrail market conditions

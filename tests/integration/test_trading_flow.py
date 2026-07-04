@@ -299,3 +299,47 @@ async def test_circuit_breaker_sees_loss_after_close(tmp_path):
     orch._check_open_positions(1.0, "BTC/USDT")  # forces stop-loss close
 
     assert orch.circuit_breaker._daily_loss_pct < initial_loss
+
+
+# ------------------------------------------- capital protections (weekly/monthly)
+@pytest.mark.asyncio
+async def test_monthly_drawdown_suspends_trading(tmp_path):
+    # A -15% month must block the pipeline before any agent runs.
+    orch, ledger = _make_orch(tmp_path)
+    # Realised -2000 on 10k capital = -20% (monthly limit is -15%).
+    ledger.log_position_closed(
+        order_id="ord_dd", symbol="BTC/USDT", side="buy",
+        entry_price=50_000.0, exit_price=42_000.0, quantity=0.25,
+    )
+    result = await orch.analyze_and_trade("BTC/USDT")
+
+    assert result["success"] is False
+    assert "suspended" in result["reason"].lower() or "monthly" in result["reason"].lower()
+
+
+@pytest.mark.asyncio
+async def test_weekly_drawdown_halves_position_size(tmp_path):
+    # A -6% week keeps trading but halves the sized quantity.
+    orch, ledger = _make_orch(tmp_path)
+    # Realised -700 on 10k capital = -7% (weekly limit is -6%, monthly -15%).
+    ledger.log_position_closed(
+        order_id="ord_wk", symbol="BTC/USDT", side="buy",
+        entry_price=50_000.0, exit_price=43_000.0, quantity=0.1,
+    )
+    result = await orch.analyze_and_trade("BTC/USDT")
+
+    assert orch._protection_size_multiplier == 0.5
+    if result["success"]:
+        signal = result["signal"]
+        full_qty = (
+            orch.initial_capital * float(signal["position_size_pct"]) / 100.0
+        ) / float(signal["entry_price"])
+        assert orch._position_quantity(signal) == pytest.approx(full_qty * 0.5)
+
+
+@pytest.mark.asyncio
+async def test_healthy_pnl_keeps_full_size(tmp_path):
+    orch, _ = _make_orch(tmp_path)
+    result = await orch.analyze_and_trade("BTC/USDT")
+    assert orch._protection_size_multiplier == 1.0
+    assert result["success"] is True
