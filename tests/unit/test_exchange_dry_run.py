@@ -128,3 +128,19 @@ def test_base_price_for_precedence():
     fallback = synth.base_price_for("ADA/USDT", 50000, None)
     assert fallback > 0 and fallback != 50000.0
     assert fallback == synth.base_price_for("ada/usdt", 50000, None)  # case-insensitive
+
+
+def test_paper_balance_mirrors_initial_capital(dry_run_env, monkeypatch):
+    # Paper balance must track the configured capital, not a hardcoded 10000.
+    monkeypatch.setenv("INITIAL_CAPITAL", "25000")
+    client = ExchangeClient()
+    balance = asyncio.run(client.fetch_balance())
+    assert balance["USDT"]["total"] == 25000.0
+    assert balance["USDT"]["free"] == 25000.0
+
+
+def test_paper_balance_defaults_to_10k(dry_run_env, monkeypatch):
+    monkeypatch.delenv("INITIAL_CAPITAL", raising=False)
+    client = ExchangeClient()
+    balance = asyncio.run(client.fetch_balance())
+    assert balance["USDT"]["total"] == 10000.0

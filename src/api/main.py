@@ -35,6 +35,7 @@ from src.api.observability import PrometheusMiddleware, metrics_response
 from src.api.request_id import RequestIdMiddleware
 from src.core.db import init_db
 from src.core.ratelimit import build_rate_limiter
+from src.version import __version__
 
 _log = logging.getLogger(__name__)
 
@@ -205,7 +206,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Criptotrade API",
         description="Gateway de orquestração de trading com agentes AI.",
-        version="1.0.0",
+        version=__version__,
         docs_url="/v1/docs",
         redoc_url="/v1/redoc",
         openapi_url="/v1/openapi.json",
@@ -241,7 +242,7 @@ def create_app() -> FastAPI:
 
     @app.get("/health", tags=["infra"])
     async def health() -> dict:
-        return {"status": "healthy", "version": "1.0.0"}
+        return {"status": "healthy", "version": __version__}
 
     @app.get("/health/ready", tags=["infra"], include_in_schema=False)
     async def readiness() -> JSONResponse:

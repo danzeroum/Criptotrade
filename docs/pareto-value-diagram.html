@@ -1,0 +1,431 @@
+<title>Criptotrade — Pareto de Valor & Plano</title>
+<style>
+  :root {
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.10);
+    --done: #2a78d6;
+    --done-soft: rgba(42, 120, 214, 0.14);
+    --plan: #c3c2b7;
+    --good: #0ca30c;
+    --good-text: #006300;
+    --critical: #d03b3b;
+    --warn: #fab219;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --ink: #ffffff;
+      --ink-2: #c3c2b7;
+      --muted: #898781;
+      --grid: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255, 255, 255, 0.10);
+      --done: #3987e5;
+      --done-soft: rgba(57, 135, 229, 0.20);
+      --plan: #52514e;
+      --good-text: #0ca30c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --done: #3987e5;
+    --done-soft: rgba(57, 135, 229, 0.20);
+    --plan: #52514e;
+    --good-text: #0ca30c;
+  }
+  :root[data-theme="light"] {
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.10);
+    --done: #2a78d6;
+    --done-soft: rgba(42, 120, 214, 0.14);
+    --plan: #c3c2b7;
+    --good-text: #006300;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 980px; margin: 0 auto; padding: 40px 20px 72px; }
+
+  .eyebrow {
+    font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600; margin: 0 0 6px;
+  }
+  h1 { font-size: 27px; line-height: 1.2; margin: 0 0 8px; text-wrap: balance; font-weight: 700; }
+  .lede { color: var(--ink-2); max-width: 68ch; margin: 0; }
+
+  h2 { font-size: 18px; margin: 44px 0 4px; font-weight: 700; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+
+  code, .mono {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.92em;
+  }
+  code { background: var(--done-soft); padding: 1px 5px; border-radius: 4px; }
+
+  /* verdict */
+  .verdict {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px 18px; margin-top: 24px;
+  }
+  .verdict .dot {
+    flex: none; width: 12px; height: 12px; border-radius: 50%;
+    background: var(--good); margin-top: 5px;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--good) 18%, transparent);
+  }
+  .verdict strong { display: block; margin-bottom: 2px; }
+  .verdict p { margin: 0; color: var(--ink-2); font-size: 14px; }
+
+  /* stat tiles */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 16px; }
+  .tile {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px;
+  }
+  .tile .k { font-size: 12px; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600; }
+  .tile .v { font-size: 30px; font-weight: 700; line-height: 1.15; margin-top: 2px; }
+  .tile .v small { font-size: 15px; font-weight: 600; color: var(--ink-2); }
+  .tile .d { font-size: 13px; color: var(--ink-2); margin-top: 2px; }
+  .tile .v .up { color: var(--good-text); }
+
+  /* chart card */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px 18px 10px; position: relative;
+  }
+  .legend { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); margin: 2px 0 10px; }
+  .legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .legend .ln { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--ink); margin-right: 6px; vertical-align: 3px; }
+  .chart-scroll { overflow-x: auto; }
+  #pareto { display: block; min-width: 760px; width: 100%; height: auto; }
+  #tooltip {
+    position: absolute; pointer-events: none; display: none;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 11px; font-size: 13px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.14); max-width: 280px; z-index: 3;
+  }
+  #tooltip .t-title { font-weight: 600; margin-bottom: 2px; }
+  #tooltip .t-row { color: var(--ink-2); display: flex; justify-content: space-between; gap: 14px; }
+  #tooltip .t-row b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  /* table */
+  .tbl-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 720px; }
+  th {
+    text-align: left; font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600; padding: 10px 14px; border-bottom: 1px solid var(--grid);
+  }
+  td { padding: 9px 14px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  .chip {
+    display: inline-block; font-size: 11.5px; font-weight: 600; border-radius: 999px;
+    padding: 1px 9px; white-space: nowrap;
+  }
+  .chip.done { background: var(--done-soft); color: var(--done); }
+  .chip.plan { background: color-mix(in srgb, var(--muted) 16%, transparent); color: var(--ink-2); }
+  .chip.crit { background: color-mix(in srgb, var(--critical) 14%, transparent); color: var(--critical); }
+
+  /* plan */
+  .phases { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+  .phase { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .phase h3 { margin: 0 0 2px; font-size: 14.5px; }
+  .phase .meta { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .phase ul { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 13.5px; }
+  .phase li { margin-bottom: 5px; }
+  .phase li:last-child { margin-bottom: 0; }
+
+  footer { margin-top: 40px; font-size: 12.5px; color: var(--muted); }
+  a { color: var(--done); }
+</style>
+
+<main>
+  <p class="eyebrow">Criptotrade · análise 80/20 · 2026-07-04</p>
+  <h1>Pareto de valor: 13,5% do esforço capturou 72% do valor</h1>
+  <p class="lede">Auditoria executada no repositório (testes rodados, API e loop
+  inicializados de verdade), 14 melhorias mapeadas e pontuadas por valor e
+  esforço. As 10 de maior razão valor/esforço foram <strong>implementadas nesta
+  branch</strong>; as 4 restantes viram plano de desenvolvimento.</p>
+
+  <div class="verdict">
+    <span class="dot"></span>
+    <div>
+      <strong>A ferramenta é funcional — em paper trading, por decisão de design.</strong>
+      <p>418 testes passam (cobertura 73%), o ciclo do orquestrador roda de ponta a
+      ponta em dry-run e a API responde com validação e health checks. O que não
+      funciona é assumido: execução real de ordens está congelada (TODO), agentes
+      <code>recovery</code>/<code>exploration</code> são stubs declarados e
+      <code>src/core/config.py</code> era código morto — parte das correções abaixo
+      ataca exatamente o código de proteção financeira que existia mas não rodava.</p>
+    </div>
+  </div>
+
+  <div class="tiles">
+    <div class="tile">
+      <div class="k">Esforço dos quick wins</div>
+      <div class="v">8,1&nbsp;h <small>de 60&nbsp;h mapeadas (13,5%)</small></div>
+      <div class="d">10 melhorias implementadas e testadas</div>
+    </div>
+    <div class="tile">
+      <div class="k">Valor capturado</div>
+      <div class="v"><span class="up">72%</span> <small>de 805 pontos</small></div>
+      <div class="d">3 bugs reais de proteção financeira corrigidos</div>
+    </div>
+    <div class="tile">
+      <div class="k">Suíte de testes</div>
+      <div class="v">418 <small>passed · 8 skipped</small></div>
+      <div class="d">15 testes de regressão novos · ruff limpo</div>
+    </div>
+  </div>
+
+  <h2>Diagrama de Pareto</h2>
+  <p class="sub">Itens ordenados por valor. Barras: pontuação de valor de cada item
+  (0–100). Linha: participação acumulada no valor total — a faixa dos 80% é
+  atingida logo no 10º item, quase todo coberto pelos quick wins (azul).</p>
+
+  <div class="card">
+    <div class="legend">
+      <span><span class="sw" style="background:var(--done)"></span>Implementado nesta branch</span>
+      <span><span class="sw" style="background:var(--plan)"></span>Planejado (ver plano abaixo)</span>
+      <span><span class="ln"></span>Valor acumulado (%)</span>
+    </div>
+    <div class="chart-scroll"><svg id="pareto" role="img" aria-label="Diagrama de Pareto das melhorias"></svg></div>
+    <div id="tooltip"></div>
+  </div>
+
+  <h2>Quick wins implementados (20% do esforço)</h2>
+  <p class="sub">Ordenados por razão valor/esforço. Todos com testes de regressão nesta branch.</p>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Melhoria</th><th>Impacto</th><th style="text-align:right">Valor</th><th style="text-align:right">Horas</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">QW1</td><td>Limites de perda <strong>semanal (−6%) e mensal (−15%)</strong> ligados ao pipeline — <code>CapitalProtections</code> era código morto; agora semana ruim → posições pela metade, mês ruim → trading suspenso + alerta</td><td><span class="chip crit">crítico</span></td><td class="num">95</td><td class="num">3,0</td></tr>
+        <tr><td class="mono">QW2</td><td>Fix <code>/v1/risk</code>: path do <code>risk_params.yaml</code> resolvia fora do repo — GET devolvia defaults silenciosos e PATCH dava 500</td><td><span class="chip crit">crítico</span></td><td class="num">90</td><td class="num">0,5</td></tr>
+        <tr><td class="mono">QW3</td><td><strong>Reset diário do circuit breaker</strong> — o contador "diário" nunca zerava; virava limite acumulado-desde-o-início</td><td><span class="chip crit">alto</span></td><td class="num">85</td><td class="num">1,5</td></tr>
+        <tr><td class="mono">QW4</td><td>Fix perda diária no <code>/v1/risk/circuit-breaker</code> — lia um campo de timestamp inexistente, então reportava sempre 0%</td><td><span class="chip crit">alto</span></td><td class="num">70</td><td class="num">0,5</td></tr>
+        <tr><td class="mono">QW5</td><td>Timeout nas chamadas LLM (<code>LLM_TIMEOUT_SECONDS</code>, 30s) — provider pendurado não trava mais o ciclo de trading</td><td><span class="chip done">médio</span></td><td class="num">60</td><td class="num">1,0</td></tr>
+        <tr><td class="mono">QW6</td><td>Saldo paper passa a respeitar <code>INITIAL_CAPITAL</code> (antes: 10 000 hardcoded)</td><td><span class="chip done">médio</span></td><td class="num">50</td><td class="num">0,5</td></tr>
+        <tr><td class="mono">QW7</td><td>Senhas <code>changeme</code> comentadas no <code>.env.example</code> — sem credenciais previsíveis num <code>cp</code> apressado</td><td><span class="chip done">médio</span></td><td class="num">40</td><td class="num">0,2</td></tr>
+        <tr><td class="mono">QW8</td><td>Removido <code>.env.template</code> órfão (esquema conflitante com <code>.env.example</code>)</td><td><span class="chip done">médio</span></td><td class="num">35</td><td class="num">0,2</td></tr>
+        <tr><td class="mono">QW9</td><td>Versão única em <code>src/version.py</code> — API reportava "1.0.0" falso</td><td><span class="chip done">baixo</span></td><td class="num">30</td><td class="num">0,5</td></tr>
+        <tr><td class="mono">QW10</td><td>Removida dependência morta <code>slowapi</code></td><td><span class="chip done">baixo</span></td><td class="num">25</td><td class="num">0,2</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Plano de desenvolvimento (os 80% de esforço restantes)</h2>
+  <p class="sub">Detalhado em <code>docs/pareto-analysis-dev-plan.md</code> no repositório.</p>
+  <div class="phases">
+    <div class="phase">
+      <h3>P0 — Terminar a segurança financeira</h3>
+      <div class="meta">≈6 h · <span class="chip plan">planejado</span></div>
+      <ul>
+        <li>Unificar thresholds: <code>CapitalProtections</code> (3/6/15%) × <code>risk_params.yaml</code> (5/10/15%) — uma fonte de verdade</li>
+        <li>Persistir o dia do contador do circuit breaker no SQLite (sobreviver a restart)</li>
+        <li>Conectar ou remover <code>src/core/config.py</code> (validação fail-fast no boot)</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <h3>P1 — Caminho para ordens reais</h3>
+      <div class="meta">≈20 h · <span class="chip plan">planejado</span></div>
+      <ul>
+        <li>Hardening do <code>ExecutionAgent</code> em <code>ORDER_ROUTING=live</code>: retry, partial fills, cancelamento, idempotência</li>
+        <li>Sizing a partir do saldo real da exchange (não de env var)</li>
+        <li>Testnet primeiro, com o checklist de transição do yaml (Sharpe &gt; 1.5, ≥100 trades, 90 dias paper)</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <h3>P2 — Dívida arquitetural</h3>
+      <div class="meta">≈16 h · <span class="chip plan">planejado</span></div>
+      <ul>
+        <li>Convergir <code>SquadOrchestrator</code> (vivo) × <code>UnifiedOrchestrator</code> (só em teste, execução placeholder)</li>
+        <li>Remover agentes vestigiais de engenharia</li>
+        <li>Estratégias <code>mean_reversion</code>/<code>grid</code>: testar e registrar, ou parar de carregar silenciosamente</li>
+      </ul>
+    </div>
+    <div class="phase">
+      <h3>P3 — Qualidade contínua</h3>
+      <div class="meta">≈10 h · <span class="chip plan">planejado</span></div>
+      <ul>
+        <li>Cobertura 73% → 80% (subir o gate gradualmente)</li>
+        <li>Documentar <code>src/main.py</code> como demo (o entrypoint real é o <code>main_loop</code>)</li>
+        <li>Guardrail de condições de mercado (TODO do README) · decidir RAG</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>Branch <span class="mono">claude/pareto-analysis-dev-plan-up1kko</span> ·
+  verificação executada, não presumida: pytest, ciclo do orquestrador em dry-run,
+  probes da API e lint rodados nesta análise.</footer>
+</main>
+
+<script>
+(function () {
+  const items = [
+    { id: "QW1", label: "Proteções semanal/mensal ligadas ao pipeline", valor: 95, horas: 3.0, done: true },
+    { id: "QW2", label: "Fix path do risk_params.yaml (/v1/risk)", valor: 90, horas: 0.5, done: true },
+    { id: "P1",  label: "Execução real hardened (retry, fills, reconciliação)", valor: 90, horas: 20, done: false },
+    { id: "QW3", label: "Reset diário do circuit breaker", valor: 85, horas: 1.5, done: true },
+    { id: "QW4", label: "Fix perda diária no endpoint do circuit breaker", valor: 70, horas: 0.5, done: true },
+    { id: "QW5", label: "Timeout nas chamadas LLM", valor: 60, horas: 1.0, done: true },
+    { id: "P0",  label: "Config fail-fast + thresholds unificados", valor: 55, horas: 6, done: false },
+    { id: "QW6", label: "Saldo paper respeita INITIAL_CAPITAL", valor: 50, horas: 0.5, done: true },
+    { id: "P2",  label: "Unificar orquestradores (dívida arquitetural)", valor: 45, horas: 16, done: false },
+    { id: "QW7", label: "Senhas changeme comentadas no .env.example", valor: 40, horas: 0.2, done: true },
+    { id: "QW8", label: "Remoção do .env.template órfão", valor: 35, horas: 0.2, done: true },
+    { id: "P3",  label: "Qualidade: cobertura 80%, estratégias, RAG", valor: 35, horas: 10, done: false },
+    { id: "QW9", label: "Versão única (src/version.py)", valor: 30, horas: 0.5, done: true },
+    { id: "QW10", label: "Remoção da dependência morta slowapi", valor: 25, horas: 0.2, done: true },
+  ];
+  const total = items.reduce((s, d) => s + d.valor, 0);
+  let acc = 0;
+  items.forEach((d) => { acc += d.valor; d.cum = (acc / total) * 100; });
+
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const svg = document.getElementById("pareto");
+  const NS = "http://www.w3.org/2000/svg";
+
+  const W = 900, PAD_L = 44, PAD_R = 16;
+  const TOP = { y: 14, h: 190 };            // painel: valor acumulado (%)
+  const GAP = 30;
+  const BOT = { y: TOP.y + TOP.h + GAP, h: 150 }; // painel: valor por item (pontos)
+  const XLBL = BOT.y + BOT.h + 26;
+  const H = XLBL + 10;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+
+  const n = items.length;
+  const innerW = W - PAD_L - PAD_R;
+  const step = innerW / n;
+  const barW = Math.min(38, step - 8);
+  const xC = (i) => PAD_L + step * i + step / 2;
+  const yTop = (pct) => TOP.y + TOP.h - (pct / 100) * TOP.h;
+  const yBot = (v) => BOT.y + BOT.h - (v / 100) * BOT.h;
+
+  function el(name, attrs, parent) {
+    const e = document.createElementNS(NS, name);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    (parent || svg).appendChild(e);
+    return e;
+  }
+  function txt(x, y, s, attrs) {
+    const e = el("text", Object.assign({ x, y, "font-size": 11, fill: css("--muted"),
+      "font-family": "system-ui, sans-serif" }, attrs || {}));
+    e.textContent = s;
+    return e;
+  }
+
+  function draw() {
+    svg.innerHTML = "";
+    const inkMuted = css("--muted"), gridC = css("--grid"), baseC = css("--baseline");
+    const doneC = css("--done"), planC = css("--plan"), ink = css("--ink"), ink2 = css("--ink-2");
+
+    // ---- painel superior: acumulado ----
+    [0, 25, 50, 75, 100].forEach((p) => {
+      el("line", { x1: PAD_L, x2: W - PAD_R, y1: yTop(p), y2: yTop(p), stroke: gridC, "stroke-width": 1 });
+      txt(PAD_L - 8, yTop(p) + 4, p + "%", { "text-anchor": "end", "font-variant-numeric": "tabular-nums" });
+    });
+    txt(PAD_L, TOP.y - 3, "VALOR ACUMULADO", { "letter-spacing": "0.08em", "font-size": 10, "font-weight": 600 });
+
+    // corte 80%
+    el("line", { x1: PAD_L, x2: W - PAD_R, y1: yTop(80), y2: yTop(80),
+      stroke: ink2, "stroke-width": 1, "stroke-dasharray": "5 4", opacity: 0.75 });
+    txt(W - PAD_R, yTop(80) - 6, "corte 80%", { "text-anchor": "end", fill: ink2, "font-weight": 600 });
+
+    // linha acumulada
+    const pts = items.map((d, i) => `${xC(i)},${yTop(d.cum)}`).join(" ");
+    el("polyline", { points: pts, fill: "none", stroke: ink, "stroke-width": 2,
+      "stroke-linejoin": "round", "stroke-linecap": "round" });
+    items.forEach((d, i) => {
+      el("circle", { cx: xC(i), cy: yTop(d.cum), r: 3.5, fill: ink, stroke: css("--surface"), "stroke-width": 2 });
+    });
+    // rótulos seletivos no acumulado (fim dos quick wins e último ponto)
+    const iCross = items.findIndex((d) => d.cum >= 80);
+    txt(xC(iCross), yTop(items[iCross].cum) - 10, Math.round(items[iCross].cum) + "%",
+      { "text-anchor": "middle", fill: ink, "font-weight": 600, "font-variant-numeric": "tabular-nums" });
+
+    // ---- painel inferior: barras de valor ----
+    [0, 50, 100].forEach((v) => {
+      el("line", { x1: PAD_L, x2: W - PAD_R, y1: yBot(v), y2: yBot(v), stroke: gridC, "stroke-width": 1 });
+      txt(PAD_L - 8, yBot(v) + 4, String(v), { "text-anchor": "end", "font-variant-numeric": "tabular-nums" });
+    });
+    txt(PAD_L, BOT.y - 3, "VALOR POR ITEM (0–100)", { "letter-spacing": "0.08em", "font-size": 10, "font-weight": 600 });
+
+    items.forEach((d, i) => {
+      const h = BOT.y + BOT.h - yBot(d.valor);
+      el("path", {
+        d: roundedTopBar(xC(i) - barW / 2, yBot(d.valor), barW, h, 4),
+        fill: d.done ? doneC : planC,
+      });
+      // rótulo direto: identidade nunca é só cor (planejados são cinza)
+      txt(xC(i), XLBL, d.id, { "text-anchor": "middle", fill: d.done ? ink2 : inkMuted,
+        "font-weight": d.done ? 400 : 600, "font-family": "ui-monospace, Menlo, monospace", "font-size": 10.5 });
+    });
+    el("line", { x1: PAD_L, x2: W - PAD_R, y1: BOT.y + BOT.h, y2: BOT.y + BOT.h, stroke: baseC, "stroke-width": 1 });
+
+    // ---- camada de hover ----
+    const hover = el("g", {});
+    const hl = el("rect", { x: 0, y: TOP.y, width: step, height: BOT.y + BOT.h - TOP.y,
+      fill: ink, opacity: 0, rx: 4 }, hover);
+    items.forEach((d, i) => {
+      const hit = el("rect", { x: PAD_L + step * i, y: TOP.y, width: step,
+        height: BOT.y + BOT.h - TOP.y, fill: "transparent" }, hover);
+      hit.addEventListener("mousemove", (ev) => showTip(ev, d, i, hl));
+      hit.addEventListener("mouseleave", () => hideTip(hl));
+    });
+  }
+
+  function roundedTopBar(x, y, w, h, r) {
+    if (h <= r) r = Math.max(0, h - 0.5);
+    return `M${x},${y + h} L${x},${y + r} Q${x},${y} ${x + r},${y} L${x + w - r},${y} Q${x + w},${y} ${x + w},${y + r} L${x + w},${y + h} Z`;
+  }
+
+  const tip = document.getElementById("tooltip");
+  function showTip(ev, d, i, hl) {
+    hl.setAttribute("x", PAD_L + step * i);
+    hl.setAttribute("opacity", 0.05);
+    tip.style.display = "block";
+    tip.innerHTML =
+      `<div class="t-title">${d.id} — ${d.label}</div>` +
+      `<div class="t-row"><span>Valor</span><b>${d.valor} pts</b></div>` +
+      `<div class="t-row"><span>Esforço</span><b>${String(d.horas).replace(".", ",")} h</b></div>` +
+      `<div class="t-row"><span>Acumulado</span><b>${d.cum.toFixed(1)}%</b></div>` +
+      `<div class="t-row"><span>Status</span><b>${d.done ? "implementado" : "planejado"}</b></div>`;
+    const card = tip.parentElement.getBoundingClientRect();
+    let x = ev.clientX - card.left + 14, y = ev.clientY - card.top + 10;
+    if (x + tip.offsetWidth > card.width - 10) x -= tip.offsetWidth + 26;
+    tip.style.left = x + "px";
+    tip.style.top = y + "px";
+  }
+  function hideTip(hl) { hl.setAttribute("opacity", 0); tip.style.display = "none"; }
+
+  draw();
+  // redesenha quando o tema muda (toggle do viewer ou preferência do SO)
+  new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+})();
+</script>

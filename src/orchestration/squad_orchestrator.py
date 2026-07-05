@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from src.agents.execution_agent import ExecutionAgent
@@ -13,6 +13,7 @@ from src.agents.strategy_agent import StrategyAgent
 from src.core.alerts import Alert, AlertBus, AlertStore
 from src.core.ledger import TradingLedger
 from src.orchestration.position_store import PositionStore
+from src.risk.capital_protections import CapitalProtections
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +40,23 @@ class CircuitBreaker:
         self._tripped_at: float | None = None
         self._consecutive_losses: int = 0
         self._daily_loss_pct: float = 0.0
+        # UTC day the daily-loss accumulator belongs to. Without this the
+        # "daily" limit never resets and becomes a cumulative-since-start limit.
+        self._loss_day: str = datetime.now(UTC).date().isoformat()
         # Optional SQLite persistence so the breaker survives a loop restart.
         # None = in-memory only (default; behaviour unchanged).
         self._state_db = state_db_provider
+
+    def _roll_day_if_needed(self) -> None:
+        today = datetime.now(UTC).date().isoformat()
+        if today != self._loss_day:
+            self._loss_day = today
+            if self._daily_loss_pct != 0.0:
+                logger.info(
+                    "Circuit breaker: new UTC day — daily loss counter reset (was %.2f%%)",
+                    self._daily_loss_pct,
+                )
+            self._daily_loss_pct = 0.0
 
     def reload(self) -> None:
         """Restore persisted breaker state (no-op when persistence is disabled)."""
@@ -77,6 +92,7 @@ class CircuitBreaker:
 
     def record_trade_result(self, pnl_pct: float) -> None:
         """Update internal counters after a trade completes."""
+        self._roll_day_if_needed()
         self._daily_loss_pct += pnl_pct
 
         if pnl_pct < 0:
@@ -147,6 +163,11 @@ class SquadOrchestrator:
         self.circuit_breaker = CircuitBreaker(
             ledger=self.ledger, state_db_provider=lambda: self.ledger.db_path
         )
+        # Drawdown guards over daily/weekly/monthly realised P&L. Complements the
+        # circuit breaker (which reacts per-trade): the weekly limit halves
+        # position sizes; the monthly limit suspends trading entirely.
+        self.capital_protections = CapitalProtections()
+        self._protection_size_multiplier = 1.0
         # Real HITL hook. When None, approvals are denied (fail-closed).
         self.approval_handler = approval_handler
         # Used to size paper fills (qty = capital * position_size_pct / price).
@@ -200,6 +221,20 @@ class SquadOrchestrator:
             return {
                 "success": False,
                 "reason": "Circuit breaker active — trading paused",
+            }
+
+        protection = self.capital_protections.check(
+            daily_pnl_pct=self._period_pnl_pct(days=1),
+            weekly_pnl_pct=self._period_pnl_pct(days=7),
+            monthly_pnl_pct=self._period_pnl_pct(days=30),
+        )
+        self._protection_size_multiplier = protection.size_multiplier
+        if not protection.can_trade:
+            logger.warning("Capital protection active — skipping trade cycle for %s", symbol)
+            await self._emit_alert(symbol, [protection.message])
+            return {
+                "success": False,
+                "reason": protection.message or "Capital protection active — trading paused",
             }
 
         logger.info("Starting analysis", extra={"symbol": symbol, "timeframe": timeframe})
@@ -315,6 +350,37 @@ class SquadOrchestrator:
             logger.warning("Could not read realised P&L", exc_info=True)
         return total
 
+    def _period_pnl_pct(self, days: int) -> float:
+        """Realised P&L over the last ``days`` as a % of initial capital.
+
+        Feeds the capital protections (daily/weekly/monthly drawdown guards).
+        Uses the entry-level ledger timestamp of each ``position_closed`` event.
+        """
+        if self.initial_capital <= 0:
+            return 0.0
+        cutoff = datetime.now(UTC) - timedelta(days=days)
+        total = 0.0
+        try:
+            for entry in self.ledger.get_events("position_closed"):
+                ts_raw = entry.get("timestamp") or ""
+                try:
+                    ts = datetime.fromisoformat(ts_raw)
+                except (TypeError, ValueError):
+                    continue
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=UTC)
+                if ts < cutoff:
+                    continue
+                data = entry.get("data") or {}
+                try:
+                    total += float(data.get("pnl") or 0.0)
+                except (TypeError, ValueError):
+                    continue
+        except Exception:  # pragma: no cover - defensive (ledger read)
+            logger.warning("Could not compute %d-day P&L", days, exc_info=True)
+            return 0.0
+        return total / self.initial_capital * 100.0
+
     def _available_capital(self) -> float:
         """Capital available for a new position: base + realised − open exposure."""
         open_notional = sum(
@@ -337,7 +403,8 @@ class SquadOrchestrator:
             return 0.0
         if price <= 0 or size_pct <= 0:
             return 0.0
-        return (self.initial_capital * size_pct / 100.0) / price
+        # Weekly drawdown protection halves sizes (multiplier 0.5); normally 1.0.
+        return (self.initial_capital * size_pct / 100.0) / price * self._protection_size_multiplier
 
     def _log_fill(self, symbol: str, signal: dict[str, Any], execution: dict[str, Any]) -> None:
         """Record the economic facts of a fill so metrics can value the position.
