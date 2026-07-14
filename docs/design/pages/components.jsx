@@ -241,9 +241,9 @@ function SliderField({ label, value, onChange, min = 0, max = 100, step = 1, uni
           {value}{unit}
         </span>
       </div>
-      <input type="range" value={value} min={min} max={max} step={step}
+      <input type="range" className="range" value={value} min={min} max={max} step={step}
         onChange={e => onChange(+e.target.value)}
-        style={{ width: '100%' }} />
+        aria-label={label} />
     </label>
   );
 }

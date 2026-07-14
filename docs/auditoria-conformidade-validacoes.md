@@ -1,5 +1,12 @@
 # Relatório de Auditoria de Conformidade de Validações — CriptoTrade
 
+> ⚠️ **SNAPSHOT HISTÓRICO (2026-05-31) — NÃO reflete o estado atual.**
+> Este relatório descreve um estágio inicial já superado (menciona, p.ex., uma
+> "stack Java órfã", HITL contornável e sandbox fail-open — todos corrigidos ou
+> removidos depois). Mantido apenas como registro histórico. Para o estado atual
+> e o backlog vivo de melhorias, ver **`docs/plano-melhorias.md`** e
+> **`docs/auditoria-criptotrade-2026-06.md`**.
+
 > **Auditor:** Revisor de Documentação Técnica e de Processos
 > **Data:** 31 de Maio de 2026
 > **Branch auditada:** `claude/nifty-shannon-7CgJs`

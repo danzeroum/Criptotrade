@@ -3,7 +3,7 @@
    ============================================================ */
 const { useState, useEffect } = React;
 
-const STATUS_VARIANT = {
+const ORDER_STATUS_VARIANT = {
   pending:   'warn',
   approved:  'ok',
   filled:    'ok',
@@ -11,7 +11,7 @@ const STATUS_VARIANT = {
   cancelled: 'neutral',
 };
 
-const STATUS_LABEL = {
+const ORDER_STATUS_LABEL = {
   pending:   'Pendente',
   approved:  'Aprovada',
   filled:    'Executada',
@@ -158,8 +158,8 @@ function ScreenOrders() {
                   <td style={{ fontSize: 12, color: 'var(--ink-3)' }}>{o.strategy}</td>
                   <td className="num">{Math.round((o.confidence ?? 0) * 100)}%</td>
                   <td>
-                    <Badge variant={STATUS_VARIANT[o.status] ?? 'neutral'}>
-                      {STATUS_LABEL[o.status] ?? o.status}
+                    <Badge variant={ORDER_STATUS_VARIANT[o.status] ?? 'neutral'}>
+                      {ORDER_STATUS_LABEL[o.status] ?? o.status}
                     </Badge>
                     {o.auto_approved && (
                       <span style={{ fontSize: 10, color: 'var(--ink-4)', marginLeft: 4 }}>auto</span>

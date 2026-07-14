@@ -151,7 +151,7 @@ function NewEntryForm({ onSave, onCancel }) {
   );
 }
 
-function ScreenJournal() {
+function ScreenJournal({ addToast }) {
   const mock = !!window.USE_MOCK_DATA;
   const mockEntries = CT.journal;
   const mockMetrics = CT.journalMetrics;
@@ -186,8 +186,10 @@ function ScreenJournal() {
       await CT_API.addJournalEntry(entry);
       setShowForm(false);
       load();
+      addToast?.('Entrada registrada no diário', 'check');
     } catch (e) {
       console.error('save journal entry', e);
+      addToast?.('Erro ao salvar a entrada do diário', 'alert');
     }
   };
 

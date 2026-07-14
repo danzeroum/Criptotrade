@@ -330,10 +330,6 @@ input, select, textarea { font-family: inherit; }
 .app[data-density="compact"] .page-head { margin-bottom: 14px; }
 .app[data-density="compact"] .tbl td { padding: 8px 14px; }
 
-/* flash highlight when value changes */
-@keyframes flashUp { 0% { background: var(--up-bg); } 100% { background: transparent; } }
-@keyframes flashDown { 0% { background: var(--down-bg); } 100% { background: transparent; } }
-
 /* drawer */
 .drawer-scrim { position: fixed; inset: 0; background: rgba(20,24,28,.32); z-index: 40; }
 .drawer {

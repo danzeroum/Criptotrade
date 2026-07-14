@@ -1,5 +1,11 @@
 # 🚀 HANDOFF PARA CODEX - Crypto AI Trading Platform v0.1.0-alpha
 
+> ⚠️ **SNAPSHOT HISTÓRICO — documento de inicialização do projeto (Stage 01/02).**
+> Descreve o plano/estado inicial (HITL para *todas* as ordens, limites fixos) já
+> superado pela evolução do sistema (níveis de autonomia 0–3 por limiar, guardrails,
+> roadmaps v1–v6). Mantido como registro histórico. Estado atual e melhorias:
+> **`docs/plano-melhorias.md`**, `README.md`, `docs/architecture/arquitetura.md`.
+
 ## 📋 CONTEXTO
 
 **Stage:** 01_BRIEF + 02_CODE (Inicialização)  

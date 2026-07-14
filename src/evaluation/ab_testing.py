@@ -1,6 +1,7 @@
 """Lightweight agent A/B testing utilities."""
 from __future__ import annotations
 
+import json
 import random
 import statistics
 from dataclasses import dataclass
@@ -57,4 +58,4 @@ class AgentABTestingFramework:
         self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
         payload = {"timestamp": datetime.now(timezone.utc).isoformat(), **summary}
         with self.ledger_path.open("a", encoding="utf-8") as handle:
-            handle.write(f"{payload}\n")
+            handle.write(json.dumps(payload) + "\n")

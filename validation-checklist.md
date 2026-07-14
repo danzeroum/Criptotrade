@@ -1,5 +1,11 @@
 # ✅ Checklist de Validação Pós-Implementação
 
+> ⚠️ **SNAPSHOT HISTÓRICO — checklist de pré-implementação (todos os itens `[ ]`).**
+> Redigido "APÓS o Codex implementar a estrutura inicial"; nunca foi marcado após a
+> construção do sistema, então os boxes desmarcados **não** indicam trabalho pendente.
+> A validação real vive na suíte de testes (416 testes), na CI e em
+> **`docs/auditoria-criptotrade-2026-06.md`**. Backlog vivo: **`docs/plano-melhorias.md`**.
+
 ## 📋 INSTRUÇÕES DE USO
 
 Este checklist deve ser executado **APÓS** o Codex implementar toda a estrutura inicial. Cada item deve ser validado e marcado como ✅ antes de considerar o projeto pronto para evolução.

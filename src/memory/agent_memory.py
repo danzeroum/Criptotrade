@@ -1,7 +1,10 @@
 """Persistent memory management with optional ChromaDB."""
 import json
+import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional
+
+logger = logging.getLogger(__name__)
 
 # Try to import ChromaDB, but don't fail if unavailable
 try:
@@ -18,7 +21,6 @@ class AgentMemorySystem:
         self.storage_dir = storage_dir or Path(".buildtovalue/ledger")
         self.storage_dir.mkdir(parents=True, exist_ok=True)
 
-        self.short_term: Dict[str, Any] = {}
         self.episodic_path = self.storage_dir / "agent_memories.jsonl"
 
         # Initialize vector store only if available
@@ -55,7 +57,9 @@ class AgentMemorySystem:
                     ids=[f"{agent}_{decision.get('timestamp')}"]
                 )
             except Exception:
-                pass  # Fallback to file-only
+                # Vector-store write is best-effort; the JSONL file above is the
+                # durable record. Log at debug instead of swallowing silently.
+                logger.debug("Vector-store add failed; using file-only fallback", exc_info=True)
 
     def recall(self, query: str, n_results: int = 5) -> List[Dict]:
         """Recall similar past decisions."""

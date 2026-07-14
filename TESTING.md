@@ -3,10 +3,11 @@
 ## Executando
 
 ```bash
-# Suíte completa (383 testes)
+# Suíte completa: 416 testes coletados — 408 passam e 8 são pulados
+# (integração Postgres, só rodam com DATABASE_URL definido). Verificado 2026-07-14.
 pytest -q
 
-# Com cobertura
+# Com cobertura (gate de 72% definido em pyproject.toml)
 pytest --cov=src
 
 # Por área

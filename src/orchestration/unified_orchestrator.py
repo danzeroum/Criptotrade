@@ -11,7 +11,6 @@ from src.agents.auditor_agent import AuditorAgent
 from src.agents.developer_agent import DeveloperAgent
 from src.agents.designer_agent import DesignerAgent
 from src.agents.ops_agent import OpsAgent
-from src.chains.resilient_chain import ResilientPromptChain
 from src.consensus.weighted_voting import WeightedConsensusEngine
 from src.evaluation.continuous_evaluator import ContinuousEvaluator
 from src.hitl.progressive_autonomy import ProgressiveAutonomyManager
@@ -19,7 +18,6 @@ from src.memory.agent_memory import AgentMemorySystem
 from src.parallel.resource_manager import ParallelResourceManager
 from src.planning.adaptive_planner import AdaptivePlanner
 from src.routing.learning_router import LearningRouter
-from src.tools.sandbox.secure_executor import SecureToolSandbox
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +33,6 @@ class UnifiedOrchestrator:
         self.evaluator = ContinuousEvaluator()
         self.consensus = WeightedConsensusEngine()
         self.autonomy = ProgressiveAutonomyManager()
-        self.sandbox = SecureToolSandbox()
-        self.chain_manager = ResilientPromptChain([])
 
         self.agents: Dict[str, Any] = {
             "architect": ArchitectAgent(),

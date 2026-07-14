@@ -222,6 +222,23 @@ class TestRegimeDetector:
         strategies = strategies_for_regime("sideways")
         assert "grid" in strategies
         assert "dca" in strategies
+        # mean_reversion is a range-bound strategy — it must be routable in the
+        # sideways regime (previously registered but never emitted by any regime).
+        assert "mean_reversion" in strategies
+
+    def test_every_routed_strategy_is_registered(self):
+        # Guard against routing a strategy key that has no registered class
+        # (and surfaces strategies registered but never routed).
+        from src.analysis.regime_detector import _REGIME_STRATEGY_MAP
+        from src.strategies import STRATEGY_REGISTRY
+
+        routed = {s for strategies in _REGIME_STRATEGY_MAP.values() for s in strategies}
+        assert routed <= set(STRATEGY_REGISTRY), (
+            f"routed strategies missing from registry: {routed - set(STRATEGY_REGISTRY)}"
+        )
+        # mean_reversion is both registered and now reachable by regime selection.
+        assert "mean_reversion" in STRATEGY_REGISTRY
+        assert "mean_reversion" in routed
 
     def test_strategies_for_chaotic_empty(self):
         strategies = strategies_for_regime("chaotic")

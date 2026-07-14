@@ -17,10 +17,10 @@ logger = logging.getLogger(__name__)
 
 _REGIME_STRATEGY_MAP = {
     "strong_uptrend": ["dca"],
-    "strong_downtrend": [],        # no long strategies in downtrend
-    "sideways": ["grid", "dca"],
-    "chaotic": [],                 # no trading during extreme volatility
-    "unknown": ["dca"],            # default fallback
+    "strong_downtrend": [],                        # no long strategies in downtrend
+    "sideways": ["grid", "mean_reversion", "dca"],  # range-bound: mean reversion + grid
+    "chaotic": [],                                 # no trading during extreme volatility
+    "unknown": ["dca"],                            # default fallback
 }
 
 
