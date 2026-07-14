@@ -17,9 +17,12 @@ class RiskAgent(BaseAgent):
         self.tools = ["portfolio_analyzer", "risk_calculator"]
         self.guardrails = GuardrailSystem()
         # Risk limits read from the environment (config-driven, not hardcoded).
+        # Note: cumulative daily-loss enforcement lives at the orchestrator level
+        # (CircuitBreaker.DAILY_LOSS_LIMIT_PCT), which has the realised-P&L context
+        # the per-order validation here does not — so MAX_DAILY_LOSS_PCT is not read
+        # in this agent (it would be a dead, misleading attribute).
         self.max_position_size_pct = self._env_float("MAX_POSITION_SIZE_PCT", 5.0)
         self.stop_loss_pct = self._env_float("STOP_LOSS_PCT", 3.0)
-        self.max_daily_loss_pct = self._env_float("MAX_DAILY_LOSS_PCT", 5.0)
         # Optional LLM for the Reflection step. "auto" → resolve lazily from env;
         # None → disabled; an object → injected (tests). Never raises / can only
         # tighten the decision (advisory).

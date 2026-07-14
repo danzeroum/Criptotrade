@@ -3,6 +3,12 @@
 > **Dicionário de dados exaustivo de todo o repositório.** Mapeia **todos os dados que circulam no sistema** — entradas, saídas, processamento intermediário e estado — em cada módulo e em cada linguagem (Python, JavaScript/JSX, TypeScript, HTML, SQL, YAML, `.env`, Docker). Inclui deliberadamente os dados **"perdidos na própria classe"** (atribuídos e nunca lidos).
 >
 > Produzido por análise estática dos scripts do repositório, com referências `arquivo:linha`. Complementa `docs/uml/arquitetura-uml.md` (classes) e `docs/architecture/arquitetura.md` (C4).
+>
+> ℹ️ **Atualização 2026-07-14:** parte das anomalias de §9 e dos dados mortos de §8
+> já foram corrigidos na "Onda 1" — ver **`docs/plano-melhorias.md`** para o estado
+> vivo (ex.: §9.3 `mean_reversion` agora roteável, §9.4 `ab_tests.jsonl` em JSON
+> válido, e vários dados de §8 removidos). Este documento permanece como o **retrato
+> de análise estática** do momento em que foi gerado.
 
 ## Nota sobre linguagens
 Varredura recursiva do repositório: **Python** 168 arquivos (núcleo), **React/JSX + JS** ~24 (console em `docs/design/pages/`), **TypeScript** 1 (`openapi.d.ts`, contrato gerado), **HTML** 2, **SQL** 4 (migrations), **YAML** vários (config/monitoring). **Rust: 0 arquivos** — não existe código Rust neste repositório; onde a metodologia pediria mapeamento Rust, registra-se a ausência.

@@ -9,14 +9,14 @@ const DOMAIN_VARIANT = {
   orchestration: 'violet',
 };
 
-const STATUS_VARIANT = {
+const AGENT_STATUS_VARIANT = {
   active:          'ok',
   idle:            'neutral',
   not_implemented: 'neutral',
   error:           'down',
 };
 
-const STATUS_LABEL = {
+const AGENT_STATUS_LABEL = {
   active:          'Ativo',
   idle:            'Ocioso',
   not_implemented: 'Stub',
@@ -111,7 +111,7 @@ function AgentConfigDrawer({ agentId, onClose }) {
 }
 
 function AgentCard({ agent, onConfigure }) {
-  const statusVariant = STATUS_VARIANT[agent.status] ?? 'neutral';
+  const statusVariant = AGENT_STATUS_VARIANT[agent.status] ?? 'neutral';
   const domainVariant = DOMAIN_VARIANT[agent.domain] ?? 'neutral';
   const lastRun = agent.last_run ?? agent.last ?? null;
 
@@ -124,7 +124,7 @@ function AgentCard({ agent, onConfigure }) {
           </span>
           <Badge variant={domainVariant} dot={false}>{agent.domain}</Badge>
         </div>
-        <Badge variant={statusVariant}>{STATUS_LABEL[agent.status] ?? agent.status}</Badge>
+        <Badge variant={statusVariant}>{AGENT_STATUS_LABEL[agent.status] ?? agent.status}</Badge>
       </div>
       <div className="card-pad">
         <p style={{ fontSize: 12.5, color: 'var(--ink-2)', marginBottom: 14, lineHeight: 1.55 }}>

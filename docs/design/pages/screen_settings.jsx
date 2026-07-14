@@ -11,7 +11,7 @@ function SectionHead({ title, icon }) {
   );
 }
 
-function ScreenSettings() {
+function ScreenSettings({ addToast }) {
   const mock = !!window.USE_MOCK_DATA;
 
   const mockConfig = {
@@ -78,7 +78,7 @@ function ScreenSettings() {
       const updated = await CT_API.patchConfig(patch);
       setSysConfig(updated);
       flash('Config salva');
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); addToast?.('Erro ao salvar configuração', 'alert'); }
   };
 
   const saveRiskConfig = async (patch) => {
@@ -87,7 +87,7 @@ function ScreenSettings() {
       const updated = await CT_API.patchRiskConfig(patch);
       setRiskConfig(updated);
       flash('Risco salvo');
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); addToast?.('Erro ao salvar parâmetros de risco', 'alert'); }
   };
 
   const saveAlertConfig = async (patch) => {
@@ -96,7 +96,7 @@ function ScreenSettings() {
       const updated = await CT_API.patchAlertsConfig(patch);
       setAlertConfig(updated);
       flash('Alertas salvos');
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); addToast?.('Erro ao salvar alertas', 'alert'); }
   };
 
   if (loading) return <LoadingState label="Carregando configurações…" />;

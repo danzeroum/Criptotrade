@@ -45,7 +45,7 @@ function FoldTable({ folds }) {
   );
 }
 
-function ScreenBacktest() {
+function ScreenBacktest({ addToast }) {
   const mock = !!window.USE_MOCK_DATA;
 
   const defaultConfig = {
@@ -134,15 +134,18 @@ function ScreenBacktest() {
           } else if (s.status === 'error') {
             clearInterval(pollRef.current);
             setRunning(false);
+            addToast?.('O backtest falhou durante a execução', 'alert');
           }
         } catch (e) {
           clearInterval(pollRef.current);
           setRunning(false);
+          addToast?.('Erro ao consultar o status do backtest', 'alert');
         }
       }, 1500);
     } catch (e) {
       setRunning(false);
       console.error('run backtest', e);
+      addToast?.('Erro ao iniciar o backtest', 'alert');
     }
   };
 

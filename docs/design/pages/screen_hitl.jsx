@@ -26,10 +26,14 @@ function ConfidenceBreakdown({ breakdown }) {
 function PendingOrderCard({ order, onDecide }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  // Two-step confirmation on financial actions (mirrors the paper-order confirm
+  // on the Market screen). `confirming` holds the pending action, or null.
+  const [confirming, setConfirming] = useState(null);
 
   const decide = async (action) => {
     setBusy(true);
     await onDecide(order.id, action, note);
+    setConfirming(null);
     setBusy(false);
   };
 
@@ -80,19 +84,40 @@ function PendingOrderCard({ order, onDecide }) {
             onChange={e => setNote(e.target.value)}
             style={{ flex: 1, padding: '7px 10px', fontSize: 12.5 }}
           />
-          <Btn variant="down" size="sm" onClick={() => decide('rejected')} disabled={busy}>
-            <Icon name="x" size={13} /> Rejeitar
-          </Btn>
-          <Btn variant="up" size="sm" onClick={() => decide('approved')} disabled={busy}>
-            <Icon name="check" size={13} /> Aprovar
-          </Btn>
+          {confirming ? (
+            <>
+              <span style={{ fontSize: 12, color: 'var(--ink-2)', marginRight: 4 }}>
+                Confirmar {confirming === 'approved' ? 'aprovação' : 'rejeição'}?
+              </span>
+              <Btn variant="ghost" size="sm" onClick={() => setConfirming(null)} disabled={busy}>
+                Cancelar
+              </Btn>
+              <Btn
+                variant={confirming === 'approved' ? 'up' : 'down'}
+                size="sm"
+                onClick={() => decide(confirming)}
+                disabled={busy}
+              >
+                <Icon name={confirming === 'approved' ? 'check' : 'x'} size={13} /> Confirmar
+              </Btn>
+            </>
+          ) : (
+            <>
+              <Btn variant="down" size="sm" onClick={() => setConfirming('rejected')} disabled={busy}>
+                <Icon name="x" size={13} /> Rejeitar
+              </Btn>
+              <Btn variant="up" size="sm" onClick={() => setConfirming('approved')} disabled={busy}>
+                <Icon name="check" size={13} /> Aprovar
+              </Btn>
+            </>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function ScreenHITL() {
+function ScreenHITL({ addToast }) {
   const mock = !!window.USE_MOCK_DATA;
 
   const mockConfig = {
@@ -149,8 +174,10 @@ function ScreenHITL() {
         operator_id: 'operator',
       });
       load();
+      addToast?.(action === 'approved' ? 'Ordem aprovada' : 'Ordem rejeitada', 'check');
     } catch (e) {
       console.error('decide error', e);
+      addToast?.('Erro ao processar a ordem', 'alert');
     }
   };
 
@@ -170,8 +197,10 @@ function ScreenHITL() {
         operator: 'operator',
       });
       setConfig(updated);
+      addToast?.('Nível de autonomia atualizado', 'check');
     } catch (e) {
       console.error('setLevel error', e);
+      addToast?.('Erro ao alterar o nível de autonomia', 'alert');
     }
   };
 
