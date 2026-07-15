@@ -509,6 +509,40 @@ Revisão do código após Fase 5b. **4 achados corrigidos em `remediacao/audit-f
 | A-03 | `scripts/migrate_ledger.py:43` | `json.loads()` sem `try/except` abortava migração em linha corrompida, deixando histórico parcialmente importado sem aviso | Baixo | Adicionado `try/except JSONDecodeError` com skip+warn por linha |
 | A-04 | `README.md` | Contagem de testes desatualizada (273 → 324, duas ocorrências) | Doc | Atualizado |
 
+### 7.7 Análise & Melhorias — Ondas 1–2 (2026-07-15)
+
+Análise profunda partindo da documentação de mapeamento (`docs/data/mapeamento-dados.md`),
+que catalogou anomalias §9 e dados mortos §8 **sem corrigir**. As 9 anomalias foram
+verificadas (todas verdadeiras) e uma primeira leva foi corrigida. Fonte única do
+backlog: `docs/plano-melhorias.md`.
+
+**Onda 1** (PR #68, baixo risco):
+
+| # | Arquivo | Correção | Sev. |
+|---|---------|----------|------|
+| O1-1 | `evaluation/ab_testing.py` | `ab_tests.jsonl` gravado como JSON válido (`json.dumps`, não `repr`) | Baixo |
+| O1-2 | `analysis/regime_detector.py` | `mean_reversion` roteável no regime `sideways` (era registrada mas nunca emitida) + teste de consistência | Médio |
+| O1-3 | `agents/risk_agent.py`, `orchestration/unified_orchestrator.py`, `memory/agent_memory.py` | Remoção de dados mortos (§8): `max_daily_loss_pct`, `sandbox`/`chain_manager`, `short_term`; log em vez de `except: pass` | Baixo |
+| O1-4 | `docs/design/pages/*.jsx` | Erros de mutação → toast; confirmação em aprovar/rejeitar; fim da colisão `STATUS_*`; limpeza morta | Médio |
+| O1-5 | README/TESTING + ADR-004 + `docs/documentação`→`docs/data` | Contagem de testes reconciliada (**416/408/8**); índice ADR corrigido | Doc |
+
+**Onda 2** (higiene estrutural):
+
+| # | Arquivo | Correção | Sev. |
+|---|---------|----------|------|
+| O2-1 | `risk/position_sizing.py`, `api/routes/risk.py` | **R5**: fórmula central do Kelly vira fonte única (`full_kelly_fraction`); endpoint delega; `src/risk/` deixa de ser morto (contrato inalterado — ADR-006) | Médio |
+| O2-2 | `protocols/`, `planning/`, `evaluation/`, `memory/` | **R2**: colisões de nome renomeadas (`A2ASquad`, `AdaptiveReplanner`, `AgentPerformanceEvaluator`, `RelevanceMemoryStore`) | Baixo |
+| O2-3 | `backtest/engine.py` | `market_data` unificado: backtest computa `TechnicalIndicators` real + regime (guarda de warmup) — Grid/MeanReversion não ficam mais inertes | Médio |
+| O2-4 | `docs/design/pages/styles.css` + `screen_*.jsx` | **R8 (fatia)**: `.kpi-row` auto-reflow + sidebar responsiva < 960px | Baixo |
+| O2-5 | `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md`, ADR-006, sync de `mapeamento`/`arquitetura`/`uml` | Docs de projeto ausentes criadas; docs vivas sincronizadas | Doc |
+
+**Verificação:** `408 passed / 8 skipped` (cobertura ≥ gate 72%); console `npm run build` OK;
+`scripts/validate_deploy_config.py` OK. Invariante central preservado.
+
+**Aberto (backlog em `plano-melhorias.md`):** R1 (isolar cluster BuildToValue),
+cauda do R5 (plugar Kelly no sizing real), R3 (unificar política de risco/autonomia),
+R6 (rotas de agentes), R8 completo (ES modules + a11y), CandleOut `lo`→`l`.
+
 ---
 
 ## 8. Anexos

@@ -48,6 +48,24 @@ def risk_of_ruin(win_rate: float, bet_fraction: float) -> float:
         return 1.0
 
 
+def full_kelly_fraction(win_rate: float, avg_win_pct: float, avg_loss_pct: float) -> float:
+    """Full Kelly fraction f* = p − q/b, with b = avg_win/avg_loss.
+
+    Single source of truth for the core Kelly formula, shared by
+    :class:`KellyCriterion` and the ``GET /v1/risk/kelly`` endpoint (which
+    previously reimplemented this inline). Algebraically identical to the
+    ``(p*b - q) / b`` form. Returns 0.0 when the win/loss ratio is undefined
+    (non-positive average loss), i.e. no computable edge.
+    """
+    if avg_loss_pct <= 0:
+        return 0.0
+    b = avg_win_pct / avg_loss_pct
+    if b <= 0:
+        return 0.0
+    q = 1.0 - win_rate
+    return win_rate - (q / b)
+
+
 @dataclass
 class KellyCriterion:
     """Kelly Criterion position sizer.
@@ -80,12 +98,7 @@ class KellyCriterion:
         if self.avg_loss_pct <= 0:
             return None
 
-        b = self.avg_win_pct / self.avg_loss_pct
-        p = self.win_rate
-        q = 1.0 - p
-
-        f = (p * b - q) / b
-        return f
+        return full_kelly_fraction(self.win_rate, self.avg_win_pct, self.avg_loss_pct)
 
     def fractional_kelly(self, fraction: float = KELLY_FRACTION) -> float:
         """Fractional Kelly: fraction × f*, clamped to [MIN, MAX] percent.

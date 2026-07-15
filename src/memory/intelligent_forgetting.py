@@ -6,7 +6,13 @@ from typing import Dict
 
 
 @dataclass
-class MemoryStore:
+class RelevanceMemoryStore:
+    """Relevance-scored memory store used by :class:`IntelligentForgetting`.
+
+    Renamed from ``MemoryStore`` to disambiguate from
+    :class:`src.utils.memory_utils.MemoryStore` (R2).
+    """
+
     data: Dict[str, Dict]
 
     def get_all_memories(self) -> Dict[str, Dict]:
@@ -24,7 +30,7 @@ class MemoryStore:
 
 @dataclass
 class IntelligentForgetting:
-    memory: MemoryStore
+    memory: RelevanceMemoryStore
 
     def adaptive_forget(self) -> int:
         removed = 0

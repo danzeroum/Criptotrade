@@ -6,8 +6,12 @@ from typing import Any, Dict, List
 
 
 @dataclass
-class ContinuousEvaluator:
-    """Collect rolling metrics for agent executions."""
+class AgentPerformanceEvaluator:
+    """Collect rolling metrics for agent executions.
+
+    Renamed from ``ContinuousEvaluator`` to disambiguate from
+    :class:`src.evaluation.continuous_eval.ContinuousEvaluator` (R2).
+    """
 
     metrics: Dict[str, List[float]] = field(
         default_factory=lambda: {

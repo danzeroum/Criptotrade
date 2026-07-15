@@ -361,3 +361,43 @@ input, select, textarea { font-family: inherit; }
   .grid-3, .grid-regime4 { grid-template-columns: 1fr; }
   .grid-kpi5 { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ---- Reusable auto-reflowing KPI/stat-tile row (R8) ----
+   Replaces per-screen inline `gridTemplateColumns: repeat(N,1fr)` on KPI rows.
+   auto-fit + minmax reflows at any width with NO media query: N tiles stay in
+   one row on desktop and wrap on narrow viewports (mobile/tablet). */
+.kpi-row { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+
+/* ---- Responsive sidebar (R8) ----
+   The briefing promises a collapsible sidebar < ~960px, but `.app` was a fixed
+   `232px 1fr` that never reflowed. Below 960px the shell stacks: the sidebar
+   becomes a horizontal, scrollable top bar and the content takes full width. */
+@media (max-width: 960px) {
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .sidebar {
+    flex-direction: row;
+    align-items: center;
+    height: auto;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .brand {
+    border-bottom: none;
+    border-right: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .nav {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 8px 10px;
+  }
+  .nav-item { white-space: nowrap; flex-shrink: 0; }
+  .nav-badge { margin-left: 6px; }
+}

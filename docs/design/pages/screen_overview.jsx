@@ -67,13 +67,13 @@ function ScreenOverview() {
   } else if (metrics) {
     body = (
       <>
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 16 }}>
+        <div className="grid kpi-row" style={{ marginBottom: 16 }}>
           <div className="card"><KPI label="Valor do portfólio" value={metrics.portfolio_value_usdt} format="usd" icon="dollar" /></div>
           <div className="card"><KPI label={`P&L (${period})`} value={metrics.pnl_period_usdt} format="usd" delta={(metrics.pnl_period_pct ?? 0) * 100} icon="trending" /></div>
           <div className="card"><KPI label="Trades" value={metrics.total_trades} format="int" icon="list" /></div>
           <div className="card"><KPI label="Posições abertas" value={metrics.open_positions} format="int" sub={`exposição ${pct(metrics.exposure_pct)}`} icon="activity" /></div>
         </div>
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 20 }}>
+        <div className="grid kpi-row" style={{ marginBottom: 20 }}>
           <div className="card"><KPI label="Sharpe" value={ratio(metrics.sharpe_ratio)} /></div>
           <div className="card"><KPI label="Win rate" value={pct(metrics.win_rate)} /></div>
           <div className="card"><KPI label="Max drawdown" value={pct(metrics.max_drawdown)} /></div>

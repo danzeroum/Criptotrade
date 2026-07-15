@@ -233,15 +233,42 @@ class BacktestEngine:
 
     @staticmethod
     def _build_market_data(window: list[list[float]], close: float) -> dict[str, Any]:
+        """Build the market_data dict strategies expect.
+
+        Computes a real ``TechnicalIndicators`` snapshot (and derived regime)
+        from the window — the same rich shape the live ``StrategyAgent``
+        produces — so indicator-driven strategies (Grid, MeanReversion)
+        exercise the same code path in backtests as in production instead of
+        receiving neutral placeholders. Falls back to placeholders when
+        indicators can't be computed (short window / numpy unavailable in
+        minimal CI). Keeps the flat keys DCA and legacy strategies read.
+        """
+        ind = None
+        regime = "unknown"
+        if len(window) >= WARMUP_CANDLES:
+            try:  # lazy import — numpy optional in minimal CI (mirrors market.py)
+                from src.analysis.indicators import TechnicalAnalyzer
+                from src.analysis.regime_detector import detect_regime
+
+                ind = TechnicalAnalyzer(window).get_latest()
+                regime = detect_regime(ind.ema_fast, ind.ema_slow, ind.atr, ind.current_price)
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.debug("Backtest indicator computation failed: %s", exc)
+                ind = None
+        vol_last = float(window[-1][5]) if window else 0.0
         return {
             "current_price": close,
-            "rsi": 50,
-            "macd_histogram": 0,
-            "at_bollinger_lower": False,
-            "ma_20": close,
-            "ma_50": close,
-            "volume_24h": float(window[-1][5]) if window else 0,
-            "avg_volume": 1,
+            "regime": regime,
+            "rsi": ind.rsi if (ind and ind.rsi is not None) else 50,
+            "macd_histogram": ind.macd_hist if (ind and ind.macd_hist is not None) else 0,
+            "at_bollinger_lower": (
+                ind.bb_percent is not None and ind.bb_percent < 0.05
+            ) if ind else False,
+            "ma_20": ind.sma_20 if (ind and ind.sma_20 is not None) else close,
+            "ma_50": ind.sma_50 if (ind and ind.sma_50 is not None) else close,
+            "volume_24h": vol_last,
+            "avg_volume": (vol_last / max(ind.volume_ratio, 0.001)) if (ind and ind.volume_ratio) else 1,
+            "indicators": ind,
             "_raw_ohlcv": window,
         }
 

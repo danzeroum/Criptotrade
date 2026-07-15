@@ -170,9 +170,9 @@ Estes são os **dicts que fluem entre módulos** — o dado "vivo" do sistema. C
 ### 3.3 `signal` (StrategyAgent._generate_signal → strategy_agent.py:218) — **o dado central do sistema**
 `action`(BUY\|SELL\|HOLD)`, entry_price, stop_loss, take_profit, position_size_pct`(default 2.0)`, strategy, regime, market_context:{atr,bb_middle,volume_ratio}|None`. `symbol` é adicionado depois pelo orquestrador via `setdefault` (`:214`); `reason` só existe nos caminhos HOLD.
 
-### 3.4 `market_data` — **DOIS formatos distintos**
-- **Nested** (Grid/MeanReversion) — `_build_market_data` (`strategy_agent.py:383`): `symbol, current_price, trend, regime, rsi, macd_histogram, at_bollinger_lower, ma_20, ma_50, volume_24h, avg_volume, indicators:TechnicalIndicators, support_resistance, volume_profile, _raw_ohlcv`
-- **Flat** (DCA e backtest) — `engine.py:234`: `current_price, rsi(=50), macd_histogram(=0), at_bollinger_lower(=False), ma_20, ma_50, volume_24h, avg_volume(=1), _raw_ohlcv` (sem `indicators`)
+### 3.4 `market_data` — formato unificado (ver nota)
+- **Nested** (StrategyAgent e backtest) — `_build_market_data` (`strategy_agent.py:383`): `symbol, current_price, trend, regime, rsi, macd_histogram, at_bollinger_lower, ma_20, ma_50, volume_24h, avg_volume, indicators:TechnicalIndicators, support_resistance, volume_profile, _raw_ohlcv`
+- **Backtest** — `engine._build_market_data`: 🟢 **desde Onda 2** computa `indicators:TechnicalIndicators` real + `regime` (guarda de warmup `WARMUP_CANDLES=50`), mantendo os campos flat (`rsi/ma_20/ma_50/...`) que DCA lê. Fallback a placeholders só se os indicadores não puderem ser computados (janela curta / numpy ausente em CI mínima). Antes emitia flat com `rsi=50`/`indicators` ausente — o que deixava Grid/MeanReversion inertes no backtest.
 
 ### 3.5 Resultados dos agentes
 - **strategy_result** (`strategy_agent.py:89`): `success, agent, signal, confidence, analysis, llm_used, llm_thesis, stub_used`
@@ -264,7 +264,7 @@ Estes são os **dicts que fluem entre módulos** — o dado "vivo" do sistema. C
 - **BacktestTrade** `{candle_index,action,entry_price,exit_price,position_size_pct,pnl_usdt,pnl_pct,stop_loss,take_profit,exit_reason}`.
 - **BacktestResult** `{total_trades,win_rate,total_pnl_usdt,total_pnl_pct,max_drawdown_pct,sharpe_ratio,profit_factor,avg_win_pct,avg_loss_pct,trades:[BacktestTrade]}` + prop `expectancy`. Constantes commission 0.001, slippage 5bps, warmup 50.
 - **WindowResult**/`WalkForwardResult` (validação walk-forward; MAX_SHARPE_DEVIATION=0.30). **MonteCarloResult** `{n_simulations,median/p5/p95_pnl_pct,max_simulated_drawdown,pct_profitable,rejected}`.
-- `_build_market_data` emite o formato **flat** (§3.4) → só DCA o consome plenamente.
+- `_build_market_data` (desde Onda 2) computa `indicators` real + `regime` (§3.4) → estratégias dirigidas por indicadores (Grid/MeanReversion) exercitam o mesmo caminho que o live, não só DCA.
 
 ### 4.6 `src/risk/`
 - **KellyCriterion** `{win_rate,avg_win_pct,avg_loss_pct,capital=10000,n_trades}` → `full_kelly()|None` (min 30 trades), `fractional_kelly(0.25)` clamp [0.5,5.0], `ruin_risk()`. Constantes KELLY_FRACTION=0.25, MIN/MAX_POSITION_PCT=0.5/5.0, MIN_SAMPLE_FOR_KELLY=30.
@@ -413,36 +413,43 @@ Em paralelo: cada ciclo emite XES `agent_cycle_started/completed/failed` → `GE
 
 ## 8. Dados "perdidos na classe" / declarados-mas-não-usados
 
-Dados atribuídos e **nunca lidos depois** (marca **X**), conforme pedido:
+Dados atribuídos e **nunca lidos depois** (marca **X**), conforme pedido.
+> **Estado (atualizado após Ondas 1–2, PR #68 + seguinte):** vários itens foram
+> resolvidos — marcados ✅ abaixo. Ver `docs/plano-melhorias.md` e `CHANGELOG.md`.
 
 | Dado | Local | Observação |
 |---|---|---|
-| `RiskAgent.max_daily_loss_pct` | `risk_agent.py:22` | lido do env, nunca referenciado na classe |
-| `UnifiedOrchestrator.sandbox` | `unified_orchestrator.py:38` | instanciado, nunca usado |
-| `UnifiedOrchestrator.chain_manager` | `unified_orchestrator.py:39` | instanciado, nunca usado |
-| `AgentMemorySystem.short_term` | `agent_memory.py:21` | dict criado, nunca escrito |
-| `SecureToolSandbox.memory_limit_mb` | `secure_executor.py:26` | declarado, não aplicado na execução |
-| `SecureToolSandbox.cpu_quota` | `secure_executor.py:27` | declarado, não aplicado |
-| `ContinuousEvaluator.baseline` (continuous_eval) | `continuous_eval.py:11` | atribuído None, nunca usado |
-| metrics `user_satisfaction`,`error_rate`,`response_time_p95` | `continuous_evaluator.py:12` | chaves declaradas, nunca alimentadas |
-| `signal["market_context"]` | `strategy_agent.py:232` | construído mas o pipeline nunca lê (RiskAgent passa o signal inteiro) |
-| `analysis["fibonacci_levels"]` | `strategy_agent.py:126` | computado, só carregado/sanitizado, nunca consumido a jusante |
-| `strategy_result.{analysis,llm_used,llm_thesis,reasoning}` | `strategy_agent.py:89` | retornados; orquestrador só lê signal/confidence/stub_used |
-| `OrchestratorLoop.order_store` | `orchestrator_loop.py:220` | exposto "para inspeção/futuro" |
+| ~~`RiskAgent.max_daily_loss_pct`~~ | `risk_agent.py` | ✅ **REMOVIDO (Onda 1)** — a perda-diária vive no `CircuitBreaker`, que tem o P&L; atributo era morto/enganoso |
+| ~~`UnifiedOrchestrator.sandbox`~~ | `unified_orchestrator.py` | ✅ **REMOVIDO (Onda 1)** |
+| ~~`UnifiedOrchestrator.chain_manager`~~ | `unified_orchestrator.py` | ✅ **REMOVIDO (Onda 1)** |
+| ~~`AgentMemorySystem.short_term`~~ | `agent_memory.py` | ✅ **REMOVIDO (Onda 1)** |
+| `SecureToolSandbox.memory_limit_mb` | `secure_executor.py:26` | declarado, não aplicado na execução (aberto) |
+| `SecureToolSandbox.cpu_quota` | `secure_executor.py:27` | declarado, não aplicado (aberto) |
+| `ContinuousEvaluator.baseline` (continuous_eval) | `continuous_eval.py:11` | atribuído None, nunca usado (aberto) |
+| metrics `user_satisfaction`,`error_rate`,`response_time_p95` | `continuous_evaluator.py` (`AgentPerformanceEvaluator`) | chaves declaradas, nunca alimentadas (aberto) |
+| `signal["market_context"]` | `strategy_agent.py:232` | construído mas o pipeline nunca lê (RiskAgent passa o signal inteiro) (aberto) |
+| `analysis["fibonacci_levels"]` | `strategy_agent.py:126` | computado, só carregado/sanitizado, nunca consumido a jusante (aberto) |
+| `strategy_result.{analysis,llm_used,llm_thesis,reasoning}` | `strategy_agent.py:89` | retornados; orquestrador só lê signal/confidence/stub_used (aberto) |
+| `OrchestratorLoop.order_store` | `orchestrator_loop.py:220` | exposto "para inspeção/futuro" (aberto) |
 
-Dados **carregados mas subutilizados**: `KellyCriterion`/`PositionSizer`/`CapitalProtections` existem completos mas o pipeline dimensiona por `position_size_pct` simples (o Kelly só aparece em `GET /v1/risk/kelly`).
+Dados **carregados mas subutilizados**: `KellyCriterion`/`PositionSizer`/`CapitalProtections`.
+🟡 **Parcial (Onda 2, ADR-006):** a fórmula central do Kelly virou fonte única
+(`src/risk/position_sizing.full_kelly_fraction`) e o endpoint `GET /v1/risk/kelly`
+agora a consome — `src/risk/` não é mais código morto. **Resta:** o pipeline ainda
+dimensiona por `position_size_pct` simples (plugar Kelly/proteções no sizing é a
+cauda do R5).
 
 ---
 
 ## 9. Anomalias e inconsistências de dados
 
-Achados relevantes para refatoramento (não alteram código — apenas documentados):
+Achados relevantes para refatoramento. **Estado atualizado após Ondas 1–2** (✅ = resolvido):
 
-1. **Dois formatos de `market_data`** (§3.4): `_build_market_data` do backtest emite o formato **flat** sem `indicators`; se Grid/MeanReversion forem usadas no backtest, `indicators=None` — só DCA consome o flat plenamente (`engine.py:234` vs `strategy_agent.py:383`).
-2. **Ponte de nome `entry`→`entry_price`**: estratégias emitem `entry` (`mean_reversion.py:68`), mas guardrails/Order esperam `entry_price` — o `StrategyAgent._generate_signal` faz a normalização; um consumo direto do output da estratégia quebraria a validação.
-3. **Mismatch de chave no registry de estratégias**: `STRATEGY_REGISTRY` tem `"mean_reversion"` (`__init__.py:23`) mas `_REGIME_STRATEGY_MAP` só emite `"dca"`/`"grid"` — **mean_reversion nunca é selecionada** por regime.
-4. **`ab_tests.jsonl` não é JSON válido**: gravado via `str(payload)` (repr Python), não `json.dumps` (`ab_testing.py:60`).
-5. **Colisões de nome de tipo** (mesmos dados, classes distintas): `ContinuousEvaluator`×2, `AdaptivePlanner`×2, `MemoryStore`×2, `SquadOrchestrator`×2, `Guardrail`×2.
+1. ✅ **Dois formatos de `market_data`** (§3.4) — **RESOLVIDO (Onda 2)**: `engine._build_market_data` agora computa um `TechnicalIndicators` real + `regime` (guarda de warmup), exercitando o mesmo caminho que o live; Grid/MeanReversion não ficam mais inertes no backtest.
+2. **Ponte de nome `entry`→`entry_price`** (aberto): estratégias emitem `entry` (`mean_reversion.py:68`), mas guardrails/Order esperam `entry_price` — o `StrategyAgent._generate_signal` faz a normalização; um consumo direto do output da estratégia quebraria a validação.
+3. ✅ **Mismatch de chave no registry de estratégias** — **RESOLVIDO (Onda 1)**: `mean_reversion` agora é emitida no regime `sideways` por `_REGIME_STRATEGY_MAP`; teste de consistência registry↔roteamento adicionado.
+4. ✅ **`ab_tests.jsonl` não é JSON válido** — **RESOLVIDO (Onda 1)**: gravado via `json.dumps` (`ab_testing.py`).
+5. 🟡 **Colisões de nome de tipo** — **PARCIAL (Onda 2, R2)**: renomeados por propósito — `SquadOrchestrator`(protocols)→`A2ASquad`, `AdaptivePlanner`(replanner)→`AdaptiveReplanner`, `ContinuousEvaluator`(evaluator)→`AgentPerformanceEvaluator`, `MemoryStore`(forgetting)→`RelevanceMemoryStore`. **Resta** `Guardrail`×2 (ligado a R2b/R3 — duas fundações de agente/política).
 6. **Duas políticas de validação de ordem** com campos diferentes: `GuardrailSystem` lê `market_context/action/entry_price`; `SecurityConfig.validate_order` lê `notes/exchange/position_size_pct`.
 7. **`CandleOut` usa `lo`** (não `l`) para low (`schemas.py:216`) — divergência de convenção vs OHLCV interno `[o,h,l,c]`.
 8. **Namespace `/v1/agents/{id}/config`** servido por dois routers (`agents` GET, `config` PATCH).
