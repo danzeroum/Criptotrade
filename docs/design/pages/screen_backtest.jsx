@@ -266,7 +266,7 @@ function ScreenBacktest({ addToast }) {
 
           {tab === 'result' && result && (
             <>
-              <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 20 }}>
+              <div className="grid kpi-row" style={{ marginBottom: 20 }}>
                 <MetricCard label="Trades" value={result.total_trades} format="int" />
                 <MetricCard label="Win rate" value={result.win_rate * 100} format="pct_direct" />
                 <MetricCard label="P&L %" value={result.pnl_pct} format="pct_direct" delta={result.pnl_pct} />

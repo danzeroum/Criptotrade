@@ -598,11 +598,11 @@ graph TB
 | # | Severidade | Achado | Recomendação |
 |---|---|---|---|
 | R1 | 🔴 Alta | **Cluster "BuildToValue" paralelo** (`UnifiedOrchestrator` + planning/routing/consensus/chains/parallel + agentes de engenharia) **não exercitado pelo trading** | Extrair para pacote opcional `src/experimental/` ou remover; medir cobertura real. Reduz superfície e confusão. |
-| R2 | 🔴 Alta | **Colisões de nome** (`SquadOrchestrator`×2, `AdaptivePlanner`×2, `ContinuousEvaluator`×2, `MemoryStore`×2, `Guardrail`×2) | Renomear por propósito (ex.: `TradingSquad` vs `A2ASquad`). Evita imports errados. |
+| R2 | 🟡 Parcial | **Colisões de nome** (`SquadOrchestrator`×2, `AdaptivePlanner`×2, `ContinuousEvaluator`×2, `MemoryStore`×2, `Guardrail`×2) | 🟢 **Feito (Onda 2):** duplicatas renomeadas por propósito — `A2ASquad`, `AdaptiveReplanner`, `AgentPerformanceEvaluator`, `RelevanceMemoryStore`. **Resta** `Guardrail`×2 (ver R2b/R3). |
 | R2b | 🟠 Média | **Duas fundações de agente** (`BaseAgent` async vs `SafeAgentBase` sync) sem ponte | Escolher uma base única ou documentar explicitamente os dois papéis. |
 | R3 | 🟠 Média | **Duas políticas de validação de ordem** e **dois modelos de autonomia** (US$ threshold vs trust-score) | Eleger fonte única de política de risco/autonomia. |
 | R4 | 🟠 Média | **HITL por polling de SQLite** acopla loop↔API ao arquivo; loop single-instance | Migrar coordenação para **Postgres `LISTEN/NOTIFY`** ou Redis pub/sub → menor latência + caminho para multi-loop. |
-| R5 | 🟡 Baixa | **Kelly/proteções prontos mas não plugados** no sizing do pipeline | Ligar `PositionSizer`/`KellyCriterion`/`CapitalProtections` no `SquadOrchestrator._position_quantity`. |
+| R5 | 🟡 Parcial | **Kelly/proteções prontos mas não plugados** no sizing do pipeline | 🟢 **Feito (Onda 2, ADR-006):** fórmula central do Kelly virou fonte única (`src/risk.full_kelly_fraction`), consumida pelo endpoint `/v1/risk/kelly` — `src/risk/` não é mais morto. **Resta** plugar no `SquadOrchestrator._position_quantity` (muda o trading — validação dedicada). |
 | R6 | 🟡 Baixa | **Namespace `/v1/agents/...` servido por dois routers** (`agents` e `config`) | Consolidar num router único. |
 | R7 | 🟡 Baixa | **XES/alerts ainda em JSONL** (ADR-003 deferido) | Concluir migração para SQLite/Postgres quando o volume justificar. |
 | R8 | 🟡 Baixa | **Frontend "classic scripts" com globals `window.*`** | Migrar para ES modules + bundler quando o console crescer. |
@@ -653,10 +653,10 @@ graph TB
 ```
 
 **Roteiro incremental (sem big-bang):**
-1. **Higiene** (R1, R2): isolar/remover o cluster genérico e renomear colisões — baixo risco, alto ganho de clareza.
-2. **Consolidação de política** (R3, R5, R6): uma fonte de risco/autonomia; plugar Kelly; unificar rotas de agentes.
+1. **Higiene** (R1, R2): 🟡 **R2 renomeações feitas (Onda 2)**; R1 (isolar cluster genérico) ainda aberto.
+2. **Consolidação de política** (R3, R5, R6): 🟡 **R5 fonte única do Kelly feita (Onda 2, ADR-006)**; resta plugar no sizing, unificar política de risco/autonomia (R3) e rotas de agentes (R6).
 3. **Coordenação** (R4, R7): trocar polling SQLite por `LISTEN/NOTIFY` no Postgres (já suportado pela abstração de DB) e unificar o event store — habilita multi-loop com leader-election.
-4. **Frontend** (R8): migrar para ES modules/bundler.
+4. **Frontend** (R8): 🟡 **fatia feita (Onda 2)** — `.kpi-row` responsivo + sidebar colapsável < 960px; migração para ES modules/bundler ainda aberta.
 
 Cada passo é independente e preserva o invariante central: **paper-trading-first, HITL fail-closed, tudo auditável no ledger/XES**.
 

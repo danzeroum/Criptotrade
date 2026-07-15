@@ -73,7 +73,7 @@ function ScreenObservability() {
   } else {
     body = (
       <>
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 20 }}>
+        <div className="grid kpi-row" style={{ marginBottom: 20 }}>
           <div className="card"><KPI label="Ciclos registrados" value={cycles.length} format="int" icon="refresh" /></div>
           <div className="card"><KPI label="Falhas" value={cycles.filter(r => r.status === 'failed').length} format="int" icon="alert" /></div>
           <div className="card"><KPI label="Duração média" value={avgMs == null ? 'Sem dados' : `${(avgMs / 1000).toFixed(2)}s`} icon="clock" /></div>

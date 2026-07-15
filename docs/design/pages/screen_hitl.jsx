@@ -226,7 +226,7 @@ function ScreenHITL({ addToast }) {
         </Btn>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 20 }}>
+      <div className="grid kpi-row" style={{ marginBottom: 20 }}>
         <div className="card">
           <KPI label="Pendentes" value={pending.length} format="int" icon="clock" />
         </div>

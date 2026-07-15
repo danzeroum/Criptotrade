@@ -11,7 +11,11 @@
 > severidade e critério de aceite. Este arquivo é um **tracker vivo** — atualize os
 > checkboxes por commit, no estilo da auditoria de junho.
 >
-> Última atualização: **2026-07-14**.
+> Última atualização: **2026-07-15** (Onda 2).
+>
+> **Progresso:** Onda 1 ✅ (PR #68) · Onda 2 ✅ higiene estrutural — R2 (renomeações),
+> R5 parcial (fonte única do Kelly, ADR-006), market_data unificado, R8 fatia
+> (responsividade), docs de projeto (CONTRIBUTING/CHANGELOG/SECURITY). Ver `CHANGELOG.md`.
 
 ---
 
@@ -76,36 +80,38 @@ revisáveis. Numeração **R#** espelha `arquitetura.md §12`.
 - [ ] **R1 🔴 · Cluster "BuildToValue" não exercitado pelo trading** — `UnifiedOrchestrator`
   + `planning/routing/consensus/chains/parallel` + agentes de engenharia. Isolar em
   `src/experimental/` ou remover; medir cobertura real. Reduz superfície e confusão.
-- [ ] **R2 🔴 · Colisões de nome de classe** — `SquadOrchestrator`×2
-  (`orchestration/` vs `protocols/`), `AdaptivePlanner`×2, `ContinuousEvaluator`×2,
-  `MemoryStore`×2, `Guardrail`. Renomear por propósito (ex.: `TradingSquad` vs
-  `A2ASquad`). *(mapeamento §9.5)*
-- [ ] **R5 🟠 · `src/risk/` é código morto** — `KellyCriterion`/`PositionSizer`/
-  `CapitalProtections` não são usados por ninguém; até o `GET /v1/risk/kelly`
-  (`routes/risk.py`) **reimplementa Kelly inline**. Decidir: **plugar** no
-  `SquadOrchestrator._position_quantity` (`squad_orchestrator.py:326`) + delegar o
-  endpoint à classe, **ou deletar** o módulo. Alto valor. *(mapeamento §8, §9)*
+- [x] **R2 🔴 · Colisões de nome de classe** — 🟢 **FEITO (Onda 2)**: duplicatas
+  mortas renomeadas por propósito — `protocols.SquadOrchestrator`→`A2ASquad`,
+  `adaptive_replanner.AdaptivePlanner`→`AdaptiveReplanner`,
+  `continuous_evaluator.ContinuousEvaluator`→`AgentPerformanceEvaluator`,
+  `intelligent_forgetting.MemoryStore`→`RelevanceMemoryStore`. **Resta** `Guardrail`×2
+  (ver R3/R2b). *(mapeamento §9.5)*
+- [x] **R5 🟠 · `src/risk/` era código morto** — 🟡 **PARCIAL (Onda 2, ADR-006)**:
+  fórmula central do Kelly extraída para `full_kelly_fraction` (fonte única), consumida
+  pelo `GET /v1/risk/kelly` (não reimplementa mais inline) e por `KellyCriterion` —
+  `src/risk/` deixa de ser morto, contrato inalterado. **Resta (cauda R5):** plugar no
+  `SquadOrchestrator._position_quantity` (muda o trading — exige validação). *(mapeamento §8, §9)*
 - [ ] **R3 🟠 · Política de risco/autonomia duplicada** — duas validações de ordem
   (`GuardrailSystem` vs `SecurityConfig`) e dois modelos de autonomia (limiar US$ vs
   trust-score). Eleger fonte única. *(mapeamento §9.6)*
-- [ ] **market_data 🟠 · Dois formatos** — flat (backtest, `engine.py:234`, sem
-  `indicators`) vs nested (`strategy_agent.py:401`). `MeanReversion` fica **inerte em
-  backtest** (HOLD permanente). Unificar o builder para o backtest exercitar o mesmo
-  caminho do live. *(mapeamento §9.1)*
+- [x] **market_data 🟠 · Dois formatos** — 🟢 **FEITO (Onda 2)**: `engine._build_market_data`
+  computa `TechnicalIndicators` real + `regime` (guarda de warmup), mantendo os campos
+  flat do DCA; Grid/MeanReversion não ficam mais inertes no backtest. *(mapeamento §9.1)*
 - [ ] **R6 🟡 · `/v1/agents/{id}/config` servido por dois routers** (`agents` GET,
   `config` PATCH). Consolidar num router. *(mapeamento §9.8)*
 - [ ] **CandleOut 🟡 · campo `lo` em vez de `l`** — `schemas.py:216` diverge da
   convenção OHLCV. Renomear com alias de compat. *(mapeamento §9.7)*
 - [ ] **R7 🟡 · XES/alerts ainda em JSONL** (ADR-003 deferido) — concluir migração
   para SQLite/Postgres quando o volume justificar.
-- [ ] **Limpeza 🟡 · dependência `ta` não usada** — em `requirements.txt` mas sem
-  nenhum `import ta` no código (e falha ao buildar wheel). Remover.
+- [x] **Limpeza 🟡 · dependência `ta` não usada** — 🟢 **FEITO (Onda 2)**: removida do
+  `requirements.txt` (nenhum `import ta` no código; indicadores usam numpy/pandas
+  direto). Docstring de `indicators.py` corrigida.
 
 ### Frontend (trilha própria — `docs/design/pages/`)
-- [ ] **R8 🟠 · Responsividade real** — várias telas fixam `gridTemplateColumns`
-  inline (que media queries não conseguem sobrescrever); só `screen_market` reflui.
-  Trocar por classes de grid + breakpoints e implementar a **sidebar colapsável
-  < 960px** prometida no briefing.
+- [x] **R8 🟠 · Responsividade real** — 🟡 **PARCIAL (Onda 2)**: utilitário `.kpi-row`
+  (auto-fit/reflow) aplicado às linhas de KPI das telas + **sidebar responsiva < 960px**
+  (a lacuna do briefing). **Resta** os layouts de 2 colunas restantes e a migração ES
+  modules/bundler.
 - [ ] **FE 🟠 · Camada de normalização de dados** — mata os objetos `mock*` repetidos
   por tela e o coalescing defensivo `a ?? b` (mock↔API). Centraliza no `data.js`/mapper.
 - [ ] **FE 🟡 · a11y das charts** — `Donut/BarChart/ScatterChart/Heatmap/MonteCarloChart/
@@ -118,9 +124,9 @@ revisáveis. Numeração **R#** espelha `arquitetura.md §12`.
   de `components.jsx` (remover `_fmt` local de `charts.jsx` e `toLocaleString` inline).
 
 ### Docs / Infra
-- [ ] **DOC 🟡 · Arquivos de projeto ausentes** — `CONTRIBUTING.md`, `CHANGELOG.md`
-  (hoje disperso em 6 roadmaps), `SECURITY.md` (sistema financeiro sem política de
-  disclosure), runbook de deploy único (hoje entre README e `acaoPendenteDono`).
+- [x] **DOC 🟡 · Arquivos de projeto ausentes** — 🟢 **FEITO (Onda 2)**: `CONTRIBUTING.md`,
+  `CHANGELOG.md`, `SECURITY.md` criados na raiz. *(runbook de deploy único ainda aberto —
+  hoje entre README e `acaoPendenteDono`.)*
 - [ ] **DOC 🟡 · Onboarding específico** — `docs/tutorials/*` são boilerplate genérico
   "BuildToValue", não ensinam a trabalhar no Criptotrade.
 - [ ] **DOC 🟡 · Critérios de go-live divergentes** — `discovery-consensus.v6.json`

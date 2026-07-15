@@ -12,7 +12,7 @@ from src.agents.developer_agent import DeveloperAgent
 from src.agents.designer_agent import DesignerAgent
 from src.agents.ops_agent import OpsAgent
 from src.consensus.weighted_voting import WeightedConsensusEngine
-from src.evaluation.continuous_evaluator import ContinuousEvaluator
+from src.evaluation.continuous_evaluator import AgentPerformanceEvaluator
 from src.hitl.progressive_autonomy import ProgressiveAutonomyManager
 from src.memory.agent_memory import AgentMemorySystem
 from src.parallel.resource_manager import ParallelResourceManager
@@ -30,7 +30,7 @@ class UnifiedOrchestrator:
         self.router = LearningRouter()
         self.parallel = ParallelResourceManager()
         self.memory = AgentMemorySystem()
-        self.evaluator = ContinuousEvaluator()
+        self.evaluator = AgentPerformanceEvaluator()
         self.consensus = WeightedConsensusEngine()
         self.autonomy = ProgressiveAutonomyManager()
 

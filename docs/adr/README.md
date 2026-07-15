@@ -12,6 +12,7 @@ o boilerplate de metodologia que não descrevia o sistema.
 | [003](003-persistence-sqlite-wal.md) | Persistência — JSONL (ledger/XES) + SQLite WAL (estado cross-process) | Aceito |
 | [004](004-reserved.md) | *Número reservado — não utilizado* (a sequência salta de 003 para 005) | Vago |
 | [005](005-scaling-path.md) | Caminho de Escalabilidade — single-host → horizontal (Redis/Postgres opt-in) | Aceita |
+| [006](006-kelly-sizing-policy.md) | Política de sizing por Kelly — fonte única (`src/risk`) + endpoint delega; sizing ao vivo diferido | Aceita parcial |
 
 Novos ADRs: copie [`ADR-Template.md`](ADR-Template.md), use o próximo número
-sequencial livre (**006** em diante — ver ADR-004) e adicione a linha na tabela acima.
+sequencial livre (**007** em diante) e adicione a linha na tabela acima.

@@ -65,7 +65,7 @@ class TechnicalAnalyzer:
     """Compute indicators from raw OHLCV data.
 
     Requires at least 50 candles for meaningful indicator values.
-    Uses the `ta` library (already in requirements.txt) plus numpy/pandas.
+    Indicators are computed directly with numpy/pandas (no third-party `ta`).
     """
 
     MIN_CANDLES = 50

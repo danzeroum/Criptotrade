@@ -553,10 +553,10 @@ classDiagram
 **Notas de design:**
 - **Pipeline central (`SquadOrchestrator.analyze_and_trade`):** `Strategy → (checagem de posições SL/TP) → Risk → Guardrails → HITL → Execution → fill/ledger`, com circuit breaker no início. Tudo `async`; helpers de sizing/PnL são síncronos. Ver sequência em § 6.1.
 - **Recuperação de restart:** `reload_open_positions()` restaura o *position book* e o estado do breaker do SQLite (evita "posições zumbi").
-- **Dois orquestradores + colisões de nome (atenção para refatoramento):**
-  - `SquadOrchestrator` existe **duas vezes** (`orchestration/` — trading real; `protocols/` — variante A2A architect+developer).
-  - `AdaptivePlanner` existe **duas vezes** (`planning/adaptive_planner.py` vs `planning/adaptive_replanner.py`).
-  - `ContinuousEvaluator` existe **duas vezes** (`evaluation/continuous_eval.py` plain vs `evaluation/continuous_evaluator.py` dataclass).
+- **Dois orquestradores + colisões de nome** — 🟢 **colisões resolvidas (Onda 2, R2):** as duplicatas mortas foram renomeadas por propósito:
+  - `SquadOrchestrator` (trading real, `orchestration/`) permanece; a variante A2A em `protocols/` virou **`A2ASquad`**.
+  - `AdaptivePlanner` (`planning/adaptive_planner.py`) permanece; o duplicado virou **`AdaptiveReplanner`** (`adaptive_replanner.py`).
+  - `ContinuousEvaluator` (`continuous_eval.py`, plain) permanece; o dataclass virou **`AgentPerformanceEvaluator`** (`continuous_evaluator.py`).
   - O `UnifiedOrchestrator` e todo o cluster planning/routing/consensus **não são exercitados pelo trading** — é infraestrutura genérica "BuildToValue" paralela. Alto risco de código morto/confusão.
 
 ---
@@ -638,9 +638,9 @@ classDiagram
 ```
 
 **Notas de design:**
-- **Strategy pattern completo:** `BaseStrategy` (ABC) ← 3 concretas, selecionadas via `STRATEGY_REGISTRY` (registro plugin, com import condicional). O `StrategyAgent` escolhe a estratégia pelo **regime de mercado detectado** (`regime_detector.strategies_for_regime`), cujas chaves espelham as do registry.
+- **Strategy pattern completo:** `BaseStrategy` (ABC) ← 3 concretas, selecionadas via `STRATEGY_REGISTRY` (registro plugin, com import condicional). O `StrategyAgent` escolhe a estratégia pelo **regime de mercado detectado** (`regime_detector.strategies_for_regime`). 🟢 **Desde Onda 1** as chaves realmente espelham o registry — `mean_reversion` (antes registrada mas nunca emitida) agora é roteada no regime `sideways`.
 - **DTO central:** `TechnicalIndicators` (`@dataclass`, ~20 campos) é produzido por `TechnicalAnalyzer` e consumido polimorficamente pelas estratégias via `market_data["indicators"]`. Bom desacoplamento por dados.
-- **Consumo duck-typed:** `BacktestEngine` (§ 5.4) também chama `strategy.analyze(...)`, tratando qualquer `BaseStrategy` como *context* — reuso limpo entre trading e backtest.
+- **Consumo duck-typed:** `BacktestEngine` (§ 5.4) também chama `strategy.analyze(...)`, tratando qualquer `BaseStrategy` como *context* — reuso limpo entre trading e backtest. 🟢 **Desde Onda 2** o backtest constrói o mesmo `TechnicalIndicators` real (não placeholders), então estratégias dirigidas por indicadores exercitam o mesmo caminho.
 - **`regime_detector` é módulo de funções** (sem classe) — ponte funcional entre análise e o factory de estratégias.
 
 ---
@@ -695,7 +695,7 @@ classDiagram
 **Notas de design:**
 - **Composição em árvore de resultados:** `WalkForwardResult ◆ WindowResult ◆ BacktestResult ◆ BacktestTrade` — DTOs imutáveis, fáceis de serializar para a API (`/v1/backtest/*`).
 - **Validação anti-overfitting:** o `WalkForwardValidator` (`MAX_SHARPE_DEVIATION=0.30`) e o `MonteCarloSimulator` (percentis 5/95, `rejected`) formam um filtro de robustez estatística antes de promover uma estratégia.
-- **`ContinuousEvaluator` duplicado:** duas classes homônimas com contratos diferentes — só a versão dataclass é usada pelo `UnifiedOrchestrator`. Consolidar.
+- **`ContinuousEvaluator` duplicado:** 🟢 **resolvido (Onda 2, R2)** — a versão dataclass usada pelo `UnifiedOrchestrator` foi renomeada para `AgentPerformanceEvaluator`; a plain (`continuous_eval.py`) mantém o nome.
 
 ---
 
@@ -852,7 +852,7 @@ classDiagram
 **Notas de design:**
 - **Dois conceitos de "guardrail" coexistem** (colisão semântica a esclarecer): (1) `safety.guardrails.GuardrailSystem` — regras de **risco de trading** por ordem (position size, stop, risk-reward), usado pelo `RiskAgent` e pelo `OrderStore`; (2) `core.safe_agent_base` — **guardrails de segurança de execução** (sanitização, ética, limites de recurso) sobre o `SafeAgentBase` (que não é usado no trading). Nomes iguais, propósitos distintos.
 - **Duas validações de ordem redundantes:** `GuardrailSystem.validate_order` (instância, com regras dinâmicas + alertas) e `SecurityConfig.validate_order` (classmethod estático). Convém eleger uma única fonte de política.
-- **Sizing avançado disponível, mas subutilizado:** `KellyCriterion`/`PositionSizer`/`CapitalProtections` são módulos ricos e testáveis, porém o `SquadOrchestrator` ainda dimensiona posição por `position_size_pct` simples — oportunidade de plugar o Kelly no pipeline (o endpoint `/v1/risk/kelly` já o expõe).
+- **Sizing avançado disponível, mas subutilizado:** 🟡 **parcial (Onda 2, ADR-006)** — a fórmula central do Kelly virou fonte única (`src/risk.full_kelly_fraction`), consumida pelo endpoint `/v1/risk/kelly` (não reimplementa mais inline). **Resta:** o `SquadOrchestrator` ainda dimensiona por `position_size_pct` simples — plugar `KellyCriterion`/`PositionSizer`/`CapitalProtections` no sizing é a cauda do R5.
 
 ---
 
@@ -1276,9 +1276,9 @@ end note
 |---|---|---|---|
 | 1 | **Duas fundações de agente** (`BaseAgent` async vs `SafeAgentBase` sync) sem ponte | Confusão conceitual; `SafeAgentBase` não usado no trading | Decidir uma base única ou documentar claramente os dois propósitos |
 | 2 | **Cluster "BuildToValue" paralelo** (`UnifiedOrchestrator` + planning/routing/consensus/chains/parallel + agentes de engenharia) não exercitado pelo trading | Código potencialmente morto; ~⅓ dos módulos de orquestração | Isolar em pacote opcional ou remover; medir cobertura real |
-| 3 | **Colisões de nome:** `SquadOrchestrator`×2, `AdaptivePlanner`×2, `ContinuousEvaluator`×2, `MemoryStore`×2, `Guardrail`×2 | Erros de import, ambiguidade em revisões | Renomear para nomes qualificados por propósito |
+| 3 | **Colisões de nome:** `SquadOrchestrator`×2, `AdaptivePlanner`×2, `ContinuousEvaluator`×2, `MemoryStore`×2, `Guardrail`×2 | Erros de import, ambiguidade em revisões | 🟢 **Feito (Onda 2, R2):** renomeadas → `A2ASquad`, `AdaptiveReplanner`, `AgentPerformanceEvaluator`, `RelevanceMemoryStore` (resta `Guardrail`×2) |
 | 4 | **Duas políticas de validação de ordem** (`GuardrailSystem` vs `SecurityConfig.validate_order`) e **dois modelos de autonomia** (US$ threshold vs trust-score) | Regra de negócio duplicada; risco de divergência | Eleger fonte única de política de risco/autonomia |
-| 5 | **Sizing por `position_size_pct` fixo** enquanto `KellyCriterion`/`PositionSizer`/`CapitalProtections` existem prontos | Subaproveitamento de gestão de risco | Plugar Kelly/proteções no `SquadOrchestrator._position_quantity` |
+| 5 | **Sizing por `position_size_pct` fixo** enquanto `KellyCriterion`/`PositionSizer`/`CapitalProtections` existem prontos | Subaproveitamento de gestão de risco | 🟡 **Parcial (Onda 2, ADR-006):** Kelly virou fonte única no endpoint; **resta** plugar no `SquadOrchestrator._position_quantity` |
 | 6 | **Namespace `/v1/agents/...` servido por dois routers** (`agents` e `config`) | Manutenção confusa; risco de conflito de rota | Consolidar num único router |
 | 7 | **HITL por polling de SQLite** acopla loop e API ao arquivo | Latência de até `poll_interval`; loop single-instance | Considerar `LISTEN/NOTIFY` (Postgres) ou fila se escalar |
 | 8 | **Frontend "classic scripts" com globals `window.*`** | Frágil a ordem de carga/colisões conforme cresce | Migrar para ES modules + bundler quando justificar |

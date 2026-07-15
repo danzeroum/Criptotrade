@@ -74,7 +74,7 @@ function ScreenOrders() {
         <PairSelect allowAll />
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 20 }}>
+      <div className="grid kpi-row" style={{ marginBottom: 20 }}>
         <div className="card"><KPI label="Total" value={orders.length} format="int" icon="list" /></div>
         <div className="card"><KPI label="Pendentes" value={pending} format="int" icon="clock" /></div>
         <div className="card"><KPI label="Executadas" value={filled} format="int" icon="check" /></div>

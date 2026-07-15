@@ -22,6 +22,7 @@ from src.api.schemas import (
 )
 from src.core.ledger import TradingLedger
 from src.core.metrics import PortfolioMetricsCalculator
+from src.risk.position_sizing import full_kelly_fraction
 
 router = APIRouter(prefix="/risk", tags=["risk"])
 
@@ -181,12 +182,10 @@ async def get_kelly(
     avg_win = sum(wins) / len(wins) if wins else 1.0
     avg_loss = abs(sum(losses) / len(losses)) if losses else 1.0
 
-    if avg_loss > 0:
-        b = avg_win / avg_loss
-        full_kelly = win_rate - ((1 - win_rate) / b) if b > 0 else 0.0
-        full_kelly = max(0.0, round(full_kelly, 4))
-    else:
-        full_kelly = 0.0
+    # Core Kelly formula is shared with src/risk (single source of truth); the
+    # advisory endpoint keeps its own fractional/ruin presentation for now
+    # (full consolidation + live-sizing is the R5 tail — see plano-melhorias).
+    full_kelly = max(0.0, round(full_kelly_fraction(win_rate, avg_win, avg_loss), 4))
 
     fraction = 0.25
     fractional_kelly = round(full_kelly * fraction, 4)

@@ -24,9 +24,8 @@ langchain-google-genai==0.0.6
 ccxt==4.2.25
 pandas==2.1.4
 numpy==1.26.3
-
-# Technical Analysis
-ta==0.11.0
+# Technical indicators are computed with pandas/numpy directly
+# (src/analysis/indicators.py) — no third-party `ta` package needed.
 
 # Database & Storage
 sqlalchemy==2.0.25

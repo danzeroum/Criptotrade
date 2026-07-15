@@ -190,13 +190,13 @@ function ScreenAgents() {
         </div>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 20 }}>
+      <div className="grid kpi-row" style={{ marginBottom: 20 }}>
         <div className="card"><KPI label="Ativos" value={active} format="int" icon="activity" /></div>
         <div className="card"><KPI label="Implementados" value={implemented} format="int" icon="check" /></div>
         <div className="card"><KPI label="Total" value={agents.length} format="int" icon="user" /></div>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', marginBottom: 20 }}>
+      <div className="grid kpi-row" style={{ marginBottom: 20 }}>
         {agents.map(agent => (
           <AgentCard key={agent.id} agent={agent} onConfigure={setConfigAgent} />
         ))}

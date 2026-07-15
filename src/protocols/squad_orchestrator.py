@@ -9,8 +9,13 @@ from src.agents.developer_agent import DeveloperAgent
 
 
 @dataclass
-class SquadOrchestrator:
-    """Coordinate tasks between multiple specialised agents."""
+class A2ASquad:
+    """Coordinate tasks between multiple specialised agents (agent-to-agent).
+
+    Renamed from ``SquadOrchestrator`` to disambiguate from the trading
+    pipeline's :class:`src.orchestration.squad_orchestrator.SquadOrchestrator`
+    (R2). This is part of the non-trading "BuildToValue" agent cluster.
+    """
 
     architect: ArchitectAgent = field(default_factory=ArchitectAgent)
     developer: DeveloperAgent = field(default_factory=DeveloperAgent)

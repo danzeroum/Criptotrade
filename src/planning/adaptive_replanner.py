@@ -7,8 +7,12 @@ from typing import Any, Dict, List
 
 
 @dataclass
-class AdaptivePlanner:
-    """Execute plans with the ability to replan after failures."""
+class AdaptiveReplanner:
+    """Execute plans with the ability to replan after failures.
+
+    Renamed from ``AdaptivePlanner`` to disambiguate from
+    :class:`src.planning.adaptive_planner.AdaptivePlanner` (R2).
+    """
 
     max_replanning_attempts: int = 3
     failure_history: List[Dict[str, Any]] = field(default_factory=list)

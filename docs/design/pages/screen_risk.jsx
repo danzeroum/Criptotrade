@@ -100,7 +100,7 @@ function ScreenRisk() {
       </div>
 
       {/* Capital KPIs */}
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)', marginBottom: 20 }}>
+      <div className="grid kpi-row" style={{ marginBottom: 20 }}>
         <div className="card">
           <KPI label="Capital atual" value={cap?.value} format="usd" icon="dollar" />
         </div>
