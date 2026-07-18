@@ -92,6 +92,23 @@ class PositionStore:
             logger.warning("PositionStore.count failed", exc_info=True)
             return 0
 
+    def clear(self) -> int:
+        """Delete every open position; return how many were removed (0 on error).
+
+        Operational reset (scripts/reset_paper_state.py): drop the whole paper
+        book at once, e.g. when legacy synthetic-price positions would strand
+        against real prices.
+        """
+        try:
+            with connection(self._db()) as conn:
+                conn.execute(_CREATE_POSITIONS)
+                n = conn.execute("SELECT COUNT(*) FROM open_positions").fetchone()[0]
+                conn.execute("DELETE FROM open_positions")
+                return int(n)
+        except Exception:  # pragma: no cover
+            logger.warning("PositionStore.clear failed", exc_info=True)
+            return 0
+
     def load_all(self) -> dict[str, dict[str, Any]]:
         out: dict[str, dict[str, Any]] = {}
         try:
@@ -155,4 +172,26 @@ def load_circuit_state(db_path_provider: DbPathProvider) -> Optional[dict[str, A
         return None
 
 
-__all__ = ["PositionStore", "save_circuit_state", "load_circuit_state"]
+def clear_circuit_state(db_path_provider: DbPathProvider) -> bool:
+    """Delete the persisted circuit-breaker state; return True if a row existed.
+
+    After this the breaker reloads as CLOSED (``load_circuit_state`` -> None ->
+    ``_tripped_at`` stays None). Best-effort: never raises.
+    """
+    try:
+        with connection(db_path_provider()) as conn:
+            conn.execute(_CREATE_BREAKER)
+            existed = conn.execute("SELECT COUNT(*) FROM circuit_breaker_state").fetchone()[0]
+            conn.execute("DELETE FROM circuit_breaker_state")
+            return bool(existed)
+    except Exception:  # pragma: no cover
+        logger.warning("clear_circuit_state failed", exc_info=True)
+        return False
+
+
+__all__ = [
+    "PositionStore",
+    "save_circuit_state",
+    "load_circuit_state",
+    "clear_circuit_state",
+]
