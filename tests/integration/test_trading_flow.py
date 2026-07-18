@@ -299,3 +299,64 @@ async def test_circuit_breaker_sees_loss_after_close(tmp_path):
     orch._check_open_positions(1.0, "BTC/USDT")  # forces stop-loss close
 
     assert orch.circuit_breaker._daily_loss_pct < initial_loss
+
+
+# ------------------------------------------------- grid FIFO matching (E6/E7)
+def _scripted_strategy(signals):
+    """Strategy double: returns each signal in turn with high confidence."""
+    queue = list(signals)
+
+    async def execute(task):
+        signal = dict(queue.pop(0))
+        signal.setdefault("symbol", task["symbol"])
+        return {
+            "success": True,
+            "agent": "strategy",
+            "signal": signal,
+            "confidence": 0.9,
+            "analysis": {},
+        }
+
+    return execute
+
+
+@pytest.mark.asyncio
+async def test_metrics_report_real_pnl_after_grid_close(tmp_path, monkeypatch):
+    # E6: a grid SELL closing a prior BUY finally produces real KPIs.
+    orch, ledger = _make_orch(tmp_path)
+    monkeypatch.setattr(orch.strategy_agent, "execute", _scripted_strategy([
+        {"action": "BUY", "entry_price": 50_000.0, "stop_loss": 48_500.0,
+         "take_profit": None, "position_size_pct": 5.0},
+        {"action": "SELL", "entry_price": 51_000.0, "stop_loss": 53_000.0,
+         "take_profit": None, "position_size_pct": 5.0},
+    ]))
+
+    assert (await orch.analyze_and_trade("BTC/USDT"))["success"] is True
+    assert (await orch.analyze_and_trade("BTC/USDT"))["success"] is True
+
+    closed = ledger.get_events("position_closed")
+    assert len(closed) == 1
+    assert closed[0]["data"]["pnl"] > 0  # sold at 51k what was bought at 50k
+
+    m = PortfolioMetricsCalculator(ledger, 10_000.0).compute(period="all")
+    assert m.total_trades == 1
+    assert m.win_rate == 1.0
+    assert m.pnl_period_usdt == pytest.approx(9.8, abs=0.01)
+    # Sell qty (sized at 51k) is slightly smaller than the buy lot -> a sliver
+    # of the original BUY stays open, and the store reflects that net state.
+    assert m.open_positions == 1
+    assert orch._positions.count() == 1
+
+
+@pytest.mark.asyncio
+async def test_grid_close_feeds_circuit_breaker(tmp_path):
+    # E7: a matched close with a loss feeds the breaker like a stop-loss does.
+    orch, _ledger = _make_orch(tmp_path)
+    initial_loss = orch.circuit_breaker._daily_loss_pct
+
+    orch._match_or_open(symbol="BTC/USDT", side="buy", price=50_000.0,
+                        quantity=0.01, fee=0.0, order_id="b1")
+    orch._match_or_open(symbol="BTC/USDT", side="sell", price=49_000.0,
+                        quantity=0.01, fee=0.0, order_id="s1")
+
+    assert orch.circuit_breaker._daily_loss_pct < initial_loss

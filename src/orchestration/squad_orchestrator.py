@@ -16,6 +16,10 @@ from src.orchestration.position_store import PositionStore
 
 logger = logging.getLogger(__name__)
 
+# Quantity tolerance for FIFO fill matching: lots within EPS of each other are
+# considered equal (real lot sizes are ~1e-3 BTC, so 1e-9 is pure float noise).
+EPS = 1e-9
+
 
 class CircuitBreaker:
     """Pause trading when daily loss or consecutive losses exceed limits.
@@ -366,23 +370,93 @@ class SquadOrchestrator:
                 quantity=quantity,
                 fee=fee,
             )
-            # Track in the paper position book so the next cycle can close it
-            # at stop-loss or take-profit. Entry basis is the executed price so
-            # realised P&L reflects entry slippage.
+            # FIFO grid accounting: an opposite-side fill nets against open
+            # inventory (closing lots, realising P&L) before any residue opens
+            # a new position. Entry basis is the executed price so realised P&L
+            # reflects entry slippage.
             sl = signal.get("stop_loss")
             tp = signal.get("take_profit")
-            self._open_positions[order_id] = {
-                "symbol": signal.get("symbol", symbol),
-                "side": signal.get("action", "buy").lower(),
-                "entry_price": price,
-                "quantity": quantity,
-                "stop_loss": float(sl) if sl is not None else None,
-                "take_profit": float(tp) if tp is not None else None,
-                "opened_at": datetime.now(UTC).isoformat(),
-            }
-            self._positions.upsert(order_id, self._open_positions[order_id])
+            self._match_or_open(
+                symbol=signal.get("symbol", symbol),
+                side=signal.get("action", "buy").lower(),
+                price=price,
+                quantity=quantity,
+                fee=fee,
+                order_id=order_id,
+                stop_loss=float(sl) if sl is not None else None,
+                take_profit=float(tp) if tp is not None else None,
+            )
         except (TypeError, ValueError):  # pragma: no cover - defensive
             logger.warning("Could not record fill for %s", symbol, exc_info=True)
+
+    def _match_or_open(
+        self,
+        symbol: str,
+        side: str,
+        price: float,
+        quantity: float,
+        fee: float,
+        order_id: str,
+        stop_loss: float | None = None,
+        take_profit: float | None = None,
+    ) -> None:
+        """Net a fill against open opposite-side lots (FIFO), then open any residue.
+
+        Grid semantics: a SELL closes the oldest open BUY lots of the same symbol
+        (and vice-versa), realising P&L per matched chunk with pro-rata fees from
+        both sides. Quantity left after netting opens a new position under this
+        fill's ``order_id``. With no opposite lot the whole fill opens — identical
+        to the pre-matching behaviour for an isolated buy or sell.
+        """
+        opposite = "sell" if side == "buy" else "buy"
+        candidates = [
+            (oid, p)
+            for oid, p in self._open_positions.items()
+            if p["symbol"] == symbol and p["side"] == opposite
+        ]
+        # FIFO: oldest lot first (stable sort keeps insertion order on ties).
+        candidates.sort(key=lambda kv: kv[1].get("opened_at") or "")
+
+        remaining = quantity
+        for oid, pos in candidates:
+            if remaining <= EPS:
+                break
+            pos_qty = float(pos["quantity"])
+            matched = min(remaining, pos_qty)
+            exit_fee_chunk = fee * (matched / quantity) if quantity else 0.0
+            entry_fee_chunk = (
+                float(pos.get("entry_fee", 0.0)) * (matched / pos_qty) if pos_qty else 0.0
+            )
+            if matched >= pos_qty - EPS:  # full close of this lot
+                self._record_close(
+                    oid, pos, exit_price=price,
+                    exit_fee=exit_fee_chunk, entry_fee=entry_fee_chunk,
+                    closed_qty=pos_qty,
+                )
+            else:  # partial: book the chunk, shrink the lot in place
+                self._record_close(
+                    oid, pos, exit_price=price,
+                    exit_fee=exit_fee_chunk, entry_fee=entry_fee_chunk,
+                    closed_qty=matched, keep_open=True,
+                )
+                pos["quantity"] = pos_qty - matched
+                pos["entry_fee"] = float(pos.get("entry_fee", 0.0)) * (pos["quantity"] / pos_qty)
+                self._positions.upsert(oid, pos)
+            remaining -= matched
+
+        if remaining > EPS:  # net-new exposure on the incoming side
+            new_pos = {
+                "symbol": symbol,
+                "side": side,
+                "entry_price": price,
+                "quantity": remaining,
+                "stop_loss": stop_loss,
+                "take_profit": take_profit,
+                "entry_fee": fee * (remaining / quantity) if quantity else 0.0,
+                "opened_at": datetime.now(UTC).isoformat(),
+            }
+            self._open_positions[order_id] = new_pos
+            self._positions.upsert(order_id, new_pos)
 
     def _check_open_positions(self, current_price: float, symbol: str) -> None:
         """Close any paper positions whose stop-loss or take-profit has been reached.
@@ -398,26 +472,49 @@ class SquadOrchestrator:
         ]
         for oid, pos in to_close:
             exit_price = self._exit_price(pos, current_price)
-            del self._open_positions[oid]
+            self._record_close(oid, pos, exit_price)
+
+    def _record_close(
+        self,
+        oid: str,
+        pos: dict[str, Any],
+        exit_price: float,
+        exit_fee: float = 0.0,
+        entry_fee: float = 0.0,
+        closed_qty: float | None = None,
+        keep_open: bool = False,
+    ) -> None:
+        """Book a position close: ledger event + circuit-breaker feed.
+
+        Single close path shared by stop/TP exits and (future) fill matching, so
+        P&L accounting and breaker feeding cannot diverge. ``closed_qty`` allows
+        partial closes; ``keep_open=True`` books the chunk without removing the
+        (shrunken) lot from the position book. Feeds the breaker exactly once.
+        """
+        qty = closed_qty if closed_qty is not None else pos["quantity"]
+        if not keep_open:
+            self._open_positions.pop(oid, None)
             self._positions.delete(oid)
-            self.ledger.log_position_closed(
-                order_id=oid,
-                symbol=pos["symbol"],
-                side=pos["side"],
-                entry_price=pos["entry_price"],
-                exit_price=exit_price,
-                quantity=pos["quantity"],
-                opened_at=pos.get("opened_at"),
-            )
-            direction = 1.0 if pos["side"] == "buy" else -1.0
-            pnl = direction * (exit_price - pos["entry_price"]) * pos["quantity"]
-            entry_notional = pos["entry_price"] * pos["quantity"]
-            pnl_pct = pnl / entry_notional * 100 if entry_notional else 0.0
-            self.circuit_breaker.record_trade_result(pnl_pct)
-            logger.info(
-                "Position closed %s %s at %.2f (entry %.2f, pnl %.2f%%)",
-                pos["side"], pos["symbol"], exit_price, pos["entry_price"], pnl_pct,
-            )
+        fee = entry_fee + exit_fee
+        self.ledger.log_position_closed(
+            order_id=oid,
+            symbol=pos["symbol"],
+            side=pos["side"],
+            entry_price=pos["entry_price"],
+            exit_price=exit_price,
+            quantity=qty,
+            fee=fee,
+            opened_at=pos.get("opened_at"),
+        )
+        direction = 1.0 if pos["side"] == "buy" else -1.0
+        pnl = direction * (exit_price - pos["entry_price"]) * qty - fee
+        entry_notional = pos["entry_price"] * qty
+        pnl_pct = pnl / entry_notional * 100 if entry_notional else 0.0
+        self.circuit_breaker.record_trade_result(pnl_pct)
+        logger.info(
+            "Position closed %s %s at %.2f (entry %.2f, pnl %.2f%%)",
+            pos["side"], pos["symbol"], exit_price, pos["entry_price"], pnl_pct,
+        )
 
     @staticmethod
     def _exit_price(pos: dict[str, Any], current_price: float) -> float | None:
