@@ -143,16 +143,34 @@ def test_sharpe_positive_for_consistent_gains(ledger):
     assert m.sharpe_ratio > 0
 
 
+def _seed_open_position(ledger, order_id, symbol, entry_price, quantity):
+    """Open a position in the operational store the metrics engine reads from."""
+    from src.orchestration.position_store import PositionStore
+
+    PositionStore(lambda: ledger.db_path).upsert(
+        order_id,
+        {
+            "symbol": symbol, "side": "buy", "entry_price": entry_price,
+            "quantity": quantity, "stop_loss": None, "take_profit": None,
+            "opened_at": "2026-01-01T00:00:00+00:00",
+        },
+    )
+
+
 def test_open_position_drives_exposure(ledger):
-    ledger.log_fill("ord_open", "BTC/USDT", "buy", price=100.0, quantity=20.0)  # notional 2000
+    _seed_open_position(ledger, "ord_open", "BTC/USDT", 100.0, 20.0)  # notional 2000
     m = PortfolioMetricsCalculator(ledger, 10_000.0).compute()
     assert m.open_positions == 1
     assert m.exposure_pct == pytest.approx(2000.0 / 10_000.0)
     assert m.has_data is True
 
 
-def test_closed_fill_not_counted_as_open(ledger):
-    ledger.log_fill("ord_x", "BTC/USDT", "buy", price=100.0, quantity=1.0)
+def test_closed_position_not_counted_as_open(ledger):
+    # Opened then closed: removed from the operational store, close logged.
+    from src.orchestration.position_store import PositionStore
+
+    _seed_open_position(ledger, "ord_x", "BTC/USDT", 100.0, 1.0)
+    PositionStore(lambda: ledger.db_path).delete("ord_x")
     ledger.log_position_closed("ord_x", "BTC/USDT", "buy", 100.0, 110.0, 1.0)
     m = PortfolioMetricsCalculator(ledger, 10_000.0).compute()
     assert m.open_positions == 0

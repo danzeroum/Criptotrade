@@ -14,7 +14,9 @@ Design notes
   fabricated number. Callers/UI should render ``None`` as "Sem dados", never as a
   misleading ``0`` or ``--``.
 * **Realised vs open.** Realised metrics come from ``position_closed`` events.
-  Open exposure comes from ``order_fill`` events with no matching close.
+  Open positions and exposure reflect the operational ``open_positions`` store
+  (current state) — not a replay of un-closed ``order_fill`` events, which would
+  inflate the count whenever a fill has no matching close recorded.
 """
 from __future__ import annotations
 
@@ -103,7 +105,7 @@ class PortfolioMetricsCalculator:
         entries = self.ledger.read_all()
 
         closed = self._with_timestamps(entries, "position_closed")
-        open_positions = self._open_positions(entries)
+        open_positions = self._operational_open_positions()
 
         if symbol:
             sym = symbol.upper()
@@ -166,19 +168,30 @@ class PortfolioMetricsCalculator:
         out.sort(key=lambda d: (d["_ts"] is None, d["_ts"] or datetime.min.replace(tzinfo=timezone.utc)))
         return out
 
-    @staticmethod
-    def _open_positions(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Fills whose ``order_id`` has no matching ``position_closed``."""
-        closed_ids = {
-            e["data"].get("order_id")
-            for e in entries
-            if e.get("event_type") == "position_closed"
-        }
-        return [
-            e["data"]
-            for e in entries
-            if e.get("event_type") == "order_fill" and e["data"].get("order_id") not in closed_ids
-        ]
+    def _operational_open_positions(self) -> List[Dict[str, Any]]:
+        """Current open positions from the operational ``open_positions`` store.
+
+        The store (maintained by the orchestrator: upsert on open, delete on
+        close) is the source of truth for what is open *now*. A replay of
+        ``order_fill`` events without a matching ``position_closed`` is not — a
+        fill whose close was never recorded would stay "open" forever. Each entry
+        carries ``symbol`` and a computed ``notional`` for exposure.
+        """
+        from src.orchestration.position_store import PositionStore
+
+        positions = PositionStore(lambda: self.ledger.db_path).load_all()
+        out: List[Dict[str, Any]] = []
+        for order_id, p in positions.items():
+            entry_price = p.get("entry_price") or 0.0
+            quantity = p.get("quantity") or 0.0
+            out.append(
+                {
+                    "order_id": order_id,
+                    "symbol": p.get("symbol"),
+                    "notional": entry_price * quantity,
+                }
+            )
+        return out
 
     def _max_drawdown(self, closed: List[Dict[str, Any]]) -> float:
         """Largest peak-to-trough drop of the equity curve, as a ratio <= 0."""
