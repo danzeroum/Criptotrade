@@ -194,7 +194,8 @@ function ScreenRisk() {
         </div>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: '1fr 300px' }}>
+      {/* M9: class-based grid so the rail stacks below the content < 1100px. */}
+      <div className="grid grid-chart-rail">
         {/* Drawdown protections */}
         <div className="card">
           <div className="card-head">

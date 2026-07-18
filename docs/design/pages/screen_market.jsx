@@ -322,6 +322,22 @@ function ScreenMarket({ navigate, addToast } = {}) {
               </Btn>
             </div>
           </div>
+          {/* C6: O/H/L/Vol of the latest candle; wraps freely on narrow widths.
+              C7 guard: same pt-BR helpers as the rest of the screen (no raw
+              toLocaleString), tabular figures for alignment. */}
+          {candles && candles.length > 0 && (() => {
+            const lc = candles[candles.length - 1];
+            return (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6,
+                padding: '10px 18px 0', fontVariantNumeric: 'tabular-nums' }}>
+                <span className="chip">O <b>{fmtUsd(lc.o)}</b></span>
+                <span className="chip">H <b>{fmtUsd(lc.h)}</b></span>
+                <span className="chip">L <b>{fmtUsd(lc.lo ?? lc.l)}</b></span>
+                <span className="chip">C <b>{fmtUsd(lc.c)}</b></span>
+                <span className="chip">Vol <b>{fmtNum(lc.v, 0)}</b></span>
+              </div>
+            );
+          })()}
           <div className="card-pad" style={{ padding: '14px 12px' }}>
             {candles && candles.length > 0 ? (
               <CandleChart
