@@ -21,6 +21,7 @@ const SCREENS = {
   account:       ScreenAccount,
   notifications: ScreenNotifications,
   connections:   ScreenConnections,
+  onboarding:    ScreenOnboarding,
 };
 
 // ---- Error boundaries (A9) ----
@@ -202,6 +203,24 @@ function App() {
   const [, setPrefsRev] = useState(0);
   useEffect(() => CT_PREFS.subscribe(() => setPrefsRev(n => n + 1)), []);
 
+  // A10: first admin login with an incomplete guide opens it — ONCE per boot,
+  // never hijacking an explicit deep link. Mock default is "completed" so the
+  // e2e suite boots unchanged; MOCK_ONBOARDING='pending' opts in.
+  const initialHashRef = useRef(window.location.hash.replace('#', ''));
+  useEffect(() => {
+    if (!booted || auth.kind !== 'user' || auth.user?.role !== 'admin') return;
+    const initial = initialHashRef.current;
+    if (initial && initial !== 'overview') return;
+    const open = (st) => {
+      if (st && !st.completed && !st.dismissed) navigate('onboarding');
+    };
+    if (window.USE_MOCK_DATA) {
+      if (window.MOCK_ONBOARDING === 'pending') open({ completed: false, dismissed: false });
+      return;
+    }
+    CT_API.getOnboarding().then(open).catch(() => {});
+  }, [booted, auth.kind]);
+
   // Inactivity lock (A1) — ONLY for real user sessions: the public demo has no
   // password to unlock with, so it never arms the timer (kiosk-safe).
   useEffect(() => {
@@ -277,11 +296,12 @@ function App() {
   // the Forbidden page (coherent with the backend's 403 envelope), not a blank.
   const ROUTE_PERMS = {
     users: 'manage_users', audit: 'view_audit', notifications: 'edit_settings',
-    connections: 'manage_keys',
+    connections: 'manage_keys', onboarding: 'manage_keys',
   };
   // A7: self-service screens need a real authenticated session (kind 'user'),
-  // which is a different gate than a role permission.
-  const USER_ONLY_ROUTES = ['security', 'account'];
+  // which is a different gate than a role permission. A10 rides both gates:
+  // admin USER only (hidden under AUTH_MODE=off too).
+  const USER_ONLY_ROUTES = ['security', 'account', 'onboarding'];
   const deniedPerm = ROUTE_PERMS[screen] && !CT_AUTH.can(ROUTE_PERMS[screen])
     ? ROUTE_PERMS[screen] : null;
   const denied = deniedPerm

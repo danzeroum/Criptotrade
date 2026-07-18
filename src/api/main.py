@@ -30,6 +30,7 @@ from src.api.routes import (
     market,
     metrics,
     notifications,
+    onboarding,
     orders,
     process,
     risk,
@@ -323,6 +324,8 @@ def create_app() -> FastAPI:
     # A5: exchange credentials & platform keys — every route requires manage_keys.
     app.include_router(exchanges.router, prefix=PREFIX, dependencies=guarded)
     app.include_router(exchanges.keys_router, prefix=PREFIX, dependencies=guarded)
+    # A10: admin-user-only guide (per-route gate inside the module).
+    app.include_router(onboarding.router, prefix=PREFIX, dependencies=guarded)
     # A3: per-route manage_users enforcement lives inside the module.
     app.include_router(users.router, prefix=PREFIX)
     app.include_router(users.roles_router, prefix=PREFIX)

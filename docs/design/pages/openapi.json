@@ -1293,6 +1293,38 @@
         "title": "APIResponse[NotificationSettingsOut]",
         "type": "object"
       },
+      "APIResponse_OnboardingStatusOut_": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/OnboardingStatusOut"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[OnboardingStatusOut]",
+        "type": "object"
+      },
       "APIResponse_OrderOut_": {
         "properties": {
           "_links": {
@@ -4190,6 +4222,120 @@
           }
         },
         "title": "NotificationSettingsPatch",
+        "type": "object"
+      },
+      "OnboardingPatch": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "enum": [
+                  "complete",
+                  "skip"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action"
+          },
+          "dismiss": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dismiss"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          }
+        },
+        "title": "OnboardingPatch",
+        "type": "object"
+      },
+      "OnboardingStatusOut": {
+        "properties": {
+          "completed": {
+            "title": "Completed",
+            "type": "boolean"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "dismissed": {
+            "title": "Dismissed",
+            "type": "boolean"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/OnboardingStepOut"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "object"
+          }
+        },
+        "required": [
+          "steps",
+          "completed",
+          "dismissed"
+        ],
+        "title": "OnboardingStatusOut",
+        "type": "object"
+      },
+      "OnboardingStepOut": {
+        "properties": {
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "done_auto",
+              "done_manual",
+              "skipped",
+              "pending"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "OnboardingStepOut",
         "type": "object"
       },
       "OrderCreate": {
@@ -9306,6 +9452,66 @@
         "summary": "Atualiza quiet hours/agrupamento",
         "tags": [
           "notifications"
+        ]
+      }
+    },
+    "/v1/onboarding/status": {
+      "get": {
+        "operationId": "get_status_v1_onboarding_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_OnboardingStatusOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Status do guia (passos derivados do estado REAL do sistema)",
+        "tags": [
+          "onboarding"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_status_v1_onboarding_status_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnboardingPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_OnboardingStatusOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Marca pular/concluir um passo, ou dispensa o guia",
+        "tags": [
+          "onboarding"
         ]
       }
     },

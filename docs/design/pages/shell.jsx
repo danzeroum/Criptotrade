@@ -179,6 +179,13 @@ function Header({ onToggleAlerts, alertCount, auth, onLock, onLogout, onNavigate
                   onClick={() => { setMenuOpen(false); onNavigate?.('account'); }}>
                   <Icon name="user" size={13} /> Conta
                 </button>
+                {/* A10: reacesso discreto ao guia — só admin. */}
+                {auth.user?.role === 'admin' && (
+                  <button className="user-menu-item" role="menuitem"
+                    onClick={() => { setMenuOpen(false); onNavigate?.('onboarding'); }}>
+                    <Icon name="check" size={13} /> Guia de configuração
+                  </button>
+                )}
                 <button className="user-menu-item" role="menuitem"
                   onClick={() => { setMenuOpen(false); onNavigate?.('security'); }}>
                   <Icon name="shield" size={13} /> Segurança

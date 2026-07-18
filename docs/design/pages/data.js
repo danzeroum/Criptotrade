@@ -513,5 +513,29 @@
       revoked: false },
   ];
 
+  // A10: mock onboarding status. Mixed states for the guide screenshots/e2e
+  // (2 auto-done, 1 skipped, 2 pending). Only used when MOCK_ONBOARDING is
+  // set — the default mock boot behaves as "completed" (no wizard).
+  CT.onboarding = {
+    steps: [
+      { id: 'connect_exchange', status: 'done_auto',
+        detail: 'Binance testnet · binance · testnet · teste ok' },
+      { id: 'risk_capital', status: 'done_auto', detail: 'config de risco/capital alterada' },
+      { id: 'strategy_agents', status: 'skipped', detail: 'pulado' },
+      { id: 'review', status: 'pending', detail: '' },
+      { id: 'start_dryrun', status: 'pending', detail: '' },
+    ],
+    completed: false,
+    dismissed: false,
+    completed_at: null,
+    summary: {
+      connection: { label: 'Binance testnet', exchange: 'binance', scope: 'trade',
+                    testnet: true, tested_ok: true },
+      routing: 'paper', dry_run: true, autonomy_level: 2,
+      risk: { max_position_size_pct: 5.0, max_daily_loss_pct: 5.0 },
+      pairs: 'BTC/USDT,ETH/USDT', initial_capital: 10000,
+    },
+  };
+
   window.CT = CT;
 })();
