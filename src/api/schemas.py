@@ -191,6 +191,29 @@ class AgentConfigOut(AgentStatusOut):
     params: Dict[str, Any] = Field(default_factory=dict)
 
 
+# ---------------------------------------------------------- onboarding (A10)
+class OnboardingStepOut(BaseModel):
+    id: str
+    status: Literal["done_auto", "done_manual", "skipped", "pending"]
+    detail: str = ""
+
+
+class OnboardingStatusOut(BaseModel):
+    steps: List[OnboardingStepOut]
+    completed: bool
+    dismissed: bool
+    completed_at: Optional[str] = None
+    summary: Dict[str, Any] = Field(default_factory=dict)
+
+
+class OnboardingPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    step: Optional[str] = None
+    action: Optional[Literal["complete", "skip"]] = None
+    dismiss: Optional[bool] = None
+
+
 # ----------------------------------------------------- exchanges & keys (A5)
 class ConnectionOut(BaseModel):
     """Exchange connection with the API key MASKED — the secret never returns

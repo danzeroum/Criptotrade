@@ -273,10 +273,17 @@ function ScreenSettings({ addToast }) {
               {/* A6: entrega externa (e-mail/Telegram/Slack/webhook) mora em
                   Notificações & Canais — link da seção, conforme o card. */}
               {CT_AUTH.can('edit_settings') && (
-                <div style={{ marginTop: 12, fontSize: 12.5 }}>
+                <div style={{ marginTop: 12, fontSize: 12.5, display: 'flex',
+                              gap: 16, flexWrap: 'wrap' }}>
                   <a href="#notifications" style={{ color: 'var(--info)' }}>
                     Canais de entrega (e-mail, Telegram, Slack, webhook) →
                   </a>
+                  {/* A10: reacesso ao guia (só admin autenticado). */}
+                  {CT_AUTH.state()?.user?.role === 'admin' && (
+                    <a href="#onboarding" style={{ color: 'var(--info)' }}>
+                      Guia de configuração →
+                    </a>
+                  )}
                 </div>
               )}
             </div>

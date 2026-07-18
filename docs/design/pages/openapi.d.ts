@@ -1044,6 +1044,24 @@ export interface paths {
         patch: operations["patch_settings_v1_notifications_settings_patch"];
         trace?: never;
     };
+    "/v1/onboarding/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Status do guia (passos derivados do estado REAL do sistema) */
+        get: operations["get_status_v1_onboarding_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Marca pular/concluir um passo, ou dispensa o guia */
+        patch: operations["patch_status_v1_onboarding_status_patch"];
+        trace?: never;
+    };
     "/v1/orders": {
         parameters: {
             query?: never;
@@ -1637,6 +1655,12 @@ export interface components {
         APIResponse_NotificationSettingsOut_: {
             _links?: components["schemas"]["Links"] | null;
             data: components["schemas"]["NotificationSettingsOut"];
+            meta?: components["schemas"]["Meta"] | null;
+        };
+        /** APIResponse[OnboardingStatusOut] */
+        APIResponse_OnboardingStatusOut_: {
+            _links?: components["schemas"]["Links"] | null;
+            data: components["schemas"]["OnboardingStatusOut"];
             meta?: components["schemas"]["Meta"] | null;
         };
         /** APIResponse[OrderOut] */
@@ -2557,6 +2581,43 @@ export interface components {
             quiet_start?: string | null;
             /** Quiet Tz */
             quiet_tz?: string | null;
+        };
+        /** OnboardingPatch */
+        OnboardingPatch: {
+            /** Action */
+            action?: ("complete" | "skip") | null;
+            /** Dismiss */
+            dismiss?: boolean | null;
+            /** Step */
+            step?: string | null;
+        };
+        /** OnboardingStatusOut */
+        OnboardingStatusOut: {
+            /** Completed */
+            completed: boolean;
+            /** Completed At */
+            completed_at?: string | null;
+            /** Dismissed */
+            dismissed: boolean;
+            /** Steps */
+            steps: components["schemas"]["OnboardingStepOut"][];
+            /** Summary */
+            summary?: Record<string, never>;
+        };
+        /** OnboardingStepOut */
+        OnboardingStepOut: {
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Id */
+            id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "done_auto" | "done_manual" | "skipped" | "pending";
         };
         /**
          * OrderCreate
@@ -5408,6 +5469,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["APIResponse_NotificationSettingsOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_status_v1_onboarding_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_OnboardingStatusOut_"];
+                };
+            };
+        };
+    };
+    patch_status_v1_onboarding_status_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_OnboardingStatusOut_"];
                 };
             };
             /** @description Validation Error */

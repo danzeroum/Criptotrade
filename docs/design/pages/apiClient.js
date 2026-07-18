@@ -153,6 +153,10 @@ const CT_API = (() => {
       return r.blob();
     },
 
+    // ---- A10: onboarding guide ----
+    getOnboarding:    ()         => req('/v1/onboarding/status'),
+    patchOnboarding:  (body)     => req('/v1/onboarding/status', { method: 'PATCH', body: JSON.stringify(body) }),
+
     // ---- A5: exchange connections & platform keys ----
     getConnections:   ()         => req('/v1/exchanges/connections'),
     createConnection: (body)     => req('/v1/exchanges/connect', { method: 'POST', body: JSON.stringify(body) }),

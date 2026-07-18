@@ -40,6 +40,13 @@
   `ORDER_ROUTING=live`/dados reais + rede. Implementação adiada até a decisão de
   ir a real; anotado no roadmap.
 
+## ❌ Descartados (decisão de produto)
+
+- **A8 — Faturamento & Uso: DESCARTADO** (decisão do PM, jul/2026). A
+  plataforma é de uso pessoal, não SaaS — não há cobrança, planos ou medição
+  de uso a construir. Removido das pendências; o card permanece no handoff
+  apenas como registro histórico.
+
 ## ℹ️ Herdados (já documentados em `docs/acaoPendenteDono.md`)
 - DNS + portas 80/443, `API_KEYS` forte, certificado Let's Encrypt, `SENTRY_DSN`,
   secrets de deploy (CD). Sem mudança nesta v1.
