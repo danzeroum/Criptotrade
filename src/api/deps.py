@@ -110,12 +110,27 @@ def get_session_store():
     return SessionStore()
 
 
+@lru_cache(maxsize=1)
+def get_notification_store():
+    from src.notifications.store import NotificationStore
+
+    return NotificationStore()
+
+
+@lru_cache(maxsize=1)
+def get_dispatcher():
+    from src.notifications.dispatcher import Dispatcher
+
+    return Dispatcher(store=get_notification_store(), ledger=get_ledger())
+
+
 def reset_singletons() -> None:
     """Clear cached singletons (used by tests to inject fresh state)."""
     for fn in (
         get_ledger, get_alert_store, get_alert_bus, get_hitl_store,
         get_order_store, get_agent_registry, get_exchange_client,
-        get_user_store, get_session_store,
+        get_user_store, get_session_store, get_notification_store,
+        get_dispatcher,
     ):
         fn.cache_clear()
 

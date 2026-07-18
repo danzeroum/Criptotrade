@@ -129,6 +129,38 @@
         "title": "APIResponse[BacktestJobOut]",
         "type": "object"
       },
+      "APIResponse_ChannelOut_": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/ChannelOut"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[ChannelOut]",
+        "type": "object"
+      },
       "APIResponse_CircuitBreakerOut_": {
         "properties": {
           "_links": {
@@ -593,6 +625,42 @@
         "title": "APIResponse[List[CandleOut]]",
         "type": "object"
       },
+      "APIResponse_List_ChannelOut__": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ChannelOut"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[List[ChannelOut]]",
+        "type": "object"
+      },
       "APIResponse_List_ClosedTradeOut__": {
         "properties": {
           "_links": {
@@ -881,6 +949,42 @@
         "title": "APIResponse[List[RoleOut]]",
         "type": "object"
       },
+      "APIResponse_List_RuleOut__": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/RuleOut"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[List[RuleOut]]",
+        "type": "object"
+      },
       "APIResponse_List_SessionOut__": {
         "properties": {
           "_links": {
@@ -1051,6 +1155,38 @@
           "data"
         ],
         "title": "APIResponse[MonteCarloOut]",
+        "type": "object"
+      },
+      "APIResponse_NotificationSettingsOut_": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/NotificationSettingsOut"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[NotificationSettingsOut]",
         "type": "object"
       },
       "APIResponse_OrderOut_": {
@@ -1243,6 +1379,38 @@
           "data"
         ],
         "title": "APIResponse[RiskConfigOut]",
+        "type": "object"
+      },
+      "APIResponse_RuleOut_": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/RuleOut"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[RuleOut]",
         "type": "object"
       },
       "APIResponse_SignalOut_": {
@@ -2262,6 +2430,161 @@
           "v"
         ],
         "title": "CandleOut",
+        "type": "object"
+      },
+      "ChannelCreateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "config": {
+            "title": "Config",
+            "type": "object"
+          },
+          "kind": {
+            "enum": [
+              "email",
+              "telegram",
+              "slack",
+              "webhook"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "label"
+        ],
+        "title": "ChannelCreateIn",
+        "type": "object"
+      },
+      "ChannelOut": {
+        "description": "Channel with the config MASKED \u2014 plaintext secrets never leave the API.",
+        "properties": {
+          "config_masked": {
+            "title": "Config Masked",
+            "type": "object"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "destination_masked": {
+            "default": "\u2014",
+            "title": "Destination Masked",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "last_test_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Test At"
+          },
+          "last_test_ok": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Test Ok"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "label",
+          "enabled"
+        ],
+        "title": "ChannelOut",
+        "type": "object"
+      },
+      "ChannelPatchIn": {
+        "additionalProperties": false,
+        "properties": {
+          "config": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          }
+        },
+        "title": "ChannelPatchIn",
         "type": "object"
       },
       "CircuitBreakerOut": {
@@ -3450,6 +3773,105 @@
         "title": "MonteCarloOut",
         "type": "object"
       },
+      "NotificationSettingsOut": {
+        "properties": {
+          "group_window_min": {
+            "default": 5,
+            "title": "Group Window Min",
+            "type": "integer"
+          },
+          "quiet_end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet End"
+          },
+          "quiet_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet Start"
+          },
+          "quiet_tz": {
+            "default": "America/Sao_Paulo",
+            "title": "Quiet Tz",
+            "type": "string"
+          }
+        },
+        "title": "NotificationSettingsOut",
+        "type": "object"
+      },
+      "NotificationSettingsPatch": {
+        "additionalProperties": false,
+        "properties": {
+          "clear_quiet_hours": {
+            "default": false,
+            "title": "Clear Quiet Hours",
+            "type": "boolean"
+          },
+          "group_window_min": {
+            "anyOf": [
+              {
+                "maximum": 120.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Window Min"
+          },
+          "quiet_end": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{2}:\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet End"
+          },
+          "quiet_start": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{2}:\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet Start"
+          },
+          "quiet_tz": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet Tz"
+          }
+        },
+        "title": "NotificationSettingsPatch",
+        "type": "object"
+      },
       "OrderCreate": {
         "description": "Submit a new order. Validation makes it hard to use incorrectly.",
         "properties": {
@@ -4482,6 +4904,139 @@
           "permissions"
         ],
         "title": "RoleOut",
+        "type": "object"
+      },
+      "RuleIn": {
+        "additionalProperties": false,
+        "properties": {
+          "alert_type": {
+            "default": "*",
+            "maxLength": 60,
+            "title": "Alert Type",
+            "type": "string"
+          },
+          "channel_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Channel Ids",
+            "type": "array"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "min_severity": {
+            "default": "high",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "title": "Min Severity",
+            "type": "string"
+          }
+        },
+        "title": "RuleIn",
+        "type": "object"
+      },
+      "RuleOut": {
+        "properties": {
+          "alert_type": {
+            "title": "Alert Type",
+            "type": "string"
+          },
+          "channel_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Channel Ids",
+            "type": "array"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "min_severity": {
+            "title": "Min Severity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "alert_type",
+          "min_severity",
+          "channel_ids",
+          "enabled"
+        ],
+        "title": "RuleOut",
+        "type": "object"
+      },
+      "RulePatchIn": {
+        "additionalProperties": false,
+        "properties": {
+          "alert_type": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alert Type"
+          },
+          "channel_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel Ids"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "min_severity": {
+            "anyOf": [
+              {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "critical"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Severity"
+          }
+        },
+        "title": "RulePatchIn",
         "type": "object"
       },
       "SRLevelOut": {
@@ -5524,6 +6079,25 @@
       }
     },
     "/v1/alerts/config": {
+      "get": {
+        "operationId": "get_alerts_config_v1_alerts_config_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_Dict_str__float__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Thresholds do behavioral guard (read-back \u2014 fecha o gap do A6)",
+        "tags": [
+          "config"
+        ]
+      },
       "patch": {
         "operationId": "patch_alerts_config_v1_alerts_config_patch",
         "requestBody": {
@@ -7479,6 +8053,412 @@
         "summary": "S\u00e9rie temporal de capital e drawdown (derivada do ledger)",
         "tags": [
           "metrics"
+        ]
+      }
+    },
+    "/v1/notifications/channels": {
+      "get": {
+        "operationId": "list_channels_v1_notifications_channels_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_List_ChannelOut__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Canais conectados (configs mascaradas) + status de teste",
+        "tags": [
+          "notifications"
+        ]
+      },
+      "post": {
+        "operationId": "create_channel_v1_notifications_channels_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChannelCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_ChannelOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Conecta um canal (secrets cifrados em repouso)",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/v1/notifications/channels/{channel_id}": {
+      "delete": {
+        "operationId": "delete_channel_v1_notifications_channels__channel_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "title": "Channel Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_dict_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove um canal",
+        "tags": [
+          "notifications"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_channel_v1_notifications_channels__channel_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "title": "Channel Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChannelPatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_ChannelOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Edita um canal (mask inalterada = mant\u00e9m o secret)",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/v1/notifications/channels/{channel_id}/test": {
+      "post": {
+        "operationId": "test_channel_v1_notifications_channels__channel_id__test_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "title": "Channel Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_dict_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Envia uma notifica\u00e7\u00e3o de teste REAL pelo canal",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/v1/notifications/rules": {
+      "get": {
+        "operationId": "list_rules_v1_notifications_rules_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_List_RuleOut__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Regras evento \u00d7 severidade \u2192 canais",
+        "tags": [
+          "notifications"
+        ]
+      },
+      "post": {
+        "operationId": "create_rule_v1_notifications_rules_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_RuleOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cria uma regra de entrega",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/v1/notifications/rules/{rule_id}": {
+      "delete": {
+        "operationId": "delete_rule_v1_notifications_rules__rule_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "title": "Rule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_dict_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove uma regra",
+        "tags": [
+          "notifications"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_rule_v1_notifications_rules__rule_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "title": "Rule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RulePatchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_RuleOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Edita uma regra",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/v1/notifications/settings": {
+      "get": {
+        "operationId": "get_settings_v1_notifications_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_NotificationSettingsOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Quiet hours + janela de agrupamento anti-flood",
+        "tags": [
+          "notifications"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_settings_v1_notifications_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationSettingsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_NotificationSettingsOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Atualiza quiet hours/agrupamento",
+        "tags": [
+          "notifications"
         ]
       }
     },

@@ -475,5 +475,23 @@
       ip: '177.94.3.71', ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5) Safari/604.1', success: true },
   ];
 
+  // A6: mock notification channels/rules (mirrors /v1/notifications, masked).
+  CT.notificationChannels = [
+    { id: 'ch1', kind: 'telegram', label: 'Ops crítico', enabled: true,
+      config_masked: { bot_token: '•••4821', chat_id: '-100200300' },
+      destination_masked: 'chat -100200300 · token •••4821',
+      last_test_at: '2026-07-18T09:00:00+00:00', last_test_ok: true, last_error: null },
+    { id: 'ch2', kind: 'email', label: 'E-mail do dono', enabled: true,
+      config_masked: { to_email: 'dono@criptotrade.dev' },
+      destination_masked: 'dono@criptotrade.dev',
+      last_test_at: null, last_test_ok: null, last_error: null },
+  ];
+  CT.notificationRules = [
+    { id: 'r1', alert_type: 'circuit_breaker', min_severity: 'critical',
+      channel_ids: ['ch1', 'ch2'], enabled: true },
+    { id: 'r2', alert_type: '*', min_severity: 'high',
+      channel_ids: ['ch1'], enabled: true },
+  ];
+
   window.CT = CT;
 })();

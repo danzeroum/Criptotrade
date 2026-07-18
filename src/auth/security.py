@@ -50,6 +50,20 @@ def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+# ------------------------------------------------- secrets at rest (Fernet)
+def encrypt_secret(plaintext: str) -> str:
+    """Encrypt an arbitrary secret at rest (A6 channel configs; A5 will reuse).
+    Same Fernet keyed from AUTH_SECRET_KEY as the TOTP secrets."""
+    return _fernet().encrypt(plaintext.encode()).decode()
+
+
+def decrypt_secret(ciphertext: str) -> Optional[str]:
+    try:
+        return _fernet().decrypt(ciphertext.encode()).decode()
+    except (InvalidToken, RuntimeError):
+        return None
+
+
 # ------------------------------------------------------------------ TOTP (2FA)
 def _fernet() -> Fernet:
     raw = os.getenv("AUTH_SECRET_KEY", "").strip()

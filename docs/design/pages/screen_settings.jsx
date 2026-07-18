@@ -270,6 +270,15 @@ function ScreenSettings({ addToast }) {
                   unit="%"
                 />
               </div>
+              {/* A6: entrega externa (e-mail/Telegram/Slack/webhook) mora em
+                  Notificações & Canais — link da seção, conforme o card. */}
+              {CT_AUTH.can('edit_settings') && (
+                <div style={{ marginTop: 12, fontSize: 12.5 }}>
+                  <a href="#notifications" style={{ color: 'var(--info)' }}>
+                    Canais de entrega (e-mail, Telegram, Slack, webhook) →
+                  </a>
+                </div>
+              )}
             </div>
             </fieldset>
           </div>
