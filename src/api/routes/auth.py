@@ -16,10 +16,9 @@ from __future__ import annotations
 import logging
 import os
 import time
-import uuid
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 
 from src.api import deps
 from src.api.authn import (
