@@ -178,6 +178,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Chaves da plataforma (prefixo p/ identificação + último uso) */
+        get: operations["list_platform_keys_v1_api_keys_get"];
+        put?: never;
+        /** Cria chave escopada (exibida COMPLETA uma única vez) */
+        post: operations["create_platform_key_v1_api_keys_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/api-keys/{key_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoga uma chave da plataforma */
+        delete: operations["revoke_platform_key_v1_api_keys__key_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/audit": {
         parameters: {
             query?: never;
@@ -524,6 +559,125 @@ export interface paths {
         head?: never;
         /** Atualiza configurações gerais (in-memory para MVP) */
         patch: operations["patch_config_v1_config_patch"];
+        trace?: never;
+    };
+    "/v1/exchanges/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adiciona credencial de exchange (trade exige confirmação digitada) */
+        post: operations["create_connection_v1_exchanges_connect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/exchanges/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Conexões de exchange (key mascarada; secret nunca retorna) */
+        get: operations["list_connections_v1_exchanges_connections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/exchanges/egress-ip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** IP de egresso da VPS (trave a chave neste IP na exchange) */
+        get: operations["egress_ip_v1_exchanges_egress_ip_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/exchanges/{conn_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoga uma conexão */
+        delete: operations["revoke_connection_v1_exchanges__conn_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/exchanges/{conn_id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Torna esta a conexão ativa (única) */
+        patch: operations["activate_connection_v1_exchanges__conn_id__activate_patch"];
+        trace?: never;
+    };
+    "/v1/exchanges/{conn_id}/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotaciona o secret (zera o teste — live não sobe até re-testar) */
+        post: operations["rotate_connection_v1_exchanges__conn_id__rotate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/exchanges/{conn_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Testa a conexão (read-only real — NUNCA envia ordem) */
+        post: operations["test_connection_route_v1_exchanges__conn_id__test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/hitl/config": {
@@ -1284,6 +1438,12 @@ export interface components {
             data: components["schemas"]["ConfluenceOut"];
             meta?: components["schemas"]["Meta"] | null;
         };
+        /** APIResponse[ConnectionOut] */
+        APIResponse_ConnectionOut_: {
+            _links?: components["schemas"]["Links"] | null;
+            data: components["schemas"]["ConnectionOut"];
+            meta?: components["schemas"]["Meta"] | null;
+        };
         /** APIResponse[Dict[str, float]] */
         APIResponse_Dict_str__float__: {
             _links?: components["schemas"]["Links"] | null;
@@ -1370,6 +1530,13 @@ export interface components {
             data: components["schemas"]["ClosedTradeOut"][];
             meta?: components["schemas"]["Meta"] | null;
         };
+        /** APIResponse[List[ConnectionOut]] */
+        APIResponse_List_ConnectionOut__: {
+            _links?: components["schemas"]["Links"] | null;
+            /** Data */
+            data: components["schemas"]["ConnectionOut"][];
+            meta?: components["schemas"]["Meta"] | null;
+        };
         /** APIResponse[List[EquityPoint]] */
         APIResponse_List_EquityPoint__: {
             _links?: components["schemas"]["Links"] | null;
@@ -1396,6 +1563,13 @@ export interface components {
             _links?: components["schemas"]["Links"] | null;
             /** Data */
             data: components["schemas"]["PatternOut"][];
+            meta?: components["schemas"]["Meta"] | null;
+        };
+        /** APIResponse[List[PlatformKeyOut]] */
+        APIResponse_List_PlatformKeyOut__: {
+            _links?: components["schemas"]["Links"] | null;
+            /** Data */
+            data: components["schemas"]["PlatformKeyOut"][];
             meta?: components["schemas"]["Meta"] | null;
         };
         /** APIResponse[List[ProcessEventOut]] */
@@ -1469,6 +1643,12 @@ export interface components {
         APIResponse_OrderOut_: {
             _links?: components["schemas"]["Links"] | null;
             data: components["schemas"]["OrderOut"];
+            meta?: components["schemas"]["Meta"] | null;
+        };
+        /** APIResponse[PlatformKeyCreatedOut] */
+        APIResponse_PlatformKeyCreatedOut_: {
+            _links?: components["schemas"]["Links"] | null;
+            data: components["schemas"]["PlatformKeyCreatedOut"];
             meta?: components["schemas"]["Meta"] | null;
         };
         /** APIResponse[PortfolioMetricsOut] */
@@ -1981,6 +2161,80 @@ export interface components {
             /** Timeframes */
             timeframes: components["schemas"]["TFSnapshot"][];
         };
+        /** ConnectionCreateIn */
+        ConnectionCreateIn: {
+            /** Api Key */
+            api_key: string;
+            /** Api Secret */
+            api_secret: string;
+            /** Confirm */
+            confirm?: string | null;
+            /** Exchange Id */
+            exchange_id: string;
+            /** Label */
+            label: string;
+            /**
+             * Scope
+             * @default read
+             * @enum {string}
+             */
+            scope: "read" | "trade";
+            /**
+             * Testnet
+             * @default true
+             */
+            testnet: boolean;
+        };
+        /**
+         * ConnectionOut
+         * @description Exchange connection with the API key MASKED — the secret never returns
+         *     in ANY response, masked or otherwise (aceite 1).
+         */
+        ConnectionOut: {
+            /**
+             * Api Key Masked
+             * @default —
+             */
+            api_key_masked: string;
+            /** Created At */
+            created_at?: string | null;
+            /** Exchange Id */
+            exchange_id: string;
+            /** Id */
+            id: string;
+            /**
+             * Is Active
+             * @default false
+             */
+            is_active: boolean;
+            /** Label */
+            label: string;
+            /** Last Test At */
+            last_test_at?: string | null;
+            /** Last Test Detail */
+            last_test_detail?: Record<string, never> | null;
+            /** Last Test Ok */
+            last_test_ok?: boolean | null;
+            /**
+             * Revoked
+             * @default false
+             */
+            revoked: boolean;
+            /** Scope */
+            scope: string;
+            /**
+             * Testnet
+             * @default true
+             */
+            testnet: boolean;
+        };
+        /** ConnectionRotateIn */
+        ConnectionRotateIn: {
+            /** Api Key */
+            api_key?: string | null;
+            /** Api Secret */
+            api_secret: string;
+        };
         /** EmotionBand */
         EmotionBand: {
             /** Band */
@@ -2446,6 +2700,66 @@ export interface components {
             name: string;
             /** Target */
             target: number | null;
+        };
+        /** PlatformKeyCreateIn */
+        PlatformKeyCreateIn: {
+            /** Label */
+            label: string;
+            /**
+             * Scope
+             * @default visualizador
+             * @enum {string}
+             */
+            scope: "visualizador" | "operador" | "admin";
+        };
+        /**
+         * PlatformKeyCreatedOut
+         * @description Creation response — the ONLY place the full key ever appears.
+         */
+        PlatformKeyCreatedOut: {
+            /** Created At */
+            created_at?: string | null;
+            /** Created By */
+            created_by?: string | null;
+            /** Id */
+            id: string;
+            /** Key */
+            key: string;
+            /** Key Prefix */
+            key_prefix: string;
+            /** Label */
+            label: string;
+            /** Last Used At */
+            last_used_at?: string | null;
+            /**
+             * Revoked
+             * @default false
+             */
+            revoked: boolean;
+            /** Scope */
+            scope: string;
+        };
+        /** PlatformKeyOut */
+        PlatformKeyOut: {
+            /** Created At */
+            created_at?: string | null;
+            /** Created By */
+            created_by?: string | null;
+            /** Id */
+            id: string;
+            /** Key Prefix */
+            key_prefix: string;
+            /** Label */
+            label: string;
+            /** Last Used At */
+            last_used_at?: string | null;
+            /**
+             * Revoked
+             * @default false
+             */
+            revoked: boolean;
+            /** Scope */
+            scope: string;
         };
         /** PortfolioMetricsOut */
         PortfolioMetricsOut: {
@@ -3342,6 +3656,90 @@ export interface operations {
             };
         };
     };
+    list_platform_keys_v1_api_keys_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_List_PlatformKeyOut__"];
+                };
+            };
+        };
+    };
+    create_platform_key_v1_api_keys_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlatformKeyCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_PlatformKeyCreatedOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_platform_key_v1_api_keys__key_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_dict_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_audit_v1_audit_get: {
         parameters: {
             query?: {
@@ -3960,6 +4358,207 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["APIResponse_ConfigOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_connection_v1_exchanges_connect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_ConnectionOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_connections_v1_exchanges_connections_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_List_ConnectionOut__"];
+                };
+            };
+        };
+    };
+    egress_ip_v1_exchanges_egress_ip_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_dict_"];
+                };
+            };
+        };
+    };
+    revoke_connection_v1_exchanges__conn_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conn_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_dict_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_connection_v1_exchanges__conn_id__activate_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conn_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_ConnectionOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rotate_connection_v1_exchanges__conn_id__rotate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conn_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionRotateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_ConnectionOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_connection_route_v1_exchanges__conn_id__test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conn_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_dict_"];
                 };
             };
             /** @description Validation Error */

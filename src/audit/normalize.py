@@ -48,7 +48,10 @@ _USER_MGMT_TYPES: Tuple[str, ...] = (
 )
 
 _AUDITABLE_SQL = (
-    "(event_type LIKE 'auth\\_%' ESCAPE '\\' OR event_type IN ("
+    "(event_type LIKE 'auth\\_%' ESCAPE '\\'"
+    " OR event_type LIKE 'connection\\_%' ESCAPE '\\'"
+    " OR event_type LIKE 'apikey\\_%' ESCAPE '\\'"
+    " OR event_type IN ("
     + ",".join("?" * len(AUDIT_EXACT_TYPES))
     + "))"
 )
@@ -58,6 +61,7 @@ ACTIONS: Tuple[str, ...] = (
     "login", "logout", "security", "user_management",
     "order_approved", "order_rejected", "autonomy_changed", "config_changed",
     "position_closed", "circuit_breaker", "order_executed", "notification",
+    "connection", "platform_key",
 )
 
 # ------------------------------------------------- actor/entity (SQL ↔ Python)
@@ -79,6 +83,7 @@ _ENTITY_SQL = (
     "NULLIF(json_extract(data,'$.symbol'),''),"
     "NULLIF(json_extract(data,'$.execution.symbol'),''),"
     "NULLIF(json_extract(data,'$.execution.pair'),''),"
+    "NULLIF(json_extract(data,'$.label'),''),"
     "'')"
 )
 
@@ -96,7 +101,7 @@ def _entity_of(data: Dict[str, Any]) -> Optional[str]:
     return (
         data.get("email") or order.get("pair") or data.get("scope")
         or data.get("symbol") or execution.get("symbol") or execution.get("pair")
-        or None
+        or data.get("label") or None
     )
 
 
@@ -117,6 +122,10 @@ def action_of(event_type: str, data: Dict[str, Any]) -> str:
         return "circuit_breaker"
     if event_type in ("notification_sent", "notification_failed"):
         return "notification"
+    if event_type.startswith("connection_"):
+        return "connection"
+    if event_type.startswith("apikey_"):
+        return "platform_key"
     if event_type in ("config_changed", "position_closed", "order_executed"):
         return event_type
     return "other"
@@ -186,6 +195,10 @@ def _action_predicate(action: str) -> Tuple[str, List[Any]]:
         return "event_type IN ('circuit_breaker_tripped','circuit_breaker_reset')", []
     if action == "notification":
         return "event_type IN ('notification_sent','notification_failed')", []
+    if action == "connection":
+        return "event_type LIKE 'connection\\_%' ESCAPE '\\'", []
+    if action == "platform_key":
+        return "event_type LIKE 'apikey\\_%' ESCAPE '\\'", []
     if action in ("config_changed", "position_closed", "order_executed"):
         return "event_type = ?", [action]
     raise ValueError(f"unknown audit action: {action}")

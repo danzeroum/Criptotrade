@@ -79,17 +79,11 @@ def get_agent_registry() -> AgentRegistry:
 
 @lru_cache(maxsize=1)
 def get_exchange_client():  # type: ignore[return]
-    from src.core.exchange_client import ExchangeClient  # lazy — ccxt optional in CI
-    exchange = os.getenv("EXCHANGE", "binance")
-    testnet = os.getenv("EXCHANGE_TESTNET", "true").lower() == "true"
-    api_key = os.getenv("EXCHANGE_API_KEY")
-    api_secret = os.getenv("EXCHANGE_API_SECRET")
-    return ExchangeClient(
-        exchange_id=exchange,
-        testnet=testnet,
-        api_key=api_key,
-        api_secret=api_secret,
-    )
+    # A5: DB-managed active connection first, env fallback + live gate — see
+    # src/core/exchange_factory.py.
+    from src.core.exchange_factory import build_exchange_client
+
+    return build_exchange_client()
 
 
 def get_metrics_calculator() -> PortfolioMetricsCalculator:
@@ -124,13 +118,27 @@ def get_dispatcher():
     return Dispatcher(store=get_notification_store(), ledger=get_ledger())
 
 
+@lru_cache(maxsize=1)
+def get_connection_store():
+    from src.exchanges.store import ConnectionStore
+
+    return ConnectionStore()
+
+
+@lru_cache(maxsize=1)
+def get_platform_key_store():
+    from src.exchanges.store import PlatformKeyStore
+
+    return PlatformKeyStore()
+
+
 def reset_singletons() -> None:
     """Clear cached singletons (used by tests to inject fresh state)."""
     for fn in (
         get_ledger, get_alert_store, get_alert_bus, get_hitl_store,
         get_order_store, get_agent_registry, get_exchange_client,
         get_user_store, get_session_store, get_notification_store,
-        get_dispatcher,
+        get_dispatcher, get_connection_store, get_platform_key_store,
     ):
         fn.cache_clear()
 

@@ -20,6 +20,7 @@ const SCREENS = {
   security:      ScreenSecurity,
   account:       ScreenAccount,
   notifications: ScreenNotifications,
+  connections:   ScreenConnections,
 };
 
 // ---- Error boundaries (A9) ----
@@ -276,6 +277,7 @@ function App() {
   // the Forbidden page (coherent with the backend's 403 envelope), not a blank.
   const ROUTE_PERMS = {
     users: 'manage_users', audit: 'view_audit', notifications: 'edit_settings',
+    connections: 'manage_keys',
   };
   // A7: self-service screens need a real authenticated session (kind 'user'),
   // which is a different gate than a role permission.

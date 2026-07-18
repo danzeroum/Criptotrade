@@ -493,5 +493,25 @@
       channel_ids: ['ch1'], enabled: true },
   ];
 
+  // A5: mock exchange connections + platform keys (masked, like /v1/exchanges).
+  CT.connections = [
+    { id: 'cx1', exchange_id: 'binance', label: 'Binance testnet', scope: 'trade',
+      testnet: true, is_active: true, api_key_masked: '•••b3f1',
+      created_at: '2026-07-15T10:00:00+00:00', last_test_at: '2026-07-18T08:30:00+00:00',
+      last_test_ok: true, last_test_detail: { read_ok: true, trade_detected: true },
+      revoked: false },
+    { id: 'cx2', exchange_id: 'binance', label: 'Binance leitura', scope: 'read',
+      testnet: false, is_active: false, api_key_masked: '•••9a2c',
+      created_at: '2026-07-10T09:00:00+00:00', last_test_at: '2026-07-17T22:00:00+00:00',
+      last_test_ok: false,
+      last_test_detail: { read_ok: false, error: 'Invalid API-key, IP, or permissions (chave •••9a2c)' },
+      revoked: false },
+  ];
+  CT.platformKeys = [
+    { id: 'pk1', label: 'grafana-readonly', key_prefix: 'ctk_a1b2c3d4', scope: 'visualizador',
+      created_at: '2026-07-12T14:00:00+00:00', last_used_at: '2026-07-18T09:45:00+00:00',
+      revoked: false },
+  ];
+
   window.CT = CT;
 })();

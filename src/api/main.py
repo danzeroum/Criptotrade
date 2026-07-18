@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import logging
 import os
-import secrets
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -23,6 +22,7 @@ from src.api.routes import (
     alerts,
     audit,
     auth,
+    exchanges,
     backtest,
     config,
     hitl,
@@ -117,8 +117,10 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
         if auth_mode() == "off":
             keys = _valid_keys()
             if keys and not _is_public(request.url.path):
-                provided = request.headers.get("X-API-Key", "")
-                if not any(secrets.compare_digest(provided, k) for k in keys):
+                # A5: a resolved machine principal means the key was valid —
+                # either the legacy env allowlist or a DB platform key. The
+                # legacy 401 for everything else stays bit-for-bit.
+                if request.state.principal.kind != "machine":
                     return JSONResponse(
                         status_code=401,
                         content={
@@ -318,6 +320,9 @@ def create_app() -> FastAPI:
     app.include_router(account.router, prefix=PREFIX, dependencies=guarded)
     # A6: channel secrets — every route requires edit_settings (admin).
     app.include_router(notifications.router, prefix=PREFIX, dependencies=guarded)
+    # A5: exchange credentials & platform keys — every route requires manage_keys.
+    app.include_router(exchanges.router, prefix=PREFIX, dependencies=guarded)
+    app.include_router(exchanges.keys_router, prefix=PREFIX, dependencies=guarded)
     # A3: per-route manage_users enforcement lives inside the module.
     app.include_router(users.router, prefix=PREFIX)
     app.include_router(users.roles_router, prefix=PREFIX)

@@ -23,6 +23,8 @@ const AUDIT_ACTION_LABEL = {
   circuit_breaker:  'Circuit breaker',
   order_executed:   'Ordem executada',
   notification:     'Notificação',
+  connection:       'Conexão de exchange',
+  platform_key:     'Chave da plataforma',
   other:            'Outro',
 };
 
@@ -30,7 +32,8 @@ const AUDIT_ACTION_BADGE = {
   login: 'info', logout: 'neutral', security: 'warn', user_management: 'violet',
   order_approved: 'ok', order_rejected: 'down', autonomy_changed: 'warn',
   config_changed: 'violet', position_closed: 'info', circuit_breaker: 'down',
-  order_executed: 'neutral', notification: 'info', other: 'neutral',
+  order_executed: 'neutral', notification: 'info', connection: 'warn',
+  platform_key: 'violet', other: 'neutral',
 };
 
 // A2: timestamps go through the central locale/timezone-aware helper.

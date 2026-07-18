@@ -56,9 +56,22 @@ def resolve_principal(request: Request) -> Principal:
     """API key first (machines), then session cookie (humans), then AUTH_MODE."""
     provided = request.headers.get("X-API-Key", "")
     if provided:
+        # Legacy env allowlist first (admin-equivalent, actor "api-key") —
+        # bit-compatible with every existing deployment.
         for k in _valid_api_keys():
             if _secrets.compare_digest(provided, k):
                 return MACHINE
+        # A5: DB-managed platform keys — scoped to a role from the A3 matrix
+        # and stamped with last_used_at. The ledger actor becomes the key's
+        # LABEL, so the audit trail says "grafana-readonly", not "api-key".
+        try:
+            from src.api import deps  # lazy: avoid import cycle at module load
+
+            row = deps.get_platform_key_store().resolve(provided)
+        except Exception:  # pragma: no cover - pre-migration db
+            row = None
+        if row is not None:
+            return Principal(kind="machine", actor=row["label"], role=row["scope"])
 
     token = request.cookies.get(SESSION_COOKIE, "")
     if token:
