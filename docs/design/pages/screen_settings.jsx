@@ -102,6 +102,15 @@ function ScreenSettings({ addToast }) {
   if (loading) return <LoadingState label="Carregando configurações…" />;
   if (error)   return <ErrorState message="Erro ao carregar configurações" onRetry={() => { setError(null); setLoading(true); }} />;
 
+  // A3 gating: fieldset[disabled] turns each edit card read-only. Demo shows
+  // the discovery tooltip (approved correction); a Visualizador gets the lock hint.
+  const canEdit = CT_AUTH.can('edit_settings');
+  const canRisk = CT_AUTH.can('change_risk');
+  const demoView = CT_AUTH.kind() === 'demo';
+  const gateTip = (allowed) => allowed ? undefined : (demoView
+    ? 'Somente leitura no ambiente de demonstração — no produto real, este painel edita a configuração'
+    : 'Seu perfil não permite editar esta configuração');
+
   return (
     <div>
       <div className="page-head">
@@ -119,6 +128,7 @@ function ScreenSettings({ addToast }) {
         {sysConfig && (
           <div className="card">
             <SectionHead title="Sistema" icon="settings" />
+            <fieldset disabled={!canEdit} data-tip={gateTip(canEdit)} style={{ border: "none", padding: 0, margin: 0, opacity: canEdit ? 1 : .6 }}>
             <div className="card-pad">
               <div style={{ marginBottom: 16 }}>
                 <div className="stat-row">
@@ -158,6 +168,7 @@ function ScreenSettings({ addToast }) {
                 />
               </div>
             </div>
+            </fieldset>
           </div>
         )}
 
@@ -165,6 +176,7 @@ function ScreenSettings({ addToast }) {
         {riskConfig && (
           <div className="card">
             <SectionHead title="Gestão de Risco" icon="shield" />
+            <fieldset disabled={!canRisk} data-tip={gateTip(canRisk)} style={{ border: "none", padding: 0, margin: 0, opacity: canRisk ? 1 : .6 }}>
             <div className="card-pad">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <SliderField
@@ -218,6 +230,7 @@ function ScreenSettings({ addToast }) {
                 </div>
               </div>
             </div>
+            </fieldset>
           </div>
         )}
 
@@ -225,6 +238,7 @@ function ScreenSettings({ addToast }) {
         {alertConfig && (
           <div className="card">
             <SectionHead title="Guardrails Comportamentais" icon="alert" />
+            <fieldset disabled={!canEdit} data-tip={gateTip(canEdit)} style={{ border: "none", padding: 0, margin: 0, opacity: canEdit ? 1 : .6 }}>
             <div className="card-pad">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <SliderField
@@ -257,6 +271,7 @@ function ScreenSettings({ addToast }) {
                 />
               </div>
             </div>
+            </fieldset>
           </div>
         )}
 

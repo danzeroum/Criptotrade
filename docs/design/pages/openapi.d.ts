@@ -192,6 +192,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/invite/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Invite
+         * @description Public: turns a pending invite into an active account (A3).
+         */
+        post: operations["accept_invite_v1_auth_invite_accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/login": {
         parameters: {
             query?: never;
@@ -758,6 +778,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Roles */
+        get: operations["get_roles_v1_roles_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/trades/closed": {
         parameters: {
             query?: never;
@@ -773,6 +810,125 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Users */
+        get: operations["list_users_v1_users_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/users/invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Invite User */
+        post: operations["invite_user_v1_users_invite_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/users/invites/{invite_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Invite */
+        delete: operations["revoke_invite_v1_users_invites__invite_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/users/invites/{invite_id}/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resend Invite */
+        post: operations["resend_invite_v1_users_invites__invite_id__resend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete User */
+        delete: operations["delete_user_v1_users__user_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/users/{user_id}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Role */
+        patch: operations["patch_role_v1_users__user_id__role_patch"];
+        trace?: never;
+    };
+    "/v1/users/{user_id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Status */
+        patch: operations["patch_status_v1_users__user_id__status_patch"];
         trace?: never;
     };
 }
@@ -834,6 +990,12 @@ export interface components {
         APIResponse_IndicatorsOut_: {
             _links?: components["schemas"]["Links"] | null;
             data: components["schemas"]["IndicatorsOut"];
+            meta?: components["schemas"]["Meta"] | null;
+        };
+        /** APIResponse[InviteOut] */
+        APIResponse_InviteOut_: {
+            _links?: components["schemas"]["Links"] | null;
+            data: components["schemas"]["InviteOut"];
             meta?: components["schemas"]["Meta"] | null;
         };
         /** APIResponse[JournalEntryOut] */
@@ -923,6 +1085,20 @@ export interface components {
             data: components["schemas"]["ProtectionOut"][];
             meta?: components["schemas"]["Meta"] | null;
         };
+        /** APIResponse[List[RoleOut]] */
+        APIResponse_List_RoleOut__: {
+            _links?: components["schemas"]["Links"] | null;
+            /** Data */
+            data: components["schemas"]["RoleOut"][];
+            meta?: components["schemas"]["Meta"] | null;
+        };
+        /** APIResponse[List[UserOut]] */
+        APIResponse_List_UserOut__: {
+            _links?: components["schemas"]["Links"] | null;
+            /** Data */
+            data: components["schemas"]["UserOut"][];
+            meta?: components["schemas"]["Meta"] | null;
+        };
         /** APIResponse[List[str]] */
         APIResponse_List_str__: {
             _links?: components["schemas"]["Links"] | null;
@@ -976,6 +1152,12 @@ export interface components {
         APIResponse_TickerOut_: {
             _links?: components["schemas"]["Links"] | null;
             data: components["schemas"]["TickerOut"];
+            meta?: components["schemas"]["Meta"] | null;
+        };
+        /** APIResponse[UserOut] */
+        APIResponse_UserOut_: {
+            _links?: components["schemas"]["Links"] | null;
+            data: components["schemas"]["UserOut"];
             meta?: components["schemas"]["Meta"] | null;
         };
         /** APIResponse[VolumeProfileOut] */
@@ -1399,6 +1581,36 @@ export interface components {
             stoch: components["schemas"]["StochOut"] | null;
             /** Volume Ratio */
             volume_ratio: number | null;
+        };
+        /** InviteAcceptIn */
+        InviteAcceptIn: {
+            /** Name */
+            name: string;
+            /** Password */
+            password: string;
+            /** Token */
+            token: string;
+        };
+        /** InviteCreate */
+        InviteCreate: {
+            /** Email */
+            email: string;
+            /**
+             * Role
+             * @default visualizador
+             */
+            role: string;
+        };
+        /** InviteOut */
+        InviteOut: {
+            /** Email */
+            email: string;
+            /** Expires At */
+            expires_at: string;
+            /** Id */
+            id: string;
+            /** Role */
+            role: string;
         };
         /** JournalEntryCreate */
         JournalEntryCreate: {
@@ -1850,6 +2062,15 @@ export interface components {
             /** Take Profit Default Pct */
             take_profit_default_pct?: number | null;
         };
+        /** RoleOut */
+        RoleOut: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Permissions */
+            permissions: string[];
+        };
         /** SRLevelOut */
         SRLevelOut: {
             /** Price */
@@ -1954,6 +2175,40 @@ export interface components {
              * @default false
              */
             remember: boolean;
+        };
+        /** UserOut */
+        UserOut: {
+            /** Created At */
+            created_at?: string | null;
+            /** Email */
+            email: string;
+            /** Id */
+            id: string;
+            /** Invite Id */
+            invite_id?: string | null;
+            /** Last Login At */
+            last_login_at?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Role */
+            role: string;
+            /** Status */
+            status: string;
+            /**
+             * Totp Enabled
+             * @default false
+             */
+            totp_enabled: boolean;
+        };
+        /** UserRolePatch */
+        UserRolePatch: {
+            /** Role */
+            role: string;
+        };
+        /** UserStatusPatch */
+        UserStatusPatch: {
+            /** Status */
+            status: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -2357,6 +2612,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["TwoFactorVerifyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_dict_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_invite_v1_auth_invite_accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteAcceptIn"];
             };
         };
         responses: {
@@ -3497,6 +3785,26 @@ export interface operations {
             };
         };
     };
+    get_roles_v1_roles_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_List_RoleOut__"];
+                };
+            };
+        };
+    };
     list_closed_trades_v1_trades_closed_get: {
         parameters: {
             query?: {
@@ -3518,6 +3826,222 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["APIResponse_List_ClosedTradeOut__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_users_v1_users_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_List_UserOut__"];
+                };
+            };
+        };
+    };
+    invite_user_v1_users_invite_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_InviteOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_invite_v1_users_invites__invite_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invite_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_dict_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resend_invite_v1_users_invites__invite_id__resend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invite_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_dict_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_user_v1_users__user_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_dict_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_role_v1_users__user_id__role_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserRolePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_UserOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_status_v1_users__user_id__status_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserStatusPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_UserOut_"];
                 };
             };
             /** @description Validation Error */

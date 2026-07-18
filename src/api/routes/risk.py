@@ -11,6 +11,7 @@ from typing import Any, Dict, List
 import yaml
 from fastapi import APIRouter, Body, Depends, HTTPException
 
+from src.api.authn import require_perm
 from src.api.deps import get_ledger, get_metrics_calculator
 from src.api.schemas import (
     APIResponse,
@@ -247,6 +248,7 @@ async def get_risk_config() -> APIResponse[RiskConfigOut]:
     "/config",
     response_model=APIResponse[RiskConfigOut],
     summary="Atualiza parâmetros de risco (grava em risk_params.yaml)",
+    dependencies=[Depends(require_perm("change_risk"))],
 )
 async def patch_risk_config(
     patch: RiskConfigPatch = Body(...),

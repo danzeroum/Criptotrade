@@ -16,7 +16,15 @@ const NAV = [
   { id: 'settings', icon: 'settings', label: 'Config' },
 ];
 
+// A3: admin group at the sidebar footer, filtered by permission (nav map §02
+// of the admin handoff). A Visualizador/demo never sees these items — and the
+// route guard in app.jsx also blocks direct hash access.
+const ADMIN_NAV = [
+  { id: 'users', icon: 'user', label: 'Usuários & Permissões', perm: 'manage_users' },
+];
+
 function Sidebar({ active, onNavigate, pendingCount }) {
+  const adminItems = ADMIN_NAV.filter(item => CT_AUTH.can(item.perm));
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -40,6 +48,21 @@ function Sidebar({ active, onNavigate, pendingCount }) {
             )}
           </button>
         ))}
+        {adminItems.length > 0 && (
+          <>
+            <div className="nav-label">Administração</div>
+            {adminItems.map(item => (
+              <button
+                key={item.id}
+                className={`nav-item${active === item.id ? ' active' : ''}`}
+                onClick={() => onNavigate(item.id)}
+              >
+                <Icon name={item.icon} size={17} />
+                {item.label}
+              </button>
+            ))}
+          </>
+        )}
       </nav>
     </aside>
   );

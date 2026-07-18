@@ -10,6 +10,7 @@ from typing import Any, Dict
 from fastapi import APIRouter, Body, Depends, HTTPException
 
 from src.agents.registry import AgentRegistry
+from src.api.authn import require_perm
 from src.api.deps import get_agent_registry
 from src.api.schemas import (
     APIResponse,
@@ -67,6 +68,7 @@ async def get_config() -> APIResponse[ConfigOut]:
     "/config",
     response_model=APIResponse[ConfigOut],
     summary="Atualiza configurações gerais (in-memory para MVP)",
+    dependencies=[Depends(require_perm("edit_settings"))],
 )
 async def patch_config(
     patch: ConfigPatch = Body(...),
@@ -83,6 +85,7 @@ async def patch_config(
     "/agents/{agent_id}/config",
     response_model=APIResponse[AgentConfigOut],
     summary="Atualiza parâmetros de um agente",
+    dependencies=[Depends(require_perm("edit_settings"))],
 )
 async def patch_agent_config(
     agent_id: str,
@@ -119,6 +122,7 @@ _behavioral_thresholds: Dict[str, float] = {
     "/alerts/config",
     response_model=APIResponse[Dict[str, float]],
     summary="Atualiza thresholds do behavioral guard",
+    dependencies=[Depends(require_perm("edit_settings"))],
 )
 async def patch_alerts_config(
     patch: AlertsConfigPatch = Body(...),

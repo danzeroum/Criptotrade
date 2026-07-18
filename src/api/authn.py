@@ -93,9 +93,12 @@ async def require_principal(request: Request) -> Principal:
             "docs": "/v1/docs",
         })
     # CSRF guard for cookie-authenticated state changes (see module docstring).
+    # Only requests WITH a body must be JSON: HTML forms can't produce JSON (or
+    # DELETE at all), and SameSite=Lax is the primary cross-site defense.
     if (
         principal.kind == "user"
         and request.method in {"POST", "PATCH", "PUT", "DELETE"}
+        and request.headers.get("content-length", "0") not in ("", "0")
         and not (request.headers.get("content-type", "").startswith("application/json"))
     ):
         raise HTTPException(status_code=403, detail={
@@ -103,6 +106,33 @@ async def require_principal(request: Request) -> Principal:
             "message": "Requisições autenticadas por sessão devem usar Content-Type application/json.",
         })
     return principal
+
+
+def require_perm(perm: str):
+    """Dependency factory: 403 unless the principal holds ``perm`` (A3).
+
+    The 403 envelope carries ``required_permission`` — the console's Forbidden
+    screen (A9) renders exactly this shape. Legacy compatibility: under
+    ``AUTH_MODE=off`` an anonymous principal passes (pre-RBAC deployments and
+    the existing test suite keep working; the API-key middleware still guards
+    those setups).
+    """
+
+    async def dependency(request: Request) -> Principal:
+        from src.auth.rbac import has_perm  # lazy: avoid import cycle
+
+        principal = await require_principal(request)
+        if principal.kind == "anonymous" and auth_mode() == "off":
+            return principal
+        if not has_perm(principal, perm):
+            raise HTTPException(status_code=403, detail={
+                "error": "forbidden",
+                "message": f"Seu perfil ({principal.role}) não permite esta ação.",
+                "required_permission": perm,
+            })
+        return principal
+
+    return dependency
 
 
 # ------------------------------------------------------------------ cookies

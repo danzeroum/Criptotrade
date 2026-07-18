@@ -128,6 +128,103 @@ class UserStore:
                 (json.dumps(backup_hashes), user_id),
             )
 
+    # ---------------------------------------------------------------- admin (A3)
+    def list_users(self) -> list:
+        with connection(self._path()) as conn:
+            rows = conn.execute(
+                "SELECT id, email, name, role, status, totp_enabled, created_at,"
+                " last_login_at FROM users ORDER BY created_at"
+            ).fetchall()
+        return [_row(r) for r in rows]
+
+    def set_role(self, user_id: str, role: str) -> None:
+        with connection(self._path()) as conn:
+            conn.execute("UPDATE users SET role = ? WHERE id = ?", (role, user_id))
+
+    def set_status(self, user_id: str, status: str) -> None:
+        with connection(self._path()) as conn:
+            conn.execute("UPDATE users SET status = ? WHERE id = ?", (status, user_id))
+
+    def delete(self, user_id: str) -> None:
+        with connection(self._path()) as conn:
+            conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+            conn.execute("DELETE FROM password_resets WHERE user_id = ?", (user_id,))
+            conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+
+    def count_active_admins(self) -> int:
+        with connection(self._path()) as conn:
+            return int(conn.execute(
+                "SELECT COUNT(*) FROM users WHERE role = 'admin' AND status = 'active'"
+            ).fetchone()[0])
+
+    # ---------------------------------------------------------------- invites
+    def create_invite(self, email: str, role: str, invited_by: str,
+                      ttl_days: int = 7) -> str:
+        token = security.new_token()
+        with connection(self._path()) as conn:
+            conn.execute(
+                "INSERT INTO invites (id, email, role, token_hash, invited_by,"
+                " created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (str(uuid.uuid4()), email.strip().lower(), role,
+                 security.hash_token(token), invited_by, _iso(_now()),
+                 _iso(_now() + timedelta(days=ttl_days))),
+            )
+        return token
+
+    def list_invites(self, pending_only: bool = True) -> list:
+        with connection(self._path()) as conn:
+            rows = conn.execute("SELECT * FROM invites ORDER BY created_at").fetchall()
+        out = [_row(r) for r in rows]
+        if pending_only:
+            now = _now()
+            out = [i for i in out
+                   if i["accepted_at"] is None and i["revoked_at"] is None
+                   and datetime.fromisoformat(i["expires_at"]) >= now]
+        return out
+
+    def get_invite(self, invite_id: str) -> Optional[Dict[str, Any]]:
+        with connection(self._path()) as conn:
+            r = conn.execute("SELECT * FROM invites WHERE id = ?", (invite_id,)).fetchone()
+        return _row(r) if r else None
+
+    def refresh_invite(self, invite_id: str, ttl_days: int = 7) -> Optional[str]:
+        """Resend: rotate the token and extend the expiry. None if not pending."""
+        invite = self.get_invite(invite_id)
+        if invite is None or invite["accepted_at"] or invite["revoked_at"]:
+            return None
+        token = security.new_token()
+        with connection(self._path()) as conn:
+            conn.execute(
+                "UPDATE invites SET token_hash = ?, expires_at = ? WHERE id = ?",
+                (security.hash_token(token), _iso(_now() + timedelta(days=ttl_days)),
+                 invite_id),
+            )
+        return token
+
+    def revoke_invite(self, invite_id: str) -> None:
+        with connection(self._path()) as conn:
+            conn.execute(
+                "UPDATE invites SET revoked_at = ? WHERE id = ? AND accepted_at IS NULL",
+                (_iso(_now()), invite_id),
+            )
+
+    def accept_invite(self, token: str, name: str, password: str) -> Optional[Dict[str, Any]]:
+        """Single-use: creates the active user with the invited role, or None."""
+        th = security.hash_token(token)
+        with connection(self._path()) as conn:
+            r = conn.execute("SELECT * FROM invites WHERE token_hash = ?", (th,)).fetchone()
+            if (r is None or r["accepted_at"] is not None or r["revoked_at"] is not None
+                    or datetime.fromisoformat(r["expires_at"]) < _now()):
+                return None
+            conn.execute(
+                "UPDATE invites SET accepted_at = ? WHERE id = ?", (_iso(_now()), r["id"])
+            )
+            invite = _row(r)
+        if self.get_by_email(invite["email"]) is not None:
+            return None  # account already exists — invite cannot overwrite it
+        return self.create(invite["email"], password, name=name,
+                           role=invite["role"], status="active")
+
     # ---------------------------------------------------------- password reset
     def create_reset(self, user_id: str, ttl_minutes: int = 30) -> str:
         token = security.new_token()

@@ -31,6 +31,7 @@ from src.api.routes import (
     process,
     risk,
     trades,
+    users,
 )
 from src.api.authn import auth_mode, require_principal, resolve_principal
 from src.api.observability import PrometheusMiddleware, metrics_response
@@ -240,7 +241,7 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,
-        allow_methods=["GET", "POST", "PATCH"],
+        allow_methods=["GET", "POST", "PATCH", "DELETE"],
         allow_headers=["X-API-Key", "Content-Type"],
         # Cookies only cross origin when the allowlist is explicit ('*' + creds
         # is invalid per the CORS spec; production is same-origin via /api).
@@ -271,6 +272,9 @@ def create_app() -> FastAPI:
     app.include_router(journal.router, prefix=PREFIX, dependencies=guarded)
     app.include_router(config.router, prefix=PREFIX, dependencies=guarded)
     app.include_router(trades.router, prefix=PREFIX, dependencies=guarded)
+    # A3: per-route manage_users enforcement lives inside the module.
+    app.include_router(users.router, prefix=PREFIX)
+    app.include_router(users.roles_router, prefix=PREFIX)
 
     @app.get("/health", tags=["infra"])
     async def health() -> dict:

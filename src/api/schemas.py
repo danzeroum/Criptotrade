@@ -575,6 +575,9 @@ __all__ = [
     # auth (A1)
     "LoginIn", "TwoFactorVerifyIn", "ForgotPasswordIn", "ResetPasswordIn",
     "TwoFactorEnableIn", "TwoFactorDisableIn", "AuthUserOut", "MeOut",
+    # rbac (A3)
+    "UserOut", "InviteCreate", "InviteOut", "InviteAcceptIn",
+    "UserRolePatch", "UserStatusPatch", "RoleOut",
 ]
 
 
@@ -623,3 +626,48 @@ class MeOut(BaseModel):
     authenticated: bool
     user: Optional[AuthUserOut] = None
     permissions: List[str] = []
+
+
+# ---------------------------------------------------------------- rbac (A3)
+class UserOut(BaseModel):
+    id: str
+    email: str
+    name: Optional[str] = None
+    role: str
+    status: str                     # active | pending | suspended
+    totp_enabled: bool = False
+    created_at: Optional[str] = None
+    last_login_at: Optional[str] = None
+    invite_id: Optional[str] = None  # set for pending invites merged into the list
+
+
+class InviteCreate(BaseModel):
+    email: str
+    role: str = "visualizador"
+
+
+class InviteOut(BaseModel):
+    id: str
+    email: str
+    role: str
+    expires_at: str
+
+
+class InviteAcceptIn(BaseModel):
+    token: str
+    name: str
+    password: str = Field(min_length=8)
+
+
+class UserRolePatch(BaseModel):
+    role: str
+
+
+class UserStatusPatch(BaseModel):
+    status: str                     # active | suspended
+
+
+class RoleOut(BaseModel):
+    id: str
+    label: str
+    permissions: List[str]
