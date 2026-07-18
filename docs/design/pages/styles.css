@@ -403,3 +403,22 @@ input, select, textarea { font-family: inherit; }
   .nav-item { white-space: nowrap; flex-shrink: 0; }
   .nav-badge { margin-left: 6px; }
 }
+
+/* ---- A1 Authentication ---- */
+.auth-wrap { min-height: 100vh; display: grid; place-items: center; background: var(--bg); padding: 24px; }
+.auth-card { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh-sm); padding: 26px; }
+.auth-field { display: block; margin-bottom: 12px; }
+.auth-field .label-xs { display: block; margin-bottom: 5px; }
+.auth-input { width: 100%; padding: 9px 11px; font-size: 13.5px; font-family: var(--sans); color: var(--ink); background: var(--surface-2); border: 1px solid var(--border-2); border-radius: var(--r); outline: none; }
+.auth-input:focus { border-color: var(--ink-3); }
+.auth-eye { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--ink-3); padding: 4px; }
+.auth-error { background: var(--down-bg); color: var(--down); font-size: 12.5px; padding: 8px 11px; border-radius: var(--r); margin-bottom: 12px; }
+.auth-info { background: var(--info-bg, #E7EEFD); color: var(--info, #2563EB); font-size: 12.5px; padding: 8px 11px; border-radius: var(--r); margin-bottom: 12px; }
+.auth-link { color: var(--ink-2); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.auth-link:hover { color: var(--ink); }
+.lock-overlay { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; background: rgba(20, 24, 28, .55); backdrop-filter: blur(3px); }
+.demo-banner { display: flex; align-items: center; gap: 8px; padding: 7px 18px; font-size: 12.5px; color: var(--warn); background: var(--warn-bg); border-bottom: 1px solid var(--warn-line, var(--border)); }
+.user-chip { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border-2); background: var(--accent); color: #fff; font-family: var(--mono); font-size: 11px; font-weight: 600; cursor: pointer; display: grid; place-items: center; }
+.user-menu { position: absolute; right: 0; top: calc(100% + 8px); min-width: 220px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh-pop); z-index: 60; overflow: hidden; }
+.user-menu-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 9px 12px; background: none; border: none; font-size: 13px; color: var(--ink-2); cursor: pointer; text-align: left; }
+.user-menu-item:hover { background: var(--surface-2); color: var(--ink); }

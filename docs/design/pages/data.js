@@ -404,5 +404,10 @@
     revengeSize: 50, euphoriaSize: 20, overconfidenceGap: 15, riskOfRuin: 5,
   };
 
+  // A1: mock identity for e2e/demo (CT_AUTH mock branch auto-authenticates as this).
+  CT.currentUser = {
+    id: 'mock', name: 'Operador Demo', email: 'demo@criptotrade.dev', role: 'admin',
+  };
+
   window.CT = CT;
 })();

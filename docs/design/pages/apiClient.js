@@ -26,15 +26,32 @@ const CT_API = (() => {
   const base = insecureOnHttps ? '' : configuredBase;
   const getKey = () => window.API_KEY ?? '';
 
-  async function req(path, opts = {}) {
+  async function rawReq(path, opts = {}) {
     const method = (opts.method ?? 'GET').toUpperCase();
     const headers = {};
     if (method !== 'GET' && method !== 'HEAD') headers['Content-Type'] = 'application/json';
     const k = getKey();
     if (k) headers['X-API-Key'] = k;
-    const r = await fetch(base + path, { headers, ...opts });
+    // credentials: session cookies (A1) ride along on the same-origin /api base.
+    return fetch(base + path, { headers, credentials: 'include', ...opts });
+  }
+
+  async function req(path, opts = {}) {
+    let r = await rawReq(path, opts);
+    // Expired session: try one silent refresh, then retry the original call.
+    // On a dead refresh, tell the app (lock screen) — never hard-redirect.
+    if (r.status === 401 && !path.startsWith('/v1/auth/')) {
+      const refreshed = await rawReq('/v1/auth/refresh', { method: 'POST' })
+        .then(x => x.ok).catch(() => false);
+      if (refreshed) {
+        r = await rawReq(path, opts);
+      } else if (window.CT_AUTH?.state()?.authenticated) {
+        window.dispatchEvent(new CustomEvent('ct:auth-expired'));
+      }
+    }
     if (!r.ok) {
       const e = await r.json().catch(() => ({ error: 'network_error', message: r.statusText }));
+      e.status = r.status;  // screens branch 403 (forbidden) vs generic errors
       throw e;
     }
     const j = await r.json();
@@ -103,6 +120,17 @@ const CT_API = (() => {
     patchConfig:      (body)     => req('/v1/config', { method: 'PATCH', body: JSON.stringify(body) }),
     patchAgentConfig: (id, body) => req(`/v1/agents/${id}/config`, { method: 'PATCH', body: JSON.stringify(body) }),
     patchAlertsConfig:(body)     => req('/v1/alerts/config', { method: 'PATCH', body: JSON.stringify(body) }),
+
+    // ---- A1: authentication ----
+    getMe:            ()         => req('/v1/auth/me'),
+    login:            (body)     => req('/v1/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+    verify2FA:        (body)     => req('/v1/auth/2fa/verify', { method: 'POST', body: JSON.stringify(body) }),
+    logout:           ()         => req('/v1/auth/logout', { method: 'POST', body: '{}' }),
+    forgotPassword:   (email)    => req('/v1/auth/password/forgot', { method: 'POST', body: JSON.stringify({ email }) }),
+    resetPassword:    (body)     => req('/v1/auth/password/reset', { method: 'POST', body: JSON.stringify(body) }),
+    setup2FA:         ()         => req('/v1/auth/2fa/setup', { method: 'POST', body: '{}' }),
+    enable2FA:        (code)     => req('/v1/auth/2fa/enable', { method: 'POST', body: JSON.stringify({ code }) }),
+    disable2FA:       (password) => req('/v1/auth/2fa/disable', { method: 'POST', body: JSON.stringify({ password }) }),
   };
 })();
 
@@ -135,3 +163,72 @@ const CT_PAIR = (() => {
   };
 })();
 window.CT_PAIR = CT_PAIR;
+
+/* ============================================================
+   Global auth/session store (A1). Mirrors CT_PAIR's pattern.
+   kind: 'off' (auth disabled — no auth UI), 'user' (real session),
+   'demo' (public demo, read-only), 'anonymous' (must log in).
+   Mock branch (e2e): window.MOCK_AUTH='none' boots unauthenticated;
+   anything else auto-authenticates as CT.currentUser (role via MOCK_ROLE).
+   ============================================================ */
+const CT_AUTH = (() => {
+  let current = {
+    loaded: false, mode: 'off', kind: 'off',
+    authenticated: false, user: null, permissions: [],
+  };
+  const emit = () => window.dispatchEvent(new CustomEvent('ct:auth', { detail: current }));
+
+  const fromMe = (me) => {
+    const authenticated = !!(me.authenticated && me.user);
+    let kind = 'anonymous';
+    if (me.mode === 'off') kind = 'off';
+    else if (authenticated) kind = 'user';
+    else if (me.mode === 'demo') kind = 'demo';
+    return {
+      loaded: true, mode: me.mode, kind,
+      authenticated, user: me.user ?? null,
+      permissions: me.permissions ?? [],
+    };
+  };
+
+  return {
+    state: () => current,
+    kind: () => current.kind,
+    /** Coarse gate until the RBAC matrix lands (4b): demo is read-only. */
+    can: (_perm) => current.kind !== 'demo' && current.kind !== 'anonymous',
+    load: async () => {
+      if (window.USE_MOCK_DATA) {
+        const none = window.MOCK_AUTH === 'none';
+        current = none
+          ? { loaded: true, mode: 'required', kind: 'anonymous',
+              authenticated: false, user: null, permissions: [] }
+          : { loaded: true, mode: 'mock', kind: 'user', authenticated: true,
+              user: { ...(window.CT?.currentUser ?? { name: 'Demo', email: 'demo@dev' }),
+                      role: window.MOCK_ROLE ?? window.CT?.currentUser?.role ?? 'admin' },
+              permissions: [] };
+      } else {
+        try {
+          current = fromMe(await CT_API.getMe());
+        } catch (_) {
+          current = { loaded: true, mode: 'unreachable', kind: 'off',
+                      authenticated: false, user: null, permissions: [] };
+        }
+      }
+      emit();
+      return current;
+    },
+    apply: (me) => { current = fromMe(me); emit(); return current; },
+    logout: async () => {
+      try { await CT_API.logout(); } catch (_) { /* cookie may be gone already */ }
+      current = { ...current, kind: current.mode === 'demo' ? 'demo' : 'anonymous',
+                  authenticated: false, user: null, permissions: [] };
+      emit();
+    },
+    subscribe: (fn) => {
+      const handler = (e) => fn(e.detail);
+      window.addEventListener('ct:auth', handler);
+      return () => window.removeEventListener('ct:auth', handler);
+    },
+  };
+})();
+window.CT_AUTH = CT_AUTH;
