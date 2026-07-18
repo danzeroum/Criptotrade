@@ -72,12 +72,17 @@ class DomainMetricsCollector:
     def collect(self):
         try:
             from src.core.metrics import PortfolioMetricsCalculator
+            from src.orchestration.position_store import PositionStore
 
-            data = PortfolioMetricsCalculator(self._ledger_factory()).compute(period="all").to_dict()
+            ledger = self._ledger_factory()
+            data = PortfolioMetricsCalculator(ledger).compute(period="all").to_dict()
+            # Current open positions come from the operational store (the persisted
+            # `open_positions` projection), not the historical fill replay in `data`.
+            open_positions = PositionStore(lambda: ledger.db_path).count()
         except Exception:  # pragma: no cover - scrape must never raise
             return
         gauges = (
-            ("criptotrade_open_positions", "Open paper positions", data.get("open_positions")),
+            ("criptotrade_open_positions", "Open paper positions", open_positions),
             ("criptotrade_total_trades", "Closed trades (all time)", data.get("total_trades")),
             ("criptotrade_portfolio_value_usdt", "Portfolio value (USDT)", data.get("portfolio_value_usdt")),
             ("criptotrade_realized_pnl_usdt", "Realised P&L all time (USDT)", data.get("pnl_period_usdt")),
