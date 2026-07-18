@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Handoff Dev — Novas Telas & Integrações · Criptotrade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#F4F6F8;--surface:#fff;--surface-2:#F6F8FA;--surface-3:#EEF1F4;--border:#E4E8EC;--border-2:#D5DAE0;
+    --ink:#14181C;--ink-2:#5B636C;--ink-3:#8A929B;--ink-4:#AEB5BD;
+    --ready:#0E9D6E;--ready-bg:#E7F6EF;--ready-line:#B7E6D2;
+    --partial:#C77F08;--partial-bg:#FBF1DD;--partial-line:#EEDBAC;
+    --new:#2563EB;--new-bg:#E7EEFD;--new-line:#C9D8FA;
+    --ui:#7C5CFC;--ui-bg:#EDE9FE;--ui-line:#DAD2FC;
+    --sans:'IBM Plex Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+    --sh-sm:0 1px 2px rgba(20,24,28,.05);--sh:0 1px 2px rgba(20,24,28,.04),0 2px 6px rgba(20,24,28,.05);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+  code{font-family:var(--mono);font-size:.86em;background:var(--surface-3);padding:1.5px 6px;border-radius:5px;color:var(--ink);white-space:nowrap;}
+  pre{font-family:var(--mono);font-size:12px;background:#14181C;color:#E6E9EC;padding:14px 16px;border-radius:9px;overflow-x:auto;line-height:1.6;margin:0;}
+  pre .c{color:#7E8893;}
+  pre .k{color:#9BC4FF;}
+  pre .s{color:#A6E2C0;}
+  a{color:var(--new);text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-.01em;}
+
+  .wrap{display:grid;grid-template-columns:248px 1fr;max-width:1320px;margin:0 auto;}
+  .side{position:sticky;top:0;height:100vh;overflow-y:auto;padding:26px 16px;border-right:1px solid var(--border);background:var(--surface);}
+  .side .mk{width:30px;height:30px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-family:var(--mono);font-weight:600;}
+  .side-brand{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .side-brand b{font-size:15px;}
+  .side-sub{font-size:11px;color:var(--ink-3);font-family:var(--mono);margin-bottom:22px;}
+  .side-lbl{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-4);padding:14px 8px 5px;}
+  .side a{display:block;padding:6px 9px;border-radius:6px;color:var(--ink-2);font-size:13px;font-weight:500;}
+  .side a:hover{background:var(--surface-2);color:var(--ink);text-decoration:none;}
+
+  .main{padding:40px 44px 100px;min-width:0;}
+  .doc-title{font-size:30px;font-weight:600;letter-spacing:-.025em;}
+  .doc-sub{color:var(--ink-2);font-size:15px;margin-top:8px;max-width:660px;}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;}
+  .meta{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-family:var(--mono);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:5px 10px;color:var(--ink-2);}
+
+  section{margin-top:46px;scroll-margin-top:20px;}
+  .sec-head{display:flex;align-items:baseline;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:6px;}
+  .sec-num{font-family:var(--mono);font-size:13px;color:var(--ink-3);font-weight:600;}
+  .sec-title{font-size:21px;font-weight:600;letter-spacing:-.02em;}
+  .sec-desc{color:var(--ink-2);font-size:14px;margin:14px 0 18px;max-width:780px;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--sh-sm);overflow:hidden;margin-bottom:18px;}
+  .card-h{display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid var(--border);}
+  .card-h b{font-size:14px;}
+  .card-b{padding:18px;}
+
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid transparent;white-space:nowrap;}
+  .pill .d{width:6px;height:6px;border-radius:99px;background:currentColor;}
+  .p-ready{background:var(--ready-bg);color:var(--ready);border-color:var(--ready-line);}
+  .p-partial{background:var(--partial-bg);color:var(--partial);border-color:var(--partial-line);}
+  .p-new{background:var(--new-bg);color:var(--new);border-color:var(--new-line);}
+  .p-ui{background:var(--ui-bg);color:var(--ui);border-color:var(--ui-line);}
+
+  .method{font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 6px;border-radius:5px;color:#fff;}
+  .m-get{background:#0E9D6E;}.m-post{background:#2563EB;}.m-patch{background:#C77F08;}.m-sse{background:#7C5CFC;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);padding:9px 14px;border-bottom:1px solid var(--border);background:var(--surface-2);}
+  td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  td.el{font-weight:500;width:26%;}
+  td.fld code{white-space:normal;}
+  .src{font-size:12px;color:var(--ink-2);}
+  .src .mono{font-size:11.5px;}
+
+  .ep{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--border);}
+  .ep:last-child{border-bottom:none;}
+  .ep .path{font-family:var(--mono);font-size:12.5px;font-weight:500;}
+  .ep .desc{font-size:12px;color:var(--ink-3);margin-left:auto;text-align:right;}
+
+  .legend{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+  .legend .it{border:1px solid var(--border);border-radius:9px;padding:13px 15px;background:var(--surface);}
+  .legend .it .t{font-weight:600;font-size:13px;margin:8px 0 3px;}
+  .legend .it .d{font-size:12px;color:var(--ink-2);}
+
+  .note{display:flex;gap:9px;background:var(--partial-bg);border:1px solid var(--partial-line);border-radius:9px;padding:12px 14px;font-size:12.5px;color:#7a5304;margin:14px 0;}
+  .note.blue{background:var(--new-bg);border-color:var(--new-line);color:#1d4ed8;}
+  .note.violet{background:var(--ui-bg);border-color:var(--ui-line);color:#5b3fd0;}
+  .note b{font-weight:600;}
+
+  .kv{display:grid;grid-template-columns:170px 1fr;gap:6px 16px;font-size:13px;}
+  .kv .k{color:var(--ink-3);font-size:12px;}
+  .kv .v{font-family:var(--mono);font-size:12.5px;}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  ul.clean{margin:6px 0;padding-left:18px;}
+  ul.clean li{margin:6px 0;font-size:13px;color:var(--ink-2);}
+  ul.clean li b{color:var(--ink);}
+  .tag{font-family:var(--mono);font-size:11px;background:var(--surface-3);padding:2px 7px;border-radius:5px;color:var(--ink-2);}
+  .steps{counter-reset:s;padding:0;margin:0;list-style:none;}
+  .steps li{counter-increment:s;position:relative;padding:8px 0 8px 34px;font-size:13px;color:var(--ink-2);border-bottom:1px solid var(--border);}
+  .steps li:last-child{border-bottom:none;}
+  .steps li::before{content:counter(s);position:absolute;left:0;top:7px;width:22px;height:22px;border-radius:99px;background:var(--ink);color:#fff;font-family:var(--mono);font-size:11px;font-weight:600;display:grid;place-items:center;}
+  .steps li b{color:var(--ink);}
+
+  @media print{.side{display:none;}.wrap{display:block;}.main{padding:0;}section{break-inside:avoid;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="side">
+    <div class="side-brand"><div class="mk">C</div><b>Criptotrade</b></div>
+    <div class="side-sub">Handoff · Novas Telas</div>
+    <div id="nav"></div>
+  </nav>
+  <main class="main">
+    <div class="doc-title">Handoff Dev — Novas Telas & Integrações</div>
+    <div class="doc-sub">Implementação dos gaps do briefing (§5): Visão Geral/Portfólio, Observabilidade, edição de config de agentes e o seletor global de par. Para cada item: endpoint real, mapa campo→UI, e o ponto exato onde plugar os dados no protótipo.</div>
+    <div class="meta-row">
+      <span class="meta">repo · danzeroum/Criptotrade</span>
+      <span class="meta">API base · /v1</span>
+      <span class="meta">envelope · APIResponse&lt;T&gt;</span>
+      <span class="meta">2 telas novas · 1 drawer · 1 store global</span>
+    </div>
+    <div id="doc"></div>
+  </main>
+</div>
+
+<script>
+/* ============ status helpers ============ */
+const P = {
+  ready:   '<span class="pill p-ready"><span class="d"></span>Endpoint pronto</span>',
+  ui:      '<span class="pill p-ui"><span class="d"></span>Ligar no front</span>',
+  partial: '<span class="pill p-partial"><span class="d"></span>Expor rota</span>',
+  new:     '<span class="pill p-new"><span class="d"></span>Backend novo</span>',
+};
+const M = {
+  GET:'<span class="method m-get">GET</span>', POST:'<span class="method m-post">POST</span>',
+  PATCH:'<span class="method m-patch">PATCH</span>', SSE:'<span class="method m-sse">SSE</span>',
+};
+
+/* ============ content model ============ */
+const SECTIONS = [
+{ id:'resumo', num:'00', title:'O que mudou & como ler', custom:'legend' },
+{ id:'transversais', num:'01', title:'Regras transversais (valem em todas)', custom:'cross' },
+{ id:'pair', num:'02', title:'Seletor global de par (CT_PAIR)', custom:'pair' },
+
+{ id:'overview', num:'03', title:'Visão Geral / Portfólio', file:'screen_overview.jsx · #overview',
+  desc:'Maior gap do briefing (P1). Headline de performance que hoje só existe no Streamlit. Controles: seletor global de par (com "Todos" = portfólio) + período (1d/7d/30d/90d/all). Todo campo de ratio pode vir null → "Sem dados" (≠ 0).',
+  endpoints:[
+    ['GET','/v1/metrics?period=&symbol=','ready','KPIs do portfólio / por moeda'],
+    ['GET','/v1/metrics/equity?period=&symbol=','ready','Série da curva de capital + drawdown'],
+    ['GET','/v1/orders?limit=&symbol=','ready','Tabela de últimas ordens'],
+  ],
+  rows:[
+    ['KPI · Valor do portfólio','portfolio_value_usdt','ui','GET /v1/metrics'],
+    ['KPI · P&L do período','pnl_period_pct · pnl_period_usdt','ui','GET /v1/metrics (escala por period)'],
+    ['KPI · Sharpe ratio','sharpe_ratio','ui','GET /v1/metrics · null → "Sem dados"'],
+    ['KPI · Win rate','win_rate','ui','GET /v1/metrics · null → "Sem dados"'],
+    ['KPI · Max drawdown','max_drawdown','ui','GET /v1/metrics'],
+    ['KPI · Profit factor','profit_factor','ui','GET /v1/metrics · null → "Sem dados"'],
+    ['KPI · Total de trades','total_trades','ui','GET /v1/metrics'],
+    ['KPI · Posições abertas','open_positions · exposure_pct','ui','GET /v1/metrics'],
+    ['Curva de capital + drawdown','equity[] {t, equity, drawdown}','ui','GET /v1/metrics/equity?period=&symbol='],
+    ['Alocação por par','portfolio_value_usdt por symbol','ui','N× GET /v1/metrics?symbol= OU agregado novo /v1/portfolio/allocation'],
+    ['Tabela · últimas ordens','OrderOut[] filtrado por symbol','ui','GET /v1/orders?limit=&symbol='],
+    ['Flag de dados disponíveis','has_data','ready','GET /v1/metrics → controla Empty vs OK'],
+  ]},
+
+{ id:'observ', num:'04', title:'Observabilidade / Process', file:'screen_observability.jsx · #observability',
+  desc:'Endpoint XES já existe e nunca foi usado pela UI (P2). Fecha o loop de "o orquestrador está rodando?". Timeline de ciclos com duração por estágio, falhas destacadas e detalhe expansível.',
+  endpoints:[
+    ['GET','/v1/process/events','ready','Event log XES — agent_cycle_started / completed / failed'],
+  ],
+  rows:[
+    ['Linha · nº do ciclo','cycle / case_id','ui','agrupar eventos por ciclo (case) no cliente'],
+    ['Linha · início','started_at (agent_cycle_started)','ui','timestamp do evento de início'],
+    ['Linha · duração','completed_at − started_at','ui','derivar do par started/completed'],
+    ['Pipeline · barra por estágio','agents[] {name,status,duration_ms}','ui','um evento por agente dentro do ciclo'],
+    ['Linha · status','completed | failed','ready','tipo do evento de fechamento'],
+    ['Linha · sinais / ordens','signals · orders (do ciclo)','partial','expor no payload do evento OU cruzar com /v1/orders'],
+    ['Detalhe · erro do ciclo','error / failure_reason','ready','presente no agent_cycle_failed'],
+    ['KPIs · ciclos hoje / taxa sucesso / duração média / falhas','agregados','partial','derivar no cliente OU expor GET /v1/process/summary'],
+    ['Badge · loop rodando','heartbeat / last_cycle_at','partial','derivar do último evento OU /health do loop'],
+  ]},
+
+{ id:'agentcfg', num:'05', title:'Edição de config de agente (drawer)', file:'screen_agents.jsx · AgentConfigDrawer',
+  desc:'Gap P1: os métodos GET/PATCH /v1/agents/{id}/config existem no client mas nenhuma tela editava. Botão "Configurar" por card abre um drawer que renderiza NumField/Slider/Toggle/Select por parâmetro dinâmico de params{}.',
+  endpoints:[
+    ['GET','/v1/agents/{id}/config','ready','Lê params{} configuráveis do agente'],
+    ['PATCH','/v1/agents/{id}/config','ready','Salva {params:{…}, operator}'],
+    ['GET','/v1/agents/{id}','new','Detalhe do agente — sem método no client ainda'],
+  ],
+  rows:[
+    ['Campos dinâmicos do form','params{} (chave→valor)','ready','GET /v1/agents/{id}/config'],
+    ['Tipo de controle por campo','metadados (min/max/step/tipo)','partial','o contrato traz só valores — tipos/ranges mapeados no front (CT.agentParams) ou expor schema'],
+    ['Salvar','PATCH {params, operator}','ready','PATCH /v1/agents/{id}/config'],
+    ['Confirmar parâmetro sensível (risco/autonomia)','flag sensitive (front)','ui','confirmação no cliente antes do PATCH'],
+    ['operator no payload','operator','ready','sempre enviado (regra transversal)'],
+  ]},
+
+{ id:'ligados', num:'06', title:'Seletor global em telas existentes', file:'orders · backtest · market · header',
+  desc:'O seletor de par passa a ser único e global (store CT_PAIR). Header, Mercado, Visão Geral, Ordens e Backtest compartilham. Substitui o filtro client-side do Streamlit.',
+  endpoints:[
+    ['GET','/v1/market/pairs','ready','Lista de pares para o seletor'],
+    ['GET','/v1/orders?symbol=','ready','Ordens filtradas por par (antes era client-side)'],
+    ['POST','/v1/orders','new','Criação manual — sem superfície no client (botão fica desabilitado)'],
+  ],
+  rows:[
+    ['Ordens · filtro por par','?symbol=','ui','plugar no store CT_PAIR (já não filtra no cliente)'],
+    ['Backtest · seletor de par','?symbol= / body.pair','ready','backend já respeita o par; unificar visual com Mercado'],
+    ['Header · preço/variação ou portfólio','/market/{pair}/ticker · /v1/metrics (ALL)','ui','reflete o par atual; "Portfólio" mostra valor + P&L'],
+    ['Botão "Nova ordem"','POST /v1/orders','new','expor método no client + form de criação manual'],
+  ]},
+
+{ id:'alertas', num:'07', title:'Alertas — read-back', file:'app.jsx · screen_settings.jsx',
+  desc:'Gap P3. PATCH /v1/alerts/config é write-only. O formulário de Configurações mostra defaults/placeholders e marca a ausência de GET. Ideal: expor o GET no backend.',
+  endpoints:[
+    ['PATCH','/v1/alerts/config','ready','Grava thresholds (revenge/euforia/overconfidence/RoR)'],
+    ['GET','/v1/alerts/config','new','Read-back inexistente — defaults no form por enquanto'],
+  ],
+  rows:[
+    ['Form de thresholds (valores atuais)','revenge · euphoria · overconfidence · risk_of_ruin','new','sem GET → defaults; expor GET /v1/alerts/config'],
+  ]},
+
+{ id:'rotas', num:'08', title:'Resumo do trabalho', custom:'gaps' },
+{ id:'arquivos', num:'09', title:'Arquivos novos & alterados', custom:'files' },
+];
+
+/* ============ render ============ */
+function epRow(m, path, status, desc){
+  return `<div class="ep">${M[m]}<span class="path">${path}</span>${P[status]}<span class="desc">${desc}</span></div>`;
+}
+function dataTable(rows){
+  return `<table><thead><tr><th>Elemento da UI</th><th>Campo / payload</th><th>Status</th><th>Fonte de dados</th></tr></thead><tbody>`
+    + rows.map(r=>`<tr><td class="el">${r[0]}</td><td class="fld"><code>${r[1]}</code></td><td>${P[r[2]]}</td><td class="src">${r[3]}</td></tr>`).join('')
+    + `</tbody></table>`;
+}
+
+function renderCustom(id){
+  if(id==='legend') return `
+    <div class="sec-desc">Este handoff cobre apenas o que foi adicionado em cima das 8 telas originais — veja o handoff principal para o restante. A maioria dos endpoints destas telas <b>já existe</b>: o trabalho aqui é majoritariamente de <b>frontend</b> (trocar o mock por <code>fetch</code>), com poucos gaps de backend.</div>
+    <div class="legend">
+      <div class="it">${P.ready}<div class="t">Endpoint pronto</div><div class="d">A rota existe e retorna o dado — só consumir.</div></div>
+      <div class="it">${P.ui}<div class="t">Ligar no front</div><div class="d">Endpoint pronto; falta trocar o mock por <code>fetch</code> e desembrulhar <code>data</code>.</div></div>
+      <div class="it">${P.partial}<div class="t">Expor rota / agregado</div><div class="d">A lógica existe; falta uma rota REST ou um campo agregado no payload.</div></div>
+      <div class="it">${P.new}<div class="t">Backend novo</div><div class="d">Precisa ser implementado (método no client, rota ou GET de read-back).</div></div>
+    </div>
+    <div class="note blue"><span>🎯</span><div><b>Prioridade (do briefing):</b> P1 — Visão Geral/Portfólio e edição de config de agentes. P2 — Observabilidade e métricas por moeda via seletor global. P3 — read-back de alertas, <code>POST /v1/orders</code> e <code>GET /v1/agents/{id}</code>.</div></div>`;
+
+  if(id==='cross') return `
+    <div class="sec-desc">Regras que se aplicam a todas as telas novas — espelham o contrato e o handoff principal.</div>
+    <div class="grid2">
+      <div class="card"><div class="card-h"><b>Estados honestos (UX P0)</b></div><div class="card-b">
+        <div class="src" style="margin-bottom:10px">Toda área que busca dados desenha <b>4 estados</b>, nunca um ambíguo. Componentes prontos em <code>components.jsx</code>.</div>
+        <div class="kv">
+          <span class="k">Loading</span><span class="v">&lt;LoadingState/&gt;</span>
+          <span class="k">Empty (sem histórico)</span><span class="v">&lt;EmptyState/&gt;</span>
+          <span class="k">Error / Offline</span><span class="v">&lt;ErrorState onRetry/&gt;</span>
+          <span class="k">OK</span><span class="v">conteúdo</span>
+        </div>
+        <div class="note"><span>⚠️</span><div><b>null ≠ 0.</b> Métrica sem amostra suficiente vem <code>null</code> do backend → renderizar <b>"Sem dados"</b>, nunca <code>0</code>.</div></div>
+      </div></div>
+      <div class="card"><div class="card-h"><b>Contrato & segurança</b></div><div class="card-b">
+        <ul class="clean">
+          <li>Respostas embrulhadas em <code>APIResponse&lt;T&gt;</code> → consumir <code>resposta.data</code>.</li>
+          <li>Campos <b>exatos</b> do <code>openapi.d.ts</code>. Campo inexistente = <b>gap de backend</b>, não inventar.</li>
+          <li>Chamadas mutáveis enviam <code>X-API-Key</code> quando configurado (já no <code>apiClient</code>).</li>
+          <li>Ações sensíveis (autonomia/risco/aprovar ordem) → confirmação + <code>operator</code> + feedback (toast).</li>
+          <li>PT-BR; números/preços em fonte mono; casas por moeda (XRP ≠ BTC).</li>
+          <li><code>window.USE_MOCK_DATA=true</code> deve manter as telas funcionando sem backend (fallback mock).</li>
+        </ul>
+      </div></div>
+    </div>`;
+
+  if(id==='pair') return `
+    <div class="sec-desc">Fonte única de verdade para "qual par está selecionado". Header, Mercado, Visão Geral, Ordens e Backtest plugam <b>neste store</b> — nenhuma tela cria seletor isolado. Valor é um <code>symbol</code> (ex: <code>BTC/USDT</code>) ou <code>'ALL'</code> (portfólio).</div>
+    <div class="card"><div class="card-h"><b>Contrato do store</b><span class="tag" style="margin-left:auto">data_ext.js · window.CT_PAIR</span></div><div class="card-b">
+      <pre><span class="c">// ler / escrever</span>
+window.CT_PAIR.<span class="k">get</span>()            <span class="c">// → 'BTC/USDT' | 'ALL'</span>
+window.CT_PAIR.<span class="k">set</span>(<span class="s">'ETH/USDT'</span>)  <span class="c">// persiste + dispara evento</span>
+
+<span class="c">// persistência</span>  localStorage[<span class="s">'ct_pair'</span>]
+<span class="c">// broadcast</span>     window.addEventListener(<span class="s">'ct:pair'</span>, e =&gt; e.detail)
+
+<span class="c">// hook React (components.jsx)</span>
+const [pair, setPair] = <span class="k">useCurrentPair</span>();
+&lt;<span class="k">PairSelect</span> allowAll /&gt;   <span class="c">// allowAll inclui a opção "Todos os pares"</span></pre>
+      <div class="note violet"><span>🔌</span><div><b>Backend:</b> popular o seletor com <code>GET /v1/market/pairs</code>. Telas "por moeda" passam <code>?symbol=</code> usando <code>CT_PAIR.get()</code>; quando o valor é <code>'ALL'</code>, omitir <code>symbol</code> (portfólio consolidado). Telas que exigem par concreto (Mercado/Backtest) tratam <code>'ALL'</code> como o par default.</div></div>
+    </div>`;
+
+  if(id==='gaps') return `
+    <div class="sec-desc">Consolidado do que falta para estas telas funcionarem 100% com dados reais. Ordenado por esforço.</div>
+    <div class="card"><div class="card-h">${P.ui}<b>Frontend — trocar mock por fetch (endpoint já existe)</b></div><div class="card-b"><table><tbody>
+      ${[
+        ['GET','/v1/metrics?period=&symbol=','Visão Geral — KPIs do portfólio / por moeda'],
+        ['GET','/v1/metrics/equity?period=&symbol=','Visão Geral — curva de capital'],
+        ['GET','/v1/process/events','Observabilidade — agrupar eventos por ciclo'],
+        ['GET','/v1/agents/{id}/config','Drawer de config — preencher o form'],
+        ['PATCH','/v1/agents/{id}/config','Drawer de config — salvar'],
+        ['GET','/v1/orders?symbol=','Ordens / Visão Geral — filtro pelo store global'],
+        ['GET','/v1/market/pairs','Seletor global — popular as opções'],
+      ].map(r=>`<tr><td style="width:70px">${M[r[0]]}</td><td class="el mono" style="width:40%;font-size:12.5px">${r[1]}</td><td class="src">${r[2]}</td></tr>`).join('')}
+    </tbody></table></div></div>
+    <div class="card"><div class="card-h">${P.partial}<b>Expor rota / campo agregado (lógica já existe)</b></div><div class="card-b"><table><tbody>
+      ${[
+        ['GET','/v1/process/summary','agregados de observabilidade (taxa de sucesso, duração média)'],
+        ['—','signals/orders no evento de ciclo','OU cruzar com /v1/orders no cliente'],
+        ['GET','/v1/portfolio/allocation','alocação por par (evita N chamadas a /v1/metrics)'],
+        ['—','schema de params dos agentes','tipos/ranges para o form (hoje mapeados no front)'],
+      ].map(r=>`<tr><td style="width:70px">${r[0]==='—'?'':M[r[0]]}</td><td class="el mono" style="width:40%;font-size:12.5px">${r[1]}</td><td class="src">${r[2]}</td></tr>`).join('')}
+    </tbody></table></div></div>
+    <div class="card"><div class="card-h">${P.new}<b>Backend novo</b></div><div class="card-b"><table><tbody>
+      ${[
+        ['GET','/v1/alerts/config','read-back de thresholds (hoje write-only)'],
+        ['POST','/v1/orders','criação manual de ordem — expor método no client + form'],
+        ['GET','/v1/agents/{id}','detalhe do agente — sem método no client'],
+      ].map(r=>`<tr><td style="width:70px">${M[r[0]]}</td><td class="el mono" style="width:40%;font-size:12.5px">${r[1]}</td><td class="src">${r[2]}</td></tr>`).join('')}
+    </tbody></table></div></div>`;
+
+  if(id==='files') return `
+    <div class="sec-desc">O que entrou ou mudou no protótipo. Mesmo padrão das telas existentes: React via Babel, cada arquivo expõe em <code>window</code>. Ponto único de troca por dados reais = <code>data.js</code> / <code>data_ext.js</code>.</div>
+    <div class="card"><div class="card-h"><b>Novos</b></div><div class="card-b" style="padding:6px 0"><table><tbody>
+      ${[
+        ['data_ext.js','Estende window.CT: pairs, metricsBySymbol, getMetrics(symbol,period), getEquity, processEvents, processSummary, agentParams + store window.CT_PAIR'],
+        ['screen_overview.jsx','Tela Visão Geral / Portfólio (#overview)'],
+        ['screen_observability.jsx','Tela Observabilidade / Process (#observability)'],
+      ].map(r=>`<tr><td class="el mono" style="width:36%;font-size:12.5px">${r[0]}</td><td class="src">${r[1]}</td></tr>`).join('')}
+    </tbody></table></div></div>
+    <div class="card"><div class="card-h"><b>Alterados</b></div><div class="card-b" style="padding:6px 0"><table><tbody>
+      ${[
+        ['components.jsx','+ LoadingState / EmptyState / ErrorState / GapTag · + useCurrentPair / PairSelect / PairGlyph'],
+        ['shell.jsx','NAV + itens Visão Geral e Observabilidade · Header com PairSelect reativo (par ou portfólio)'],
+        ['app.jsx','Registro das telas overview/observability · rota default = overview'],
+        ['screen_agents.jsx','AgentConfigDrawer + botão "Configurar" por card'],
+        ['screen_orders.jsx','PairSelect global + filtro por symbol + EmptyState + botão "Nova ordem" (gap)'],
+        ['screen_backtest.jsx','PairSelect (par concreto) unificado com Mercado'],
+        ['screen_market.jsx','Título reflete o par do store global'],
+        ['screen_settings.jsx','Seção Alertas marca o gap de read-back (sem GET)'],
+        ['Criptotrade Console.html','Carrega data_ext.js + screen_overview/observability'],
+      ].map(r=>`<tr><td class="el mono" style="width:36%;font-size:12.5px">${r[0]}</td><td class="src">${r[1]}</td></tr>`).join('')}
+    </tbody></table></div></div>
+    <div class="card"><div class="card-h"><b>Roteiro de integração (por tela)</b></div><div class="card-b">
+      <ol class="steps">
+        <li><b>data_ext.js</b> — troque <code>CT.getMetrics/getEquity</code> por <code>fetch('/v1/metrics?…')</code> desembrulhando <code>.data</code>; mantenha o fallback mock sob <code>USE_MOCK_DATA</code>.</li>
+        <li><b>Visão Geral</b> — dispare o fetch ao mudar <code>pair</code> (evento <code>ct:pair</code>) e <code>period</code>; mapeie <code>null</code> → "Sem dados"; use <code>has_data</code> para Empty.</li>
+        <li><b>Observabilidade</b> — leia <code>/v1/process/events</code>, agrupe por ciclo (case), derive duração por par started/completed; KPIs por agregação ou <code>/v1/process/summary</code>.</li>
+        <li><b>Drawer de agente</b> — <code>GET /v1/agents/{id}/config</code> ao abrir; <code>PATCH</code> ao salvar com <code>operator</code>; confirme campos sensíveis.</li>
+        <li><b>Seletor global</b> — popular via <code>/v1/market/pairs</code>; toda chamada "por moeda" usa <code>CT_PAIR.get()</code> como <code>?symbol=</code> (omitir se <code>'ALL'</code>).</li>
+      </ol>
+    </div></div>`;
+  return '';
+}
+
+const docEl = document.getElementById('doc');
+const navEl = document.getElementById('nav');
+let navHtml = '<div class="side-lbl">Fundamentos</div>';
+SECTIONS.forEach((s)=>{
+  if(s.id==='overview') navHtml += '<div class="side-lbl">Telas novas</div>';
+  if(s.id==='ligados') navHtml += '<div class="side-lbl">Integrações</div>';
+  if(s.id==='rotas') navHtml += '<div class="side-lbl">Referência</div>';
+  navHtml += `<a href="#${s.id}">${s.num} · ${s.title}</a>`;
+
+  let body = `<section id="${s.id}"><div class="sec-head"><span class="sec-num">${s.num}</span><span class="sec-title">${s.title}</span>`
+    + (s.file?`<span class="tag" style="margin-left:auto">${s.file}</span>`:'') + `</div>`;
+  if(s.custom){ body += renderCustom(s.custom); }
+  else {
+    if(s.desc) body += `<div class="sec-desc">${s.desc}</div>`;
+    if(s.endpoints && s.endpoints.length){
+      body += `<div class="card"><div class="card-h"><b>Endpoints</b></div><div class="card-b" style="padding:6px 18px">`
+        + s.endpoints.map(e=>epRow(e[0],e[1],e[2],e[3])).join('') + `</div></div>`;
+    }
+    if(s.rows) body += `<div class="card"><div class="card-b" style="padding:0">${dataTable(s.rows)}</div></div>`;
+  }
+  body += `</section>`;
+  docEl.insertAdjacentHTML('beforeend', body);
+});
+navEl.innerHTML = navHtml;
+</script>
+</body>
+</html>

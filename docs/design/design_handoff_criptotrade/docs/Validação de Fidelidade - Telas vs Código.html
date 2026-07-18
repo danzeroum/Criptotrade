@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Validação de Fidelidade — Telas vs Código · Criptotrade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#F4F6F8;--surface:#fff;--surface-2:#F6F8FA;--surface-3:#EEF1F4;--border:#E4E8EC;--border-2:#D5DAE0;
+    --ink:#14181C;--ink-2:#5B636C;--ink-3:#8A929B;--ink-4:#AEB5BD;
+    --ok:#0E9D6E;--ok-bg:#E7F6EF;--ok-line:#B7E6D2;
+    --warn:#C77F08;--warn-bg:#FBF1DD;--warn-line:#EEDBAC;
+    --info:#2563EB;--info-bg:#E7EEFD;--info-line:#C9D8FA;
+    --crit:#DC2B2B;--crit-bg:#FCEAEA;--crit-line:#F3C9C9;
+    --sans:'IBM Plex Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+    --sh-sm:0 1px 2px rgba(20,24,28,.05);--sh:0 1px 2px rgba(20,24,28,.04),0 2px 6px rgba(20,24,28,.05);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+  code{font-family:var(--mono);font-size:.85em;background:var(--surface-3);padding:1.5px 6px;border-radius:5px;color:var(--ink);}
+  a{color:var(--info);text-decoration:none;}a:hover{text-decoration:underline;}
+  h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em;}
+
+  .wrap{display:grid;grid-template-columns:248px 1fr;max-width:1320px;margin:0 auto;}
+  .side{position:sticky;top:0;height:100vh;overflow-y:auto;padding:26px 16px;border-right:1px solid var(--border);background:var(--surface);}
+  .side .mk{width:30px;height:30px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-family:var(--mono);font-weight:600;}
+  .side-brand{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .side-brand b{font-size:15px;}
+  .side-sub{font-size:11px;color:var(--ink-3);font-family:var(--mono);margin-bottom:20px;}
+  .side a{display:flex;gap:8px;align-items:center;padding:6px 9px;border-radius:6px;color:var(--ink-2);font-size:12.5px;font-weight:500;}
+  .side a:hover{background:var(--surface-2);color:var(--ink);text-decoration:none;}
+  .side a .sn{font-family:var(--mono);font-size:10px;color:var(--ink-4);width:16px;}
+
+  .main{padding:40px 46px 110px;min-width:0;}
+  .doc-kicker{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--info);}
+  .doc-title{font-size:30px;font-weight:600;letter-spacing:-.025em;margin-top:8px;}
+  .doc-sub{color:var(--ink-2);font-size:15px;margin-top:9px;max-width:720px;}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;}
+  .meta{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-family:var(--mono);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:5px 10px;color:var(--ink-2);}
+
+  section{margin-top:46px;scroll-margin-top:20px;}
+  .sec-head{display:flex;align-items:baseline;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:6px;}
+  .sec-num{font-family:var(--mono);font-size:13px;color:var(--ink-3);font-weight:600;}
+  .sec-title{font-size:21px;font-weight:600;letter-spacing:-.02em;}
+  .sec-desc{color:var(--ink-2);font-size:14px;margin:14px 0 18px;max-width:800px;}
+
+  .verdict{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:center;border-radius:14px;padding:22px 24px;margin-top:24px;border:1px solid var(--ok-line);background:linear-gradient(180deg,#F4FCF8,#E9F7F0);}
+  .verdict .score{width:104px;height:104px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--ok) 0 84%, var(--surface-3) 84% 100%);position:relative;flex-shrink:0;}
+  .verdict .score::after{content:'';position:absolute;inset:10px;border-radius:50%;background:#F2FBF7;}
+  .verdict .score .v{position:relative;text-align:center;}
+  .verdict .score .v b{font-family:var(--mono);font-size:25px;font-weight:600;letter-spacing:-.02em;}
+  .verdict .score .v small{display:block;font-size:9px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-top:-1px;}
+  .verdict .vt{font-size:17px;font-weight:600;letter-spacing:-.01em;}
+  .verdict .vp{font-size:13.5px;color:var(--ink-2);margin-top:6px;max-width:660px;line-height:1.55;}
+  .vchips{display:flex;gap:8px;margin-top:13px;flex-wrap:wrap;}
+  .vchip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;font-family:var(--mono);padding:4px 10px;border-radius:99px;border:1px solid;}
+  .vchip.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-line);}
+  .vchip.warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-line);}
+
+  table.fid{width:100%;border-collapse:collapse;font-size:12.5px;border:1px solid var(--border);border-radius:11px;overflow:hidden;}
+  table.fid th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);padding:11px 13px;background:var(--surface-2);border-bottom:1px solid var(--border);}
+  table.fid td{padding:11px 13px;border-bottom:1px solid var(--border);vertical-align:top;background:var(--surface);}
+  table.fid tr:last-child td{border-bottom:none;}
+  table.fid .scr{font-weight:600;color:var(--ink);white-space:nowrap;}
+  table.fid .rt{font-family:var(--mono);font-size:11px;color:var(--ink-2);}
+  table.fid .sr{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);}
+  .vb{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;font-family:var(--mono);padding:2px 8px;border-radius:99px;border:1px solid;white-space:nowrap;}
+  .vb.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-line);}
+  .vb.warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-line);}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--sh-sm);margin-bottom:14px;overflow:hidden;}
+  .card.warn{border-left:3px solid var(--warn);}
+  .card.ok{border-left:3px solid var(--ok);}
+  .card-h{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--border);background:var(--surface-2);}
+  .card-h .ti{font-size:14.5px;font-weight:600;}
+  .card-h .right{margin-left:auto;}
+  .card-b{padding:14px 16px;font-size:13.5px;line-height:1.6;color:var(--ink);}
+  .card-b b{font-weight:600;}
+  .card-b code{font-size:.84em;}
+
+  .note{display:flex;gap:9px;border-radius:9px;padding:12px 14px;font-size:12.5px;margin-top:16px;}
+  .note.blue{background:var(--info-bg);border:1px solid var(--info-line);color:#1d4ed8;}
+  .note.green{background:var(--ok-bg);border:1px solid var(--ok-line);color:#0a6b4c;}
+  .note.amber{background:var(--warn-bg);border:1px solid var(--warn-line);color:#7a5304;}
+  .note b{font-weight:600;}
+
+  ul.clean{margin:6px 0 0;padding-left:0;list-style:none;}
+  ul.clean li{font-size:13px;color:var(--ink-2);padding:5px 0 5px 18px;position:relative;line-height:1.55;}
+  ul.clean li::before{content:'';position:absolute;left:3px;top:11px;width:5px;height:5px;border-radius:99px;background:var(--ink-4);}
+  ul.clean li b{color:var(--ink);font-weight:600;}
+
+  @media print{.side{display:none;}.wrap{display:block;}.main{padding:0 8px;}section,.card,table.fid{break-inside:avoid;}.verdict{grid-template-columns:1fr;text-align:center;}}
+  @media (max-width:920px){.wrap{grid-template-columns:1fr;}.side{display:none;}.verdict{grid-template-columns:1fr;text-align:center;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="side">
+    <div class="side-brand"><div class="mk">C</div><b>Criptotrade</b></div>
+    <div class="side-sub">Validação de Fidelidade</div>
+    <div id="nav"></div>
+  </nav>
+  <main class="main">
+    <div class="doc-kicker">Auditoria de fidelidade · Telas × código real</div>
+    <div class="doc-title">As telas representam o que o código entrega?</div>
+    <div class="doc-sub">Validação do protótipo contra o repositório real <b>danzeroum/Criptotrade@master</b> — lendo rotas, agentes e módulos de análise. Para cada tela: a qual endpoint/módulo ela corresponde, e o veredito de fidelidade. No fim, as ressalvas que importam para uma demo pública honesta.</div>
+    <div class="meta-row">
+      <span class="meta">fonte · github.com/danzeroum/Criptotrade@master</span>
+      <span class="meta">commit · 53a3ce0</span>
+      <span class="meta">10 telas auditadas</span>
+      <span class="meta">data · jun/2026</span>
+    </div>
+    <div id="doc"></div>
+  </main>
+</div>
+
+<script>
+const NAV=[['00','resumo','Veredito'],['01','mapa','Mapa tela × código'],['02','ressalvas','Ressalvas para a demo'],['03','ahead','O master está à frente da auditoria']];
+document.getElementById('nav').innerHTML = NAV.map(([n,id,t])=>`<a href="#${id}"><span class="sn">${n}</span>${t}</a>`).join('');
+
+const ROWS = [
+  ['Visão Geral','GET /v1/metrics','core/metrics.py · core/ledger.py','ok','Fiel','Sharpe/Win/Drawdown/P&L calculados do ledger. Existe e roda.'],
+  ['Mercado','GET /v1/market/*','analysis/indicators · pattern_scanner · regime_detector · support_resistance · volume_profile','ok','Fiel','Toda a análise técnica existe em <code>src/analysis</code>. O sinal vem do <code>StrategyAgent</code>.'],
+  ['Risco & Capital','GET /v1/risk/*','agents/risk_agent.py · safety/guardrails.py','ok','Fiel','Guardrails (5% / stop / RR≥2.5) e circuit breaker reais e ativos no caminho vivo.'],
+  ['Console HITL','GET /v1/orders · PATCH /v1/orders/{id}/status','hitl/orders.py · hitl/config.py','ok','Fiel','Ponte cross-process via SQLite WAL; autonomia 0–3; fail-closed por timeout.'],
+  ['Ordens','GET /v1/orders · GET /v1/trades/closed','api/routes/orders.py · api/routes/trades.py','ok','Fiel','Lifecycle e trades fechados expostos por rota dedicada (<code>trades.py</code>).'],
+  ['Agentes','GET /v1/agents · /v1/agents/{id}','agents/registry.py','warn','Fiel c/ ressalva','3 agentes reais (Strategy/Risk/Execution); demais são stubs (respondem 501).'],
+  ['Diário','GET /v1/journal','api/routes/journal.py · migrations/002','ok','Fiel','Rota + tabela dedicada existem.'],
+  ['Validação','GET/POST /v1/backtest','api/routes/backtest.py · migrations/003','ok','Fiel','Backtest como job persistido em SQLite.'],
+  ['Observabilidade','GET /v1/process/events · /metrics','api/routes/process.py · api/observability.py','ok','Fiel','Event log XES (process mining) + métricas Prometheus/Grafana.'],
+  ['Configurações','GET/PATCH /v1/hitl/config · /v1/config','hitl/config.py · core/config.py · api/routes/config.py','ok','Fiel','Reflete env reais (DRY_RUN, ORDER_ROUTING, LLM_ENABLED, autonomia).'],
+];
+
+const CAVEATS = [
+  ['warn','Os números são otimistas e sobre dados sintéticos','As métricas exibidas (Win rate 61%, Sharpe 1,92, P&L +19%) são <b>mockadas</b>. No código, em dry-run, elas se calculam sobre o <b>motor de mercado sintético</b> (senóides determinísticas) — corretas como aritmética, mas <b>sem valor preditivo</b>. Para a demo pública isso é aceitável; só não devem ser apresentadas como performance real.'],
+  ['warn','A camada de IA/LLM é consultiva e desligada por padrão','<code>LLM_ENABLED=false</code> por padrão: o pipeline é <b>determinístico/offline</b> e a TA é o piso. Com a chave do Gemini, o LLM produz tese + ajuste de confiança (CoT) — mas é <b>consultivo</b>, não decide sozinho. O botão "Como funciona de verdade" da tela de Mercado já descreve isso fielmente.'],
+  ['warn','Alguns ornamentos visuais podem exceder o payload da API','Overlays como <b>Fibonacci</b> e o detalhamento de rationale do sinal aparecem na tela; confirme com o time se <code>/v1/market/*</code> realmente retorna esses campos hoje, ou se são enriquecimentos só do protótipo.'],
+  ['warn','Não há autenticação nem RBAC — coerente com o protótipo','O código só tem API-key global; o avatar "OP" é decorativo. Bate com o handoff de Telas Administrativas (auth/RBAC/auditoria ainda a construir). A demo pública não expõe esse gap, mas o cliente precisa saber que login/papéis são trabalho futuro.'],
+];
+</script>
+<script>
+document.getElementById('doc').innerHTML = `
+  <section id="resumo">
+    <div class="verdict">
+      <div class="score"><div class="v"><b>9/10</b><small>fiéis</small></div></div>
+      <div>
+        <div class="vt">Alta fidelidade — as telas refletem endpoints e módulos que existem de verdade.</div>
+        <div class="vp">As 10 telas operacionais mapeiam <b>1:1</b> para rotas reais da API (<code>/v1/metrics</code>, <code>/v1/market</code>, <code>/v1/orders</code>, <code>/v1/risk</code>, <code>/v1/backtest</code>, <code>/v1/journal</code>, <code>/v1/process</code>, <code>/v1/agents</code>, <code>/v1/hitl/config</code>) e para módulos implementados em <code>src/</code>. A única ressalva estrutural é a tela de <b>Agentes</b> (3 reais + stubs). O que muda numa demo é a <b>natureza dos dados</b>, não a existência das funções.</div>
+        <div class="vchips">
+          <span class="vchip ok">✓ 9 fiéis</span>
+          <span class="vchip warn">! 1 fiel c/ ressalva</span>
+          <span class="vchip warn">4 ressalvas de dados</span>
+        </div>
+      </div>
+    </div>
+    <div class="note green"><div>✓&nbsp;</div><div><b>Conclusão:</b> o protótipo não inventa funcionalidades — ele <b>representa funções reais com dados mockados</b>. É uma base honesta para demonstrar ao público; o cuidado fica nos rótulos de performance e na maturidade da IA.</div></div>
+  </section>
+
+  <section id="mapa">
+    <div class="sec-head"><span class="sec-num">01</span><span class="sec-title">Mapa tela × código</span></div>
+    <div class="sec-desc">Cada tela do console, o endpoint que ela representa, o módulo que a implementa no repositório e o veredito.</div>
+    <table class="fid">
+      <thead><tr><th>Tela</th><th>Endpoint real</th><th>No código (src/)</th><th>Veredito</th></tr></thead>
+      <tbody>
+      ${ROWS.map(r=>`<tr>
+        <td class="scr">${r[0]}</td>
+        <td class="rt">${r[1]}</td>
+        <td class="sr">${r[2]}</td>
+        <td><span class="vb ${r[3]}">${r[3]==='ok'?'✓':'!'} ${r[4]}</span><div style="font-size:11.5px;color:var(--ink-2);margin-top:6px;line-height:1.45">${r[5]}</div></td>
+      </tr>`).join('')}
+      </tbody>
+    </table>
+  </section>
+
+  <section id="ressalvas">
+    <div class="sec-head"><span class="sec-num">02</span><span class="sec-title">Ressalvas para a demo pública</span></div>
+    <div class="sec-desc">Onde o protótipo é honesto, mas exige uma frase de contexto ao apresentar — para não prometer mais do que o código entrega hoje.</div>
+    ${CAVEATS.map(c=>`<div class="card ${c[0]}"><div class="card-h"><span class="ti">${c[1]}</span></div><div class="card-b">${c[2]}</div></div>`).join('')}
+    <div class="note blue"><div>▣&nbsp;</div><div>O botão <b>"Como funciona de verdade"</b> em cada tela do console já comunica essas ressalvas ao público: distingue claramente <b>"Demonstração" (mock)</b> de <b>"Na realidade" (pipeline em produção)</b>, com endpoint e arquivos-fonte.</div></div>
+  </section>
+
+  <section id="ahead">
+    <div class="sec-head"><span class="sec-num">03</span><span class="sec-title">O master já está à frente da auditoria</span></div>
+    <div class="sec-desc">Vários itens listados como bugs/pendências no plano de remediação já foram resolvidos no código atual — vale revalidar o backlog antes de abrir tickets.</div>
+    <ul class="clean">
+      <li><b>Posições persistidas:</b> existe <code>PositionStore</code> (SQLite) + <code>reload_open_positions()</code> no startup — resolve as "posições zumbi" pós-restart (CT-002).</li>
+      <li><b>Circuit breaker persistido:</b> <code>CircuitBreaker</code> tem <code>state_db_provider</code> + <code>reload()</code>/<code>_persist()</code> — sobrevive a restart (CT-004).</li>
+      <li><b>Alerta de fallback:</b> <code>_emit_stub_alert()</code> publica alerta quando o strategy usa dados sintéticos (CT-005/CT-017).</li>
+      <li><b>Roteamento de ordens:</b> <code>ORDER_ROUTING=paper|live</code> já existe e é independente de <code>EXCHANGE_DRY_RUN</code> — "preço real + paper" é modo de 1ª classe (corrige a premissa de CT-001).</li>
+      <li><b>Trades fechados:</b> <code>src/api/routes/trades.py</code> existe — endpoint de histórico já presente (CT-006).</li>
+      <li><b>Camada de IA:</b> <code>LLM_ENABLED/LLM_PROVIDER/LLM_MODEL</code> e <code>requirements</code> de LLM já no código (off por padrão) — a integração deixou de ser "ausente".</li>
+    </ul>
+    <div class="note amber"><div>⚠&nbsp;</div><div><b>Recomendação:</b> rodar <code>pytest -q</code> (383 testes) e revalidar o plano de remediação contra o <code>master</code> antes de estimar — parte do esforço previsto já foi entregue.</div></div>
+  </section>
+`;
+</script>
+</body>
+</html>

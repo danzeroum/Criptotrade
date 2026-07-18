@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Plano do Dev — Criptotrade Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#F4F6F8;--surface:#fff;--surface-2:#F6F8FA;--surface-3:#EEF1F4;--border:#E4E8EC;--border-2:#D5DAE0;
+    --ink:#14181C;--ink-2:#5B636C;--ink-3:#8A929B;--ink-4:#AEB5BD;
+    --ready:#0E9D6E;--ready-bg:#E7F6EF;--ready-line:#B7E6D2;
+    --partial:#C77F08;--partial-bg:#FBF1DD;--partial-line:#EEDBAC;
+    --new:#2563EB;--new-bg:#E7EEFD;--new-line:#C9D8FA;
+    --violet:#7C5CFC;
+    --sans:'IBM Plex Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+    --sh-sm:0 1px 2px rgba(20,24,28,.05);--sh:0 1px 2px rgba(20,24,28,.04),0 2px 6px rgba(20,24,28,.05);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+  code{font-family:var(--mono);font-size:.86em;background:var(--surface-3);padding:1.5px 6px;border-radius:5px;color:var(--ink);white-space:nowrap;}
+  pre{font-family:var(--mono);font-size:12px;line-height:1.6;background:#14181C;color:#E7EBEF;padding:14px 16px;border-radius:9px;overflow-x:auto;margin:0;}
+  pre .k{color:#7CA9F0;}pre .s{color:#9FD8B0;}pre .c{color:#7E8794;}pre .t{color:#E0B36B;}
+  a{color:var(--new);text-decoration:none;}a:hover{text-decoration:underline;}
+  h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-.01em;}
+
+  .wrap{display:grid;grid-template-columns:240px 1fr;max-width:1320px;margin:0 auto;}
+  .side{position:sticky;top:0;height:100vh;overflow-y:auto;padding:26px 16px;border-right:1px solid var(--border);background:var(--surface);}
+  .side .mk{width:30px;height:30px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-family:var(--mono);font-weight:600;}
+  .side-brand{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .side-brand b{font-size:15px;}
+  .side-sub{font-size:11px;color:var(--ink-3);font-family:var(--mono);margin-bottom:22px;}
+  .side-lbl{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-4);padding:14px 8px 5px;}
+  .side a{display:block;padding:6px 9px;border-radius:6px;color:var(--ink-2);font-size:13px;font-weight:500;}
+  .side a:hover{background:var(--surface-2);color:var(--ink);text-decoration:none;}
+
+  .main{padding:40px 44px 100px;min-width:0;}
+  .doc-title{font-size:30px;font-weight:600;letter-spacing:-.025em;}
+  .doc-sub{color:var(--ink-2);font-size:15px;margin-top:8px;max-width:640px;}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;}
+  .meta{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-family:var(--mono);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:5px 10px;color:var(--ink-2);}
+
+  section{margin-top:44px;scroll-margin-top:20px;}
+  .sec-head{display:flex;align-items:baseline;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:14px;}
+  .sec-num{font-family:var(--mono);font-size:13px;color:var(--ink-3);font-weight:600;}
+  .sec-title{font-size:21px;font-weight:600;letter-spacing:-.02em;}
+  .sec-desc{color:var(--ink-2);font-size:14px;margin:0 0 18px;max-width:780px;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--sh-sm);overflow:hidden;margin-bottom:16px;}
+  .card-h{display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid var(--border);}
+  .card-h b{font-size:14px;}
+  .card-b{padding:18px;}
+
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid transparent;white-space:nowrap;}
+  .pill .d{width:6px;height:6px;border-radius:99px;background:currentColor;}
+  .p-ready{background:var(--ready-bg);color:var(--ready);border-color:var(--ready-line);}
+  .p-partial{background:var(--partial-bg);color:var(--partial);border-color:var(--partial-line);}
+  .p-new{background:var(--new-bg);color:var(--new);border-color:var(--new-line);}
+  .method{font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 6px;border-radius:5px;color:#fff;}
+  .m-get{background:#0E9D6E;}.m-post{background:#2563EB;}.m-patch{background:#C77F08;}.m-sse{background:#7C5CFC;}
+  .eff{font-family:var(--mono);font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;background:var(--surface-3);color:var(--ink-2);}
+
+  /* phase header */
+  .phase{position:relative;}
+  .ph-top{display:flex;align-items:center;gap:12px;margin-bottom:4px;}
+  .ph-badge{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-family:var(--mono);font-weight:600;font-size:15px;color:#fff;flex-shrink:0;}
+  .ph-goal{color:var(--ink-2);font-size:13.5px;margin:8px 0 16px;}
+  .ph-meta{display:flex;gap:8px;margin-left:auto;align-items:center;}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:920px){.grid2{grid-template-columns:1fr;}}
+  .blk-lbl{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-bottom:9px;}
+
+  ul.task{list-style:none;margin:0;padding:0;}
+  ul.task li{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:var(--ink-2);padding:5px 0;}
+  ul.task li::before{content:'';width:15px;height:15px;border:1.5px solid var(--border-2);border-radius:4px;flex-shrink:0;margin-top:2px;}
+
+  .ep{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--border);}
+  .ep:last-child{border-bottom:none;}
+  .ep .path{font-family:var(--mono);font-size:12px;font-weight:500;}
+  .ep .st{margin-left:auto;}
+
+  .done-box{background:var(--ready-bg);border:1px solid var(--ready-line);border-radius:9px;padding:12px 15px;margin-top:4px;}
+  .done-box .blk-lbl{color:#0a7c56;}
+  ul.done{list-style:none;margin:0;padding:0;}
+  ul.done li{display:flex;gap:8px;font-size:12.5px;color:#0a6b4b;padding:3px 0;}
+  ul.done li::before{content:'✓';font-weight:700;}
+
+  .fe{font-size:12.5px;color:var(--ink-2);padding:5px 0;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:baseline;}
+  .fe:last-child{border-bottom:none;}
+  .fe .mono{font-size:11.5px;color:var(--ink);}
+
+  .note{display:flex;gap:9px;background:var(--partial-bg);border:1px solid var(--partial-line);border-radius:9px;padding:12px 14px;font-size:12.5px;color:#7a5304;margin:14px 0;}
+  .note.blue{background:var(--new-bg);border-color:var(--new-line);color:#1d4ed8;}
+  .note.green{background:var(--ready-bg);border-color:var(--ready-line);color:#0a6b4b;}
+  .note b{font-weight:600;}
+
+  /* roadmap timeline */
+  .road{display:flex;flex-direction:column;gap:0;}
+  .road .r{display:flex;gap:14px;align-items:flex-start;}
+  .road .rail{display:flex;flex-direction:column;align-items:center;}
+  .road .dot{width:30px;height:30px;border-radius:99px;color:#fff;display:grid;place-items:center;font-family:var(--mono);font-weight:600;font-size:13px;flex-shrink:0;}
+  .road .ln{width:2px;flex:1;background:var(--border-2);min-height:18px;}
+  .road .rc{padding-bottom:18px;flex:1;}
+  .road .rc b{font-size:14px;}
+  .road .rc .d{font-size:12.5px;color:var(--ink-2);margin-top:2px;}
+  .road .rc .tags{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap;}
+
+  @media print{.side{display:none;}.wrap{display:block;}.main{padding:0;}section{break-inside:avoid;}pre{color:#111;background:#f3f3f3;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="side">
+    <div class="side-brand"><div class="mk">C</div><b>Criptotrade</b></div>
+    <div class="side-sub">Plano de Desenvolvimento</div>
+    <div id="nav"></div>
+  </nav>
+  <main class="main">
+    <div class="doc-title">Plano do Dev — Criptotrade Console</div>
+    <div class="doc-sub">Roteiro de implementação para ligar o protótipo ao backend real. Seis fases ordenadas por dependência: liga primeiro o que já está pronto, depois expõe a lógica existente, por último constrói o que falta.</div>
+    <div class="meta-row">
+      <span class="meta">6 fases</span>
+      <span class="meta">~18 endpoints novos</span>
+      <span class="meta">1 tabela nova (Diário)</span>
+      <span class="meta">complementa · Handoff Dev</span>
+    </div>
+    <div id="doc"></div>
+  </main>
+</div>
+
+<script>
+const P={ready:'<span class="pill p-ready"><span class="d"></span>Pronto</span>',partial:'<span class="pill p-partial"><span class="d"></span>Expor rota</span>',new:'<span class="pill p-new"><span class="d"></span>Backend novo</span>'};
+const M={GET:'<span class="method m-get">GET</span>',POST:'<span class="method m-post">POST</span>',PATCH:'<span class="method m-patch">PATCH</span>',SSE:'<span class="method m-sse">SSE</span>'};
+const COLOR=['#0E9D6E','#2563EB','#C77F08','#7C5CFC','#DC2B2B','#14181C'];
+
+const PHASES=[
+{ id:'f0', num:'0', title:'Fundação & quick wins', effort:'M', color:0,
+  goal:'App rodando em dados reais nas áreas já prontas, com uma camada de dados única. Entrega valor imediato sem backend novo.',
+  tasks:[
+    'Criar <code>apiClient.js</code>: base URL, header X-API-Key, desembrulho de <code>resposta.data</code>, mapeamento de erro.',
+    'Estados honestos (Carregando / Sem dados / API offline) — manter o padrão do dashboard Streamlit atual.',
+    'Trocar <code>window.CT</code> estático por fetch nas áreas prontas (HITL, Ordens, Agentes, Alertas, KPIs).',
+    'Cliente SSE para <code>/v1/alerts</code> (sininho ao vivo) + fallback <code>/v1/alerts/history</code>.',
+    'Fix backend: serializar <code>stop_loss · take_profit · position_size_pct · rr</code> em <code>OrderOut</code>.',
+    'Paginação em <code>GET /v1/orders</code> (já no backlog Fase 5b do repo).',
+  ],
+  endpoints:[['GET','/v1/metrics','ready'],['GET','/v1/hitl/config','ready'],['PATCH','/v1/hitl/config','ready'],['GET','/v1/orders','ready'],['PATCH','/v1/orders/{id}/status','ready'],['GET','/v1/agents','ready'],['SSE','/v1/alerts','ready'],['GET','/health','ready']],
+  frontend:['CT.hitl → GET /v1/hitl/config','CT.orders / CT.pendingOrders → GET /v1/orders','CT.agents → GET /v1/agents','CT.alerts → SSE + /history','KPIs de Risco (valor, P&L, exposição) → /v1/metrics'],
+  done:['Operador aprova/rejeita ordem real pelo HITL','Tabela de Ordens e cards de Agentes em dados reais','Alertas chegam ao vivo no sininho','KPIs de portfólio reais no topo de Risco'] },
+
+{ id:'f1', num:'1', title:'Mercado — expor src/analysis', effort:'L', color:1, depends:'Fase 0',
+  goal:'Dashboard de Mercado com dados reais. A lógica já existe em src/analysis/* — criar o router market.py e os serializadores.',
+  tasks:[
+    'Criar <code>src/api/routes/market.py</code> (router <code>/v1/market/{pair}</code>).',
+    'Serializar saídas de indicators, regime, levels, volume-profile, patterns.',
+    'Expor feed de candles a partir do <code>exchange_client</code> (dry-run sintético).',
+    'Ligar header (preço/variação + badge de regime) a este router.',
+  ],
+  endpoints:[['GET','/v1/market/{pair}/candles','partial'],['GET','/v1/market/{pair}/indicators','partial'],['GET','/v1/market/{pair}/regime','partial'],['GET','/v1/market/{pair}/levels','partial'],['GET','/v1/market/{pair}/volume-profile','partial'],['GET','/v1/market/{pair}/patterns','partial'],['GET','/v1/market/{pair}/signal','partial']],
+  schema:{name:'IndicatorsOut (exemplo)',code:`<span class="k">class</span> <span class="t">IndicatorsOut</span>(BaseModel):
+  rsi: float                <span class="c"># 0–100</span>
+  macd: <span class="t">MacdOut</span>           <span class="c"># {macd, signal, hist}</span>
+  stoch: <span class="t">StochOut</span>         <span class="c"># {k, d}</span>
+  boll_pct_b: float
+  atr: float; atr_pct: float
+  ema9: float; ema21: float
+  sma20: float; sma50: float; sma200: float
+  obv_trend: <span class="k">int</span>          <span class="c"># -1 distribuição / +1 acumulação</span>
+  volume_ratio: float`},
+  frontend:['CT.candles / CT.bb → /candles','CT.indicators → /indicators','CT.regime → /regime','CT.sr (+fib) → /levels','CT.volumeProfile → /volume-profile','CT.patterns → /patterns','CT.signal → /signal'],
+  done:['Candles + Bollinger + S/R + Fibonacci renderizam de /v1/market','Indicadores (RSI/MACD/Stoch/ATR/MAs) reais','Padrões, Volume Profile e Sinal atual reais'] },
+
+{ id:'f2', num:'2', title:'Risco completo & confiança', effort:'L', color:2, depends:'Fase 0',
+  goal:'Tela hero (Risco) e badges globais reais; breakdown de confiança e guardrails por ordem no HITL.',
+  tasks:[
+    'Criar <code>src/api/routes/risk.py</code>: protections, circuit-breaker, kelly, config.',
+    'Adicionar série de capital/drawdown: <code>GET /v1/metrics/equity</code>.',
+    'Incluir <code>confidence_factors[]</code> e <code>guardrails[]</code> no detalhe da ordem.',
+    'Persistir parâmetros de risco em <code>risk_params.yaml</code> via PATCH.',
+  ],
+  endpoints:[['GET','/v1/risk/protections','partial'],['GET','/v1/risk/circuit-breaker','partial'],['GET','/v1/risk/kelly','new'],['GET','/v1/metrics/equity','new'],['PATCH','/v1/risk/config','new'],['GET','/v1/orders/{id}/guardrails','partial']],
+  schema:{name:'KellyOut + ProtectionOut',code:`<span class="k">class</span> <span class="t">KellyOut</span>(BaseModel):
+  win_rate: float; avg_win_pct: float; avg_loss_pct: float
+  full_kelly: float; fraction: float; fractional_kelly: float
+  risk_of_ruin: float       <span class="c"># % — alerta se > 5</span>
+  trades: <span class="k">int</span>
+
+<span class="k">class</span> <span class="t">ProtectionOut</span>(BaseModel):
+  scope: str                <span class="c"># daily | weekly | monthly</span>
+  value: float; limit: float
+  status: str               <span class="c"># ok | warn | paused</span>
+  action: str`},
+  frontend:['CT.drawdown → /protections','CT.circuitBreaker → /circuit-breaker','CT.kelly → /kelly','CT.equity → /metrics/equity','CT.riskConfig → PATCH /risk/config','CT.confidenceBreakdown / CT.guardrails → detalhe da ordem'],
+  done:['Proteções, circuit breaker, Kelly e curva de capital reais','Badge de circuit breaker no header real','Breakdown de 5 fatores + guardrails no card de aprovação'] },
+
+{ id:'f3', num:'3', title:'Validação — backtest assíncrono', effort:'M', color:3, depends:'Fase 0',
+  goal:'Rodar backtest, Monte Carlo e walk-forward pela UI. A lógica existe em src/backtest/* — operações longas pedem job + polling.',
+  tasks:[
+    'Criar <code>src/api/routes/backtest.py</code>.',
+    'Padrão assíncrono: <code>POST /run</code> devolve <code>job_id</code>; UI faz polling em <code>GET /jobs/{id}</code>.',
+    'Serializar resultados do engine, monte_carlo e validator.',
+  ],
+  endpoints:[['POST','/v1/backtest/run','partial'],['POST','/v1/backtest/montecarlo','partial'],['POST','/v1/backtest/walkforward','partial'],['GET','/v1/backtest/jobs/{id}','new']],
+  schema:{name:'MonteCarloOut + WalkForwardOut',code:`<span class="k">class</span> <span class="t">MonteCarloOut</span>(BaseModel):
+  n: <span class="k">int</span>
+  p5: float; p50: float; p95: float
+  profitable_pct: float
+  rejected: <span class="k">bool</span>       <span class="c"># True se p5 &lt; 0</span>
+  histogram: <span class="k">list</span>[<span class="k">int</span>]
+
+<span class="k">class</span> <span class="t">WalkForwardOut</span>(BaseModel):
+  valid: <span class="k">bool</span>; windows: <span class="k">int</span>
+  sharpe_deviation: float    <span class="c"># rejeita se &gt; 0.30</span>
+  folds: <span class="k">list</span>[<span class="t">FoldOut</span>]`},
+  frontend:['CT.backtest → POST /run (resultado)','CT.monteCarlo → /montecarlo','CT.walkForward → /walkforward','Botão "Rodar" → job + estado "Rodando…"'],
+  done:['Botão dispara job e UI mostra progresso','Métricas, equity, Monte Carlo e walk-forward reais'] },
+
+{ id:'f4', num:'4', title:'Diário Comportamental — backend novo', effort:'L', color:4, depends:'Fase 2',
+  goal:'Construir do zero: tabela, CRUD e métricas. O win-rate real daqui calibra o Kelly e o overconfidence guard (cruza com a Fase 2).',
+  tasks:[
+    'Migração: tabela <code>journal_entries</code> (SQLite WAL, padrão do repo).',
+    'Criar <code>src/api/routes/journal.py</code> (CRUD + métricas).',
+    'Calcular métricas: win-rate por faixa emocional, P&L plano-seguido vs desviou, correlação disciplina.',
+    'Ligar <code>real_win_rate</code> ao <code>/v1/risk/kelly</code> e ao overconfidence guard.',
+  ],
+  endpoints:[['GET','/v1/journal','new'],['POST','/v1/journal','new'],['GET','/v1/journal/metrics','new']],
+  schema:{name:'JournalEntry + Metrics',code:`<span class="k">class</span> <span class="t">JournalEntryCreate</span>(BaseModel):
+  setup: str
+  emotion_before: <span class="k">int</span>     <span class="c"># 1–10</span>
+  emotion_after: <span class="k">int</span>
+  stop_defined: <span class="k">bool</span>
+  plan_followed: <span class="k">bool</span>; note: str | <span class="k">None</span>
+  pnl_pct: float
+
+<span class="k">class</span> <span class="t">JournalMetricsOut</span>(BaseModel):
+  by_emotion: <span class="k">list</span>[<span class="t">EmotionBand</span>]
+  plan_followed_pnl: float; plan_deviated_pnl: float
+  discipline_correlation: float
+  real_win_rate: float       <span class="c"># → calibra Kelly</span>`},
+  frontend:['CT.journal → GET /v1/journal','CT.journalMetrics → /metrics','CT.journalScatter / CT.heatmap → derivados de entries','"Novo registro" → POST /v1/journal'],
+  done:['Registros persistem entre sessões','Barras, scatter e heatmap reais','Win-rate real recalcula o Kelly automaticamente'] },
+
+{ id:'f5', num:'5', title:'Configurações & comportamento', effort:'M', color:5, depends:'Fases 2 e 4',
+  goal:'Settings totalmente funcional — cada seção persiste de verdade num store de configuração unificado.',
+  tasks:[
+    'Criar <code>GET/PATCH /v1/config</code> (store de settings p/ env: dry-run, intervalo, exchange, capital).',
+    'Edição de estratégias: <code>PATCH /v1/agents/{id}/config</code> → <code>config/strategies/*.yaml</code>.',
+    'Thresholds do behavioral guard: <code>PATCH /v1/alerts/config</code>.',
+  ],
+  endpoints:[['GET','/v1/config','new'],['PATCH','/v1/config','new'],['PATCH','/v1/agents/{id}/config','new'],['PATCH','/v1/alerts/config','partial']],
+  frontend:['Settings · Geral → GET/PATCH /v1/config','Settings · Risco → PATCH /v1/risk/config (Fase 2)','Settings · Estratégias → PATCH /v1/agents/{id}/config','Settings · Alertas → PATCH /v1/alerts/config'],
+  done:['Cada seção de Configurações salva e relê do backend','Mudanças registradas no ledger (auditável)'] },
+];
+
+const ROADMAP=PHASES.map(p=>({num:p.num,title:p.title,goal:p.goal.split('.')[0]+'.',effort:p.effort,color:p.color,depends:p.depends}));
+
+/* ---- render ---- */
+const docEl=document.getElementById('doc');
+
+/* strategy section */
+docEl.insertAdjacentHTML('beforeend',`
+<section id="estrategia"><div class="sec-head"><span class="sec-num">—</span><span class="sec-title">Estratégia de execução</span></div>
+<div class="sec-desc">Três princípios guiam a ordem das fases.</div>
+<div class="grid2">
+  <div class="card"><div class="card-b">
+    <div class="blk-lbl">1 · Valor antes de volume</div>
+    <div style="font-size:13px;color:var(--ink-2)">A Fase 0 entrega o app vivo (HITL, Ordens, Agentes, Alertas, KPIs) <b>sem nenhuma rota nova</b> — só ligando o que já existe e uma correção de serialização.</div>
+  </div></div>
+  <div class="card"><div class="card-b">
+    <div class="blk-lbl">2 · Expor antes de construir</div>
+    <div style="font-size:13px;color:var(--ink-2)">Mercado e Validação já têm toda a lógica em <code>src/analysis</code> e <code>src/backtest</code>. São <b>rotas finas</b> sobre código testado — baixo risco.</div>
+  </div></div>
+  <div class="card"><div class="card-b">
+    <div class="blk-lbl">3 · Camada de dados única</div>
+    <div style="font-size:13px;color:var(--ink-2)">Todo o protótipo lê de <code>window.CT</code> (em <code>data.js</code>). Esse é o <b>único ponto de troca</b> para dados reais — um <code>apiClient</code> que desembrulha <code>resposta.data</code>.</div>
+  </div></div>
+  <div class="card"><div class="card-b">
+    <div class="blk-lbl">4 · Backend novo por último</div>
+    <div style="font-size:13px;color:var(--ink-2)">Só o <b>Diário</b> e parte do <b>Risco</b> (Kelly/ruína) exigem tabela e cálculo novos. Ficam depois, já apoiados na infra existente.</div>
+  </div></div>
+</div>
+<div class="note green"><span>✓</span><div><b>Resultado da Fase 0 sozinha:</b> o operador já consegue supervisionar e aprovar ordens reais, ver agentes e receber alertas ao vivo — o caminho crítico do produto (HITL) fica funcional no primeiro ciclo.</div></div>
+</section>`);
+
+/* roadmap */
+let road=`<section id="roadmap"><div class="sec-head"><span class="sec-num">—</span><span class="sec-title">Roadmap em fases</span></div><div class="card"><div class="card-b"><div class="road">`;
+ROADMAP.forEach((r,i)=>{
+  road+=`<div class="r"><div class="rail"><div class="dot" style="background:${COLOR[r.color]}">${r.num}</div>${i<ROADMAP.length-1?'<div class="ln"></div>':''}</div>
+    <div class="rc"><b>Fase ${r.num} · ${r.title}</b><div class="d">${r.goal}</div>
+    <div class="tags"><span class="eff">esforço ${r.effort}</span>${r.depends?`<span class="eff">depende: ${r.depends}</span>`:'<span class="eff" style="color:var(--ready)">sem dependência</span>'}</div></div></div>`;
+});
+road+=`</div></div></div></section>`;
+docEl.insertAdjacentHTML('beforeend',road);
+
+/* phases */
+PHASES.forEach(p=>{
+  let h=`<section id="${p.id}" class="phase"><div class="sec-head"><span class="sec-num">F${p.num}</span><span class="sec-title">${p.title}</span></div>`;
+  h+=`<div class="ph-top"><div class="ph-badge" style="background:${COLOR[p.color]}">${p.num}</div><div class="ph-meta"><span class="eff">esforço ${p.effort}</span>${p.depends?`<span class="eff">depende: ${p.depends}</span>`:'<span class="eff" style="color:var(--ready)">sem dependência</span>'}</div></div>`;
+  h+=`<div class="ph-goal">${p.goal}</div>`;
+
+  h+=`<div class="grid2">`;
+  // tasks
+  h+=`<div class="card"><div class="card-b"><div class="blk-lbl">Tarefas</div><ul class="task">${p.tasks.map(t=>`<li><span>${t}</span></li>`).join('')}</ul></div></div>`;
+  // endpoints
+  h+=`<div class="card"><div class="card-b"><div class="blk-lbl">Endpoints</div>${p.endpoints.map(e=>`<div class="ep">${M[e[0]]}<span class="path">${e[1]}</span><span class="st">${P[e[2]]}</span></div>`).join('')}</div></div>`;
+  h+=`</div>`;
+
+  h+=`<div class="grid2">`;
+  // schema
+  if(p.schema){ h+=`<div class="card"><div class="card-h"><b>Contrato novo · ${p.schema.name}</b></div><div class="card-b"><pre>${p.schema.code}</pre></div></div>`; }
+  // frontend integ
+  h+=`<div class="card"><div class="card-b"><div class="blk-lbl">Integração no frontend</div>${p.frontend.map(f=>{const parts=f.split(' → ');return `<div class="fe"><span class="mono">${parts[0]}</span>${parts[1]?`<span style="color:var(--ink-4)">→</span><span>${parts[1]}</span>`:''}</div>`}).join('')}</div></div>`;
+  h+=`</div>`;
+
+  // done
+  h+=`<div class="done-box"><div class="blk-lbl">Definição de pronto</div><ul class="done">${p.done.map(d=>`<li>${d}</li>`).join('')}</ul></div>`;
+  h+=`</section>`;
+  docEl.insertAdjacentHTML('beforeend',h);
+});
+
+/* cross-cutting */
+docEl.insertAdjacentHTML('beforeend',`
+<section id="transversal"><div class="sec-head"><span class="sec-num">★</span><span class="sec-title">Transversal — vale para todas as fases</span></div>
+<div class="grid2">
+  <div class="card"><div class="card-b"><div class="blk-lbl">Estados honestos</div><div style="font-size:13px;color:var(--ink-2)">Cada painel degrada para <code>Carregando…</code>, <code>Sem dados</code> ou <code>API offline</code> — nunca um <code>--</code> ambíguo. Já é o padrão do dashboard atual; manter no protótipo.</div></div></div>
+  <div class="card"><div class="card-b"><div class="blk-lbl">HITL otimista + timeout</div><div style="font-size:13px;color:var(--ink-2)">Aprovar/rejeitar atualiza a UI na hora (otimista) e confirma no PATCH. Mostrar contagem regressiva do <code>decision_timeout</code> (300s) — sem resposta, a ordem expira (<b>fail-closed → cancelled</b>).</div></div></div>
+  <div class="card"><div class="card-b"><div class="blk-lbl">Auth & ambiente</div><div style="font-size:13px;color:var(--ink-2)">Header <code>X-API-Key</code> quando <code>API_KEYS</code> setado. Respeitar <code>EXCHANGE_DRY_RUN</code> — o badge "dry-run · zero conexão real" deve refletir o ambiente.</div></div></div>
+  <div class="card"><div class="card-b"><div class="blk-lbl">Tempo real</div><div style="font-size:13px;color:var(--ink-2)">SSE para alertas; <code>REFRESH_INTERVAL</code> (polling) para métricas e fila. Evitar N+1: buscar <code>/v1/agents/{id}/config</code> em lote como o dashboard já faz.</div></div></div>
+</div>
+<div class="note blue"><span>💡</span><div><b>Oportunidade futura (fora do escopo das 6 fases):</b> <code>GET /v1/process/events</code> (event log XES) já está pronto e não é usado pela UI — abre espaço para uma tela de <b>Auditoria / Process Mining</b> mostrando o fluxo signal → risk → HITL → execução.</div></div>
+</section>`);
+
+/* nav */
+const navEl=document.getElementById('nav');
+let nav='<div class="side-lbl">Visão geral</div><a href="#estrategia">Estratégia de execução</a><a href="#roadmap">Roadmap em fases</a><div class="side-lbl">Fases</div>';
+PHASES.forEach(p=>nav+=`<a href="#${p.id}">Fase ${p.num} · ${p.title}</a>`);
+nav+='<div class="side-lbl">Geral</div><a href="#transversal">Transversal</a>';
+navEl.innerHTML=nav;
+</script>
+</body>
+</html>

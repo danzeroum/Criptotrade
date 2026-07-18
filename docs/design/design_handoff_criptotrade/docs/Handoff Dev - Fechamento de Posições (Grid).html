@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Handoff Dev — Fechamento de Posições (Grid FIFO) · Criptotrade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#F4F6F8;--surface:#fff;--surface-2:#F6F8FA;--surface-3:#EEF1F4;--border:#E4E8EC;--border-2:#D5DAE0;
+    --ink:#14181C;--ink-2:#5B636C;--ink-3:#8A929B;--ink-4:#AEB5BD;
+    --ok:#0E9D6E;--ok-bg:#E7F6EF;--ok-line:#B7E6D2;
+    --warn:#C77F08;--warn-bg:#FBF1DD;--warn-line:#EEDBAC;
+    --info:#2563EB;--info-bg:#E7EEFD;--info-line:#C9D8FA;
+    --crit:#DC2B2B;--crit-bg:#FCEAEA;--crit-line:#F3C9C9;
+    --sans:'IBM Plex Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+    --sh-sm:0 1px 2px rgba(20,24,28,.05);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;-webkit-font-smoothing:antialiased;line-height:1.5;}
+  code{font-family:var(--mono);font-size:.85em;background:var(--surface-3);padding:1.5px 6px;border-radius:5px;color:var(--ink);}
+  pre{font-family:var(--mono);font-size:11.5px;line-height:1.55;background:#14181C;color:#E8ECF0;border-radius:10px;padding:14px 16px;overflow-x:auto;margin:10px 0 0;}
+  pre .c{color:#8A929B;}
+  a{color:var(--info);text-decoration:none;}a:hover{text-decoration:underline;}
+  .wrap{display:grid;grid-template-columns:248px 1fr;max-width:1320px;margin:0 auto;}
+  .side{position:sticky;top:0;height:100vh;overflow-y:auto;padding:26px 16px;border-right:1px solid var(--border);background:var(--surface);}
+  .side .mk{width:30px;height:30px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-family:var(--mono);font-weight:600;}
+  .side-brand{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .side-brand b{font-size:15px;}
+  .side-sub{font-size:11px;color:var(--ink-3);font-family:var(--mono);margin-bottom:20px;}
+  .side a{display:flex;gap:8px;align-items:center;padding:6px 9px;border-radius:6px;color:var(--ink-2);font-size:12.5px;font-weight:500;}
+  .side a:hover{background:var(--surface-2);color:var(--ink);text-decoration:none;}
+  .side a .sn{font-family:var(--mono);font-size:10px;color:var(--ink-4);width:16px;}
+  .main{padding:40px 46px 110px;min-width:0;}
+  .doc-kicker{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--info);}
+  .doc-title{font-size:30px;font-weight:600;letter-spacing:-.025em;margin-top:8px;}
+  .doc-sub{color:var(--ink-2);font-size:15px;margin-top:9px;max-width:720px;}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;}
+  .meta{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-family:var(--mono);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:5px 10px;color:var(--ink-2);}
+  section{margin-top:46px;scroll-margin-top:20px;}
+  .sec-head{display:flex;align-items:baseline;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:6px;}
+  .sec-num{font-family:var(--mono);font-size:13px;color:var(--ink-3);font-weight:600;}
+  .sec-title{font-size:21px;font-weight:600;letter-spacing:-.02em;}
+  .sec-desc{color:var(--ink-2);font-size:14px;margin:14px 0 18px;max-width:800px;}
+  .tally{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:24px;}
+  .tally .t{border:1px solid var(--border);border-radius:10px;padding:13px 15px;background:var(--surface);}
+  .tally .t .n{font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-.02em;}
+  .tally .t .l{font-size:11.5px;color:var(--ink-2);margin-top:2px;line-height:1.35;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--sh-sm);margin-bottom:14px;overflow:hidden;}
+  .card.blue{border-left:3px solid var(--info);}
+  .card.green{border-left:3px solid var(--ok);}
+  .card.amber{border-left:3px solid var(--warn);}
+  .card-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:13px 16px;border-bottom:1px solid var(--border);background:var(--surface-2);}
+  .card-h .ti{font-size:14.5px;font-weight:600;}
+  .card-h .right{margin-left:auto;display:flex;gap:7px;}
+  .card-b{padding:15px 16px;font-size:13.5px;line-height:1.6;color:var(--ink);}
+  .card-b b{font-weight:600;}
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid transparent;white-space:nowrap;}
+  .pill .d{width:6px;height:6px;border-radius:99px;background:currentColor;}
+  .p-mod{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-line);}
+  .p-new{background:var(--info-bg);color:var(--info);border-color:var(--info-line);}
+  .p-ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-line);}
+  .filechip{font-family:var(--mono);font-size:11px;background:var(--surface-3);border:1px solid var(--border-2);padding:3px 8px;border-radius:6px;color:var(--ink);}
+  ul.clean{margin:6px 0 0;padding-left:0;list-style:none;}
+  ul.clean li{font-size:13px;color:var(--ink-2);padding:5px 0 5px 18px;position:relative;line-height:1.55;}
+  ul.clean li::before{content:'';position:absolute;left:3px;top:11px;width:5px;height:5px;border-radius:99px;background:var(--ink-4);}
+  ul.clean li b{color:var(--ink);font-weight:600;}
+  table.tb{width:100%;border-collapse:collapse;font-size:12.5px;border:1px solid var(--border);border-radius:11px;overflow:hidden;}
+  table.tb th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);padding:10px 13px;background:var(--surface-2);border-bottom:1px solid var(--border);}
+  table.tb td{padding:10px 13px;border-bottom:1px solid var(--border);vertical-align:top;background:var(--surface);}
+  table.tb tr:last-child td{border-bottom:none;}
+  table.tb td.mono{font-family:var(--mono);font-size:11px;color:var(--ink-2);}
+  .vb{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;font-family:var(--mono);padding:2px 8px;border-radius:99px;border:1px solid;white-space:nowrap;}
+  .vb.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-line);}
+  .note{display:flex;gap:9px;border-radius:9px;padding:12px 14px;font-size:12.5px;margin-top:16px;}
+  .note.blue{background:var(--info-bg);border:1px solid var(--info-line);color:#1d4ed8;}
+  .note.green{background:var(--ok-bg);border:1px solid var(--ok-line);color:#0a6b4c;}
+  .note.amber{background:var(--warn-bg);border:1px solid var(--warn-line);color:#7a5304;}
+  .note b{font-weight:600;}
+  .road{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+  .step{border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:12px 13px;}
+  .step .n{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--ink-4);}
+  .step .t{font-size:12.5px;font-weight:600;margin-top:3px;}
+  .step .d{font-size:11.5px;color:var(--ink-2);margin-top:4px;line-height:1.45;}
+  @media print{.side{display:none;}.wrap{display:block;}.main{padding:0 8px;}section,.card,table.tb{break-inside:avoid;}.road{grid-template-columns:1fr 1fr;}}
+  @media (max-width:920px){.wrap{grid-template-columns:1fr;}.side{display:none;}.tally{grid-template-columns:1fr 1fr;}.road{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="side">
+    <div class="side-brand"><div class="mk">C</div><b>Criptotrade</b></div>
+    <div class="side-sub">Handoff · Grid FIFO</div>
+    <div id="nav"></div>
+  </nav>
+  <main class="main">
+    <div class="doc-kicker">Handoff de execução · Backend</div>
+    <div class="doc-title">Fechamento de posições — casamento FIFO no grid</div>
+    <div class="doc-sub">O bot registra fills mas nunca emite <code>position_closed</code> — por isso P&L, win rate e total_trades ficam em "Sem dados". Este handoff especifica o <b>casamento compra×venda (FIFO com netting parcial)</b>: uma venda do grid fecha a compra aberta mais antiga, realiza P&L e alimenta as métricas. Design validado contra o código real.</div>
+    <div class="meta-row">
+      <span class="meta">repo · danzeroum/Criptotrade@master</span>
+      <span class="meta">arquivo central · squad_orchestrator.py</span>
+      <span class="meta">0 testes existentes modificados · 7 novos</span>
+      <span class="meta">data · jul/2026</span>
+    </div>
+    <div id="doc"></div>
+  </main>
+</div>
+
+<script>
+const NAV=[['00','resumo','Resumo'],['01','causa','Causa raiz refinada'],['02','solucao','A solução (FIFO + netting)'],['03','codigo','Onde vive no código'],['04','dryrun','Dry-run & contabilidade'],['05','testes','Testes'],['06','riscos','Riscos & sequenciamento']];
+document.getElementById('nav').innerHTML = NAV.map(([n,id,t])=>`<a href="#${id}"><span class="sn">${n}</span>${t}</a>`).join('');
+
+document.getElementById('doc').innerHTML = `
+<section id="resumo">
+  <div class="tally">
+    <div class="t"><div class="n" style="color:var(--crit)">0</div><div class="l">fechamentos emitidos hoje — métricas em "Sem dados"</div></div>
+    <div class="t"><div class="n" style="color:var(--info)">2+1</div><div class="l">funções: 2 novas (<b>_match_or_open</b>, <b>_record_close</b>) + 1 modificada (<b>_log_fill</b>)</div></div>
+    <div class="t"><div class="n" style="color:var(--ok)">0</div><div class="l">testes existentes precisam mudar</div></div>
+    <div class="t"><div class="n">7</div><div class="l">testes novos (E1–E7)</div></div>
+  </div>
+  <div class="note green"><div>✓&nbsp;</div><div><b>Ideia central:</b> ao registrar um fill, em vez de sempre abrir posição nova, o orquestrador <b>casa o fill contra os lotes opostos mais antigos</b> (FIFO) do mesmo símbolo — fechando-os total ou parcialmente e emitindo <code>position_closed</code> com P&L real (slippage + fees dos dois lados). Sem lote oposto, o comportamento é <b>idêntico ao atual</b> — é isso que preserva todos os testes.</div></div>
+</section>
+
+<section id="causa">
+  <div class="sec-head"><span class="sec-num">01</span><span class="sec-title">Causa raiz refinada</span></div>
+  <div class="sec-desc">A investigação anterior foi confirmada no código, com duas correções de nuance que mudam o escopo da correção.</div>
+  <div class="card blue"><div class="card-h"><span class="ti">Refinamento 1 — o preço no loop real já oscila; o problema é matching, não preço</span></div>
+    <div class="card-b">O stub constante de 50.000 (<code>_stub_analysis</code>) só roda nos testes unitários sem exchange client. No loop dry-run real (<code>OrchestratorLoop.from_env</code>), o <code>StrategyAgent</code> chama <code>fetch_ohlcv</code> → <code>synthetic_ohlcv</code>, com caminho de preço <b>oscilante</b> (senoides multi-escala ±12%, <code>synthetic_market.py:90-106</code>). Zero fechamentos acontecem porque os longs do grid têm <code>take_profit=None</code>, stop ~12% distante e <b>não existe casamento compra×venda</b>.</div></div>
+  <div class="card blue"><div class="card-h"><span class="ti">Refinamento 2 — o log duplo de order_fill não corrompe métricas</span></div>
+    <div class="card-b">O <code>PortfolioMetricsCalculator</code> lê P&L/win rate/total_trades <b>só</b> de <code>position_closed</code> (<code>metrics.py:107,120-133</code>) e posições abertas <b>só</b> do <code>PositionStore</code>. Ele nunca lê <code>order_fill</code> — a duplicação é <b>ruído de auditoria</b>, não bug de correção. Como o <code>_log_fill</code> rastreado roda em toda execução, <b>implementar o matching só no caminho rastreado é suficiente</b>.</div></div>
+</section>
+
+<section id="solucao">
+  <div class="sec-head"><span class="sec-num">02</span><span class="sec-title">A solução: FIFO com netting parcial</span></div>
+  <div class="sec-desc">Política de casamento e por quê.</div>
+  <div class="card green"><div class="card-h"><span class="ti">Por que FIFO (lote oposto mais antigo)</span></div><div class="card-b">
+    <ul class="clean">
+      <li><b>Convenção contábil padrão</b> de P&L realizado — determinística, auditável, não "maquiável".</li>
+      <li><b>Inventário limitado:</b> fechar o mais antigo evita acumular lotes extremos parados. "Mais próximo em preço" ou "melhor P&L" embelezam o P&L por trade deixando os piores lotes abertos para sempre.</li>
+      <li><b>Espelha um grid real:</b> a primeira compra na baixa é a primeira coberta por uma venda na alta.</li>
+    </ul></div></div>
+  <div class="card green"><div class="card-h"><span class="ti">Quantidades parciais: netting, não lote exato</span></div><div class="card-b">A quantidade vem de <code>initial_capital · size_pct/100 ÷ entry_price</code> — preços diferentes ⇒ quantidades diferentes, mesmo com o mesmo <code>size_pct</code>. Matching de lote exato deixaria resíduos órfãos. Solução: <b>loop de netting</b> — o fill consome sucessivos lotes opostos mais antigos, fechando cada um total ou parcialmente; a sobra abre posição nova no lado do fill.</div></div>
+  <div class="card"><div class="card-h"><span class="ti">Matemática do P&L (semântica do ledger inalterada)</span></div><div class="card-b">O <code>log_position_closed</code> (<code>ledger.py:149-186</code>) já computa pelo lado do lote de <b>abertura</b>: <code>direction = +1 se buy senão −1</code> · <code>gross = direction · (exit − entry) · qty</code> · <code>pnl = gross − fee</code>. O orquestrador passa entrada/saída <b>executadas</b> (já com slippage) e <code>fee</code> = entrada pró-rata + saída pró-rata. Paper P&L honesto; testes de ledger/métricas intactos.</div></div>
+</section>
+
+<section id="codigo">
+  <div class="sec-head"><span class="sec-num">03</span><span class="sec-title">Onde vive no código</span></div>
+  <div class="sec-desc">Tudo em <span class="filechip">src/orchestration/squad_orchestrator.py</span> — três pontos.</div>
+
+  <div class="card amber"><div class="card-h"><span class="ti">1 · _log_fill</span><span class="right"><span class="pill p-mod"><span class="d"></span>modificar · linhas 342-385</span></span></div>
+    <div class="card-b">Mantém <code>ledger.log_fill</code> intacto; substitui o bloco que abre posição incondicionalmente (372-383) por:
+<pre>self._match_or_open(
+    symbol=signal.get("symbol", symbol),
+    side=signal.get("action", "buy").lower(),
+    price=price,          <span class="c"># preço executado</span>
+    quantity=quantity,
+    fee=fee,              <span class="c"># fee total deste fill</span>
+    order_id=order_id,
+    stop_loss=float(sl) if sl is not None else None,
+    take_profit=float(tp) if tp is not None else None,
+)</pre>
+    Ao abrir, guarda <code>entry_fee</code> no dict da posição (o <code>PositionStore.upsert</code> ignora chaves extras — verificado).</div></div>
+
+  <div class="card blue"><div class="card-h"><span class="ti">2 · _match_or_open(...)</span><span class="right"><span class="pill p-new"><span class="d"></span>nova</span></span></div>
+    <div class="card-b">
+<pre>opposite = "sell" if side == "buy" else "buy"
+<span class="c"># FIFO: lotes opostos mais antigos deste símbolo primeiro</span>
+candidates = [(oid, p) for oid, p in self._open_positions.items()
+              if p["symbol"] == symbol and p["side"] == opposite]
+candidates.sort(key=lambda kv: kv[1].get("opened_at") or "")
+
+remaining = quantity
+for oid, pos in candidates:
+    if remaining &lt;= 0: break
+    pos_qty = float(pos["quantity"])
+    matched = min(remaining, pos_qty)
+    exit_fee_chunk  = fee * (matched / quantity) if quantity else 0.0
+    entry_fee_chunk = float(pos.get("entry_fee", 0.0)) * (matched / pos_qty) if pos_qty else 0.0
+
+    if matched &gt;= pos_qty - EPS:      <span class="c"># fecha o lote inteiro</span>
+        self._record_close(oid, pos, exit_price=price,
+                           exit_fee=exit_fee_chunk, entry_fee=entry_fee_chunk,
+                           closed_qty=pos_qty)
+    else:                             <span class="c"># parcial: fecha `matched`, encolhe o lote</span>
+        self._record_close(oid, pos, exit_price=price,
+                           exit_fee=exit_fee_chunk, entry_fee=entry_fee_chunk,
+                           closed_qty=matched, keep_open=True)
+        pos["quantity"] = pos_qty - matched
+        pos["entry_fee"] = float(pos.get("entry_fee", 0.0)) * (pos["quantity"] / pos_qty)
+        self._positions.upsert(oid, pos)
+    remaining -= matched
+
+if remaining &gt; EPS:                   <span class="c"># exposição líquida nova no lado do fill</span>
+    new_pos = { "symbol": symbol, "side": side, "entry_price": price,
+        "quantity": remaining, "stop_loss": stop_loss, "take_profit": take_profit,
+        "entry_fee": fee * (remaining / quantity) if quantity else 0.0,
+        "opened_at": datetime.now(UTC).isoformat() }
+    self._open_positions[order_id] = new_pos
+    self._positions.upsert(order_id, new_pos)</pre>
+    <b>Ponto-chave:</b> sem lote oposto, <code>remaining == quantity</code> → abre exatamente 1 posição sob <code>order_id</code> — <b>comportamento idêntico ao atual</b> para compra/venda isolada.</div></div>
+
+  <div class="card blue"><div class="card-h"><span class="ti">3 · _record_close(...)</span><span class="right"><span class="pill p-new"><span class="d"></span>nova · refator das linhas 399-420</span></span></div>
+    <div class="card-b">Extrai a contabilidade de fechamento hoje inline em <code>_check_open_positions</code>, para que <b>stop/TP e matching usem o mesmo caminho</b>:
+<pre>qty = closed_qty if closed_qty is not None else pos["quantity"]
+if not keep_open:
+    self._open_positions.pop(oid, None)
+    self._positions.delete(oid)
+self.ledger.log_position_closed(
+    order_id=oid, symbol=pos["symbol"], side=pos["side"],
+    entry_price=pos["entry_price"], exit_price=exit_price,
+    quantity=qty, fee=entry_fee + exit_fee, opened_at=pos.get("opened_at"))
+direction = 1.0 if pos["side"] == "buy" else -1.0
+pnl = direction * (exit_price - pos["entry_price"]) * qty - (entry_fee + exit_fee)
+entry_notional = pos["entry_price"] * qty
+pnl_pct = pnl / entry_notional * 100 if entry_notional else 0.0
+self.circuit_breaker.record_trade_result(pnl_pct)</pre>
+    <code>_check_open_positions</code> fica reduzido a: em cada stop/TP atingido, chamar <code>self._record_close(oid, pos, exit_price)</code> (fees 0, quantidade cheia).</div></div>
+</section>
+
+<section id="dryrun">
+  <div class="sec-head"><span class="sec-num">04</span><span class="sec-title">Dry-run & contabilidade de fills</span></div>
+  <div class="card green"><div class="card-h"><span class="ti">Fechamentos alcançáveis: confiar na oscilação sintética — NÃO mexer no motor de preço</span></div><div class="card-b">
+    <ul class="clean">
+      <li>O grid inverte no POC do Volume Profile (<code>grid_trading.py:66-69</code>): BUY abaixo, SELL acima — conforme o preço sintético cruza, os SELLs passam a fechar BUYs. <b>Nenhuma mudança no motor é necessária.</b></li>
+      <li><b>Não tocar</b> no <code>_stub_analysis</code> (constante 50k): os testes unitários sem exchange dependem dele.</li>
+      <li>Teste determinístico: <code>monkeypatch.setattr(orch.strategy_agent, "execute", ...)</code> retornando BUY e depois SELL (técnica já usada na suíte).</li>
+      <li>SELLs raros demais no soak (grid só em <code>sideways</code>) = <b>tuning posterior</b>, fora do escopo.</li>
+    </ul></div></div>
+  <div class="card"><div class="card-h"><span class="ti">Nenhum dedup / re-roteamento do HITL agora</span></div><div class="card-b">Métricas nunca leem <code>order_fill</code>; o caminho rastreado popula o <code>PositionStore</code> corretamente. <b>Deferido (higiene de auditoria):</b> suprimir um dos dois logs de <code>order_fill</code> (total histórico ~2× inflado) e reconciliar os espaços de IDs (<code>ord_*</code> vs <code>PAPER_*</code>).</div></div>
+</section>
+
+<section id="testes">
+  <div class="sec-head"><span class="sec-num">05</span><span class="sec-title">Testes</span></div>
+  <div class="sec-desc">Nenhum teste existente precisa ser modificado — mapeados um a um. Sete novos cobrem o matching.</div>
+  <table class="tb">
+    <thead><tr><th>Teste existente</th><th>Situação</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">test_full_cycle_fill_tracked_then_closed</td><td>BUY isolado → abre 1 posição (igual a hoje); stop fecha via <code>_record_close</code>. <span class="vb ok">✓ preservado</span></td></tr>
+      <tr><td class="mono">test_log_fill_uses_executed_price_and_fee · _falls_back_to_signal_price</td><td>BUY sem oposto → abre sob <code>order_id</code>; asserts valem. <span class="vb ok">✓ preservado</span></td></tr>
+      <tr><td class="mono">test_check_open_positions_* (stop/TP long/short, escopo por símbolo)</td><td>Só refator interno; comportamento externo idêntico. <span class="vb ok">✓ preservado</span></td></tr>
+      <tr><td class="mono">test_circuit_breaker_sees_loss_after_close</td><td><code>_record_close</code> alimenta o breaker exatamente 1× por fechamento. <span class="vb ok">✓ preservado</span></td></tr>
+      <tr><td class="mono">tests/unit/test_metrics.py · tests/api/test_metrics.py</td><td>Leitura defensiva de <code>entry_fee</code>; semeiam <code>position_closed</code> direto. <span class="vb ok">✓ sem mudança</span></td></tr>
+      <tr><td class="mono">tests/unit/test_persistence_and_balance.py</td><td><code>entry_fee</code> invisível ao store (colunas fixas). <span class="vb ok">✓ preservado</span></td></tr>
+    </tbody>
+  </table>
+  <div style="height:14px"></div>
+  <div class="card"><div class="card-h"><span class="ti">Novos (E1–E7)</span></div><div class="card-b"><ul class="clean">
+    <li><b>E1</b> <code>test_sell_fill_closes_open_buy_emits_pnl</code> — BUY→SELL iguais: 1 close, P&L correto, store vazio.</li>
+    <li><b>E2</b> <code>test_buy_fill_closes_open_short</code> — simétrico (direção −1).</li>
+    <li><b>E3</b> <code>test_partial_close_reduces_lot</code> — BUY 1.0, SELL 0.4 → close 0.4; lote restante 0.6 (dict + store).</li>
+    <li><b>E4</b> <code>test_over_close_nets_to_residual_short</code> — BUY 0.4, SELL 1.0 → fecha 0.4, abre short residual 0.6.</li>
+    <li><b>E5</b> <code>test_fifo_closes_oldest_first</code> — 3 BUYs; 1 SELL fecha o mais antigo.</li>
+    <li><b>E6</b> <code>test_metrics_report_real_pnl_after_grid_close</code> (integração) — strategy mockada BUY→SELL; <code>compute()</code> reporta trades, win_rate e P&L reais.</li>
+    <li><b>E7</b> <code>test_grid_close_feeds_circuit_breaker</code> — close com perda decrementa <code>_daily_loss_pct</code>.</li>
+  </ul>E3–E5 chamam <code>_match_or_open</code> direto com quantidades explícitas.</div></div>
+</section>
+
+<section id="riscos">
+  <div class="sec-head"><span class="sec-num">06</span><span class="sec-title">Riscos & sequenciamento</span></div>
+  <div class="card amber"><div class="card-h"><span class="ti">Riscos comportamentais (aceitos e monitorados)</span></div><div class="card-b"><ul class="clean">
+    <li><b>Mudança de semântica:</b> fill oposto agora compensa inventário (SELL com BUY aberto não cria short — fecha o buy). Correto para grid; muda a dinâmica de <code>_available_capital</code>.</li>
+    <li><b>Circuit breaker passa a poder disparar</b> (nunca via closes antes). Correto, mas observar em soak; garantir feed 1× por pedaço.</li>
+    <li><b>Gap do entry_fee pós-restart:</b> lote recarregado fecha com fee de entrada 0 (P&L levemente superestimado). Aceitável; coluna no store é refinamento futuro (<code>ALTER TABLE</code>).</li>
+    <li><b>Empate FIFO</b> no mesmo ciclo: sort estável resolve deterministicamente.</li>
+  </ul></div></div>
+  <div class="road">
+    <div class="step"><div class="n">PASSO 1</div><div class="t">Só refator</div><div class="d">Extrair <code>_record_close</code>; suíte verde. Zero mudança de comportamento.</div></div>
+    <div class="step"><div class="n">PASSO 2</div><div class="t">Matching</div><div class="d"><code>_match_or_open</code> no <code>_log_fill</code>; testes E1–E5.</div></div>
+    <div class="step"><div class="n">PASSO 3</div><div class="t">Breaker + métricas</div><div class="d">Confirmar feed do breaker; E6–E7.</div></div>
+    <div class="step"><div class="n">PASSO 4</div><div class="t">Soak</div><div class="d">Dry-run: <code>position_closed</code> aparecendo; breaker comportado.</div></div>
+    <div class="step"><div class="n">PASSO 5</div><div class="t">Deferido</div><div class="d">Dedup de auditoria, persistir <code>entry_fee</code>, tuning de SELL.</div></div>
+  </div>
+  <div class="note blue" style="margin-top:16px;"><div>▣&nbsp;</div><div><b>Arquivos críticos:</b> <code>src/orchestration/squad_orchestrator.py</code> (o grosso) · <code>src/core/ledger.py</code> (reusado sem mudança) · <code>src/orchestration/position_store.py</code> (upsert/delete parciais) · <code>src/core/metrics.py</code> (consumidor) · <code>tests/integration/test_trading_flow.py</code> (preservar + novos).</div></div>
+  <div class="note green"><div>✓&nbsp;</div><div><b>Efeito no console:</b> com isso no ar, Visão Geral/Ordens saem de "Sem dados" — P&L, win rate e trades passam a refletir fechamentos reais. O botão "Como funciona de verdade" já descreve o fechamento por casamento FIFO.</div></div>
+</section>
+`;
+</script>
+</body>
+</html>

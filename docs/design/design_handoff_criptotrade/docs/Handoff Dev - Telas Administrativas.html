@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Handoff Dev — Telas Administrativas Faltantes · Criptotrade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#F4F6F8;--surface:#fff;--surface-2:#F6F8FA;--surface-3:#EEF1F4;--border:#E4E8EC;--border-2:#D5DAE0;
+    --ink:#14181C;--ink-2:#5B636C;--ink-3:#8A929B;--ink-4:#AEB5BD;
+    --ready:#0E9D6E;--ready-bg:#E7F6EF;--ready-line:#B7E6D2;
+    --crit:#DC2B2B;--crit-bg:#FCEAEA;--crit-line:#F3C9C9;
+    --cond:#C77F08;--cond-bg:#FBF1DD;--cond-line:#EEDBAC;
+    --new:#2563EB;--new-bg:#E7EEFD;--new-line:#C9D8FA;
+    --ui:#7C5CFC;--ui-bg:#EDE9FE;--ui-line:#DAD2FC;
+    --sans:'IBM Plex Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+    --sh-sm:0 1px 2px rgba(20,24,28,.05);--sh:0 1px 2px rgba(20,24,28,.04),0 2px 6px rgba(20,24,28,.05);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+  code{font-family:var(--mono);font-size:.86em;background:var(--surface-3);padding:1.5px 6px;border-radius:5px;color:var(--ink);white-space:nowrap;}
+  a{color:var(--new);text-decoration:none;}a:hover{text-decoration:underline;}
+  h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-.01em;}
+
+  .wrap{display:grid;grid-template-columns:252px 1fr;max-width:1320px;margin:0 auto;}
+  .side{position:sticky;top:0;height:100vh;overflow-y:auto;padding:26px 16px;border-right:1px solid var(--border);background:var(--surface);}
+  .side .mk{width:30px;height:30px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-family:var(--mono);font-weight:600;}
+  .side-brand{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .side-brand b{font-size:15px;}
+  .side-sub{font-size:11px;color:var(--ink-3);font-family:var(--mono);margin-bottom:18px;}
+  .side-lbl{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-4);padding:14px 8px 5px;}
+  .side a{display:flex;gap:8px;align-items:center;padding:6px 9px;border-radius:6px;color:var(--ink-2);font-size:12.5px;font-weight:500;}
+  .side a:hover{background:var(--surface-2);color:var(--ink);text-decoration:none;}
+  .side a .sn{font-family:var(--mono);font-size:10px;color:var(--ink-4);width:16px;}
+  .side a .sd{margin-left:auto;width:7px;height:7px;border-radius:99px;}
+
+  .main{padding:40px 46px 110px;min-width:0;}
+  .doc-kicker{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--new);}
+  .doc-title{font-size:30px;font-weight:600;letter-spacing:-.025em;margin-top:8px;}
+  .doc-sub{color:var(--ink-2);font-size:15px;margin-top:9px;max-width:700px;}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;}
+  .meta{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-family:var(--mono);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:5px 10px;color:var(--ink-2);}
+
+  section{margin-top:46px;scroll-margin-top:20px;}
+  .sec-head{display:flex;align-items:baseline;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:6px;}
+  .sec-num{font-family:var(--mono);font-size:13px;color:var(--ink-3);font-weight:600;}
+  .sec-title{font-size:21px;font-weight:600;letter-spacing:-.02em;}
+  .sec-desc{color:var(--ink-2);font-size:14px;margin:14px 0 18px;max-width:800px;}
+
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid transparent;white-space:nowrap;}
+  .pill .d{width:6px;height:6px;border-radius:99px;background:currentColor;}
+  .p-crit{background:var(--crit-bg);color:var(--crit);border-color:var(--crit-line);}
+  .p-new{background:var(--new-bg);color:var(--new);border-color:var(--new-line);}
+  .p-cond{background:var(--cond-bg);color:var(--cond);border-color:var(--cond-line);}
+  .p-ready{background:var(--ready-bg);color:var(--ready);border-color:var(--ready-line);}
+  .eff{font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:6px;background:var(--surface-3);color:var(--ink-2);border:1px solid var(--border-2);}
+
+  /* summary */
+  .tally{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:24px;}
+  .tally .t{border:1px solid var(--border);border-radius:10px;padding:13px 15px;background:var(--surface);}
+  .tally .t .n{font-family:var(--mono);font-size:25px;font-weight:600;letter-spacing:-.02em;}
+  .tally .t .l{font-size:11.5px;color:var(--ink-2);margin-top:2px;line-height:1.35;}
+
+  /* nav map */
+  .navmap{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:6px;}
+  .navcol{border:1px solid var(--border);border-radius:11px;background:var(--surface);overflow:hidden;}
+  .navcol .h{padding:11px 15px;border-bottom:1px solid var(--border);background:var(--surface-2);font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px;}
+  .navcol .h .tag{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--ink-3);}
+  .navgrp{padding:9px 15px;}
+  .navgrp .gl{font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-4);margin:6px 0 4px;}
+  .navrow{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12.5px;color:var(--ink-2);}
+  .navrow .ic{width:15px;height:15px;border-radius:4px;background:var(--surface-3);flex-shrink:0;}
+  .navrow.exist{color:var(--ink-3);}
+  .navrow.new{color:var(--ink);font-weight:500;}
+  .navrow.new .ic{background:var(--new);}
+  .navrow .nb{margin-left:auto;font-size:9.5px;font-family:var(--mono);font-weight:700;color:var(--new);background:var(--new-bg);border:1px solid var(--new-line);border-radius:99px;padding:0 6px;}
+
+  /* screen card */
+  .scr{background:var(--surface);border:1px solid var(--border);border-radius:13px;box-shadow:var(--sh-sm);overflow:hidden;margin-bottom:18px;}
+  .scr.crit{border-left:3px solid var(--crit);}
+  .scr.core{border-left:3px solid var(--new);}
+  .scr.cond{border-left:3px solid var(--cond);}
+  .scr-h{display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--border);background:var(--surface-2);}
+  .scr-h .id{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink-3);}
+  .scr-h .ti{font-size:15.5px;font-weight:600;letter-spacing:-.01em;}
+  .scr-h .right{margin-left:auto;display:flex;gap:7px;align-items:center;}
+  .scr-b{padding:17px 18px;}
+  .why{display:flex;gap:9px;font-size:13px;color:var(--ink);background:var(--crit-bg);border:1px solid var(--crit-line);border-radius:9px;padding:11px 13px;margin-bottom:15px;line-height:1.5;}
+  .why.eu{background:var(--new-bg);border-color:var(--new-line);}
+  .why.eu .k{color:var(--new);}
+  .why .k{font-weight:700;color:var(--crit);flex-shrink:0;}
+  .why b{font-weight:600;}
+
+  .blk{margin-bottom:15px;}
+  .blk:last-child{margin-bottom:0;}
+  .bl{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-4);margin-bottom:7px;display:flex;align-items:center;gap:6px;}
+  .twocol{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;}
+  @media(max-width:880px){.twocol{grid-template-columns:1fr;}.navmap,.tally{grid-template-columns:1fr;}}
+
+  ul.feat{margin:0;padding-left:0;list-style:none;}
+  ul.feat li{font-size:13px;color:var(--ink);padding:5px 0 5px 18px;position:relative;line-height:1.5;}
+  ul.feat li::before{content:'';position:absolute;left:3px;top:11px;width:5px;height:5px;border-radius:99px;background:var(--ink-4);}
+  ul.feat li b{font-weight:600;}
+
+  .ep{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--border);}
+  .ep:last-child{border-bottom:none;}
+  .ep .path{font-family:var(--mono);font-size:12px;font-weight:500;}
+  .method{font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 6px;border-radius:5px;color:#fff;flex-shrink:0;}
+  .m-get{background:#0E9D6E;}.m-post{background:#2563EB;}.m-patch{background:#C77F08;}.m-del{background:#DC2B2B;}.m-sse{background:#7C5CFC;}
+
+  .filechip{font-family:var(--mono);font-size:11px;background:var(--surface-3);border:1px solid var(--border-2);padding:3px 8px;border-radius:6px;color:var(--ink);}
+  .accept{background:var(--ready-bg);border:1px solid var(--ready-line);border-radius:9px;padding:11px 13px;}
+  .accept .al{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ready);margin-bottom:6px;}
+  .accept ul{margin:0;padding-left:0;list-style:none;}
+  .accept li{font-size:12.5px;color:#0a6b4c;padding:4px 0 4px 17px;position:relative;line-height:1.5;}
+  .accept li::before{content:'';position:absolute;left:2px;top:8px;width:5px;height:5px;border-radius:2px;background:var(--ready);}
+
+  .legend{display:grid;grid-template-columns:repeat(2,1fr);gap:13px;}
+  .legend .it{border:1px solid var(--border);border-radius:9px;padding:13px 15px;background:var(--surface);}
+  .legend .it .t{font-weight:600;font-size:13px;margin:8px 0 3px;}
+  .legend .it .d{font-size:12.5px;color:var(--ink-2);}
+
+  .note{display:flex;gap:9px;border-radius:9px;padding:12px 14px;font-size:12.5px;margin-top:16px;}
+  .note.blue{background:var(--new-bg);border:1px solid var(--new-line);color:#1d4ed8;}
+  .note.amber{background:var(--cond-bg);border:1px solid var(--cond-line);color:#7a5304;}
+  .note b{font-weight:600;}
+
+  table.files{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.files th{text-align:left;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);padding:9px 14px;border-bottom:1px solid var(--border);background:var(--surface-2);}
+  table.files td{padding:9px 14px;border-bottom:1px solid var(--border);vertical-align:top;}
+  table.files tr:last-child td{border-bottom:none;}
+  table.files td.f{width:30%;}
+
+  .road{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .sprint{border:1px solid var(--border);border-radius:11px;background:var(--surface);overflow:hidden;}
+  .sprint .sh{padding:12px 15px;border-bottom:1px solid var(--border);background:var(--surface-2);}
+  .sprint .sh .n{font-family:var(--mono);font-size:11px;color:var(--ink-3);font-weight:600;}
+  .sprint .sh .t{font-size:14px;font-weight:600;margin-top:2px;}
+  .sprint ul{margin:0;padding:11px 15px 13px;list-style:none;}
+  .sprint li{font-size:12.5px;color:var(--ink-2);padding:5px 0 5px 22px;position:relative;border-bottom:1px solid var(--border);}
+  .sprint li:last-child{border-bottom:none;}
+  .sprint li .tag{position:absolute;left:0;top:5px;font-family:var(--mono);font-size:10px;font-weight:700;color:var(--ink-4);}
+
+  @media print{.side{display:none;}.wrap{display:block;}.main{padding:0 8px;}section,.scr{break-inside:avoid;}.twocol,.road,.navmap,.tally{grid-template-columns:1fr;}}
+  @media (max-width:920px){.wrap{grid-template-columns:1fr;}.side{display:none;}.road{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="side">
+    <div class="side-brand"><div class="mk">C</div><b>Criptotrade</b></div>
+    <div class="side-sub">Handoff · Telas Administrativas</div>
+    <div id="nav"></div>
+  </nav>
+  <main class="main">
+    <div class="doc-kicker">Auditoria de cobertura · Páginas faltantes</div>
+    <div class="doc-title">Telas administrativas — o que falta construir</div>
+    <div class="doc-sub">As 11 telas atuais cobrem 100% da <b>operação de trading</b>, mas nenhuma cobre a camada de <b>administração, conta e segurança</b>. Este handoff entrega <b>só as páginas faltantes</b>: para cada uma, por que é necessária (com a evidência no app de hoje), onde entra no nav, os blocos de UI, os endpoints e o critério de aceite.</div>
+    <div class="meta-row">
+      <span class="meta">escopo · só telas faltantes</span>
+      <span class="meta">API base · /v1</span>
+      <span class="meta" id="meta-count"></span>
+      <span class="meta">data · jun/2026</span>
+    </div>
+    <div id="doc"></div>
+  </main>
+</div>
+
+<script>
+/* ===== model ===== */
+const EFF = { P:'P · horas', M:'M · 1–2 dias', G:'G · 3+ dias' };
+const STATUS = {
+  crit:'<span class="pill p-crit"><span class="d"></span>Faltante · crítica</span>',
+  core:'<span class="pill p-new"><span class="d"></span>Faltante · essencial</span>',
+  cond:'<span class="pill p-cond"><span class="d"></span>Condicional · se SaaS</span>',
+};
+const SDOT = { crit:'var(--crit)', core:'var(--new)', cond:'var(--cond)' };
+const ep = (m,path,desc)=>`<div class="ep"><span class="method m-${m}">${m.toUpperCase()}</span><span class="path">${path}</span><span style="margin-left:auto;font-size:11.5px;color:var(--ink-3);text-align:right">${desc}</span></div>`;
+
+const SCREENS = [
+{
+  id:'A1', tone:'crit', eff:'M', group:'Acesso', nav:'(fora do shell)',
+  title:'Autenticação — Login · 2FA · Recuperação',
+  why:'O app abre direto no dashboard, sem porta de entrada. O avatar <b>“OP”</b> no header sugere um usuário logado, mas não existe login, logout, sessão nem expiração. Num sistema que aprova ordens e guarda chaves de exchange, isso é um buraco de segurança P0.',
+  whyTone:'crit',
+  blocks:[
+    '<b>Login</b> e-mail + senha, com erro inline e rate-limit.',
+    '<b>2FA / MFA</b> (TOTP) como segundo passo; código de backup.',
+    '<b>Esqueci a senha</b> → e-mail → redefinição com token.',
+    '<b>Sessão</b>: token + refresh, “lembrar deste dispositivo”, logout no menu do avatar.',
+    'Tela de <b>bloqueio</b> por inatividade (re-autenticar sem perder estado).',
+  ],
+  endpoints:[
+    ['post','/v1/auth/login','e-mail + senha → token / desafio 2FA'],
+    ['post','/v1/auth/2fa/verify','valida TOTP / código de backup'],
+    ['post','/v1/auth/refresh','renova sessão'],
+    ['post','/v1/auth/logout','encerra sessão'],
+    ['post','/v1/auth/password/forgot','dispara e-mail de reset'],
+    ['get','/v1/auth/me','perfil + papel do usuário logado'],
+  ],
+  files:['screen_auth.jsx','components_auth.jsx (AuthLayout)','app.jsx (guarda de rota)'],
+  accept:[
+    'Sem sessão válida, qualquer rota redireciona para /login.',
+    '2FA ativável; logout limpa o token e volta ao login.',
+    'Senha errada mostra erro sem revelar se o e-mail existe.',
+  ],
+},
+{
+  id:'A2', tone:'core', eff:'P', group:'Administração', nav:'Conta & Perfil',
+  title:'Conta & Perfil do operador',
+  why:'O avatar “OP” não abre nada. Não há onde editar nome, e-mail, foto, idioma, fuso horário ou formato numérico — justamente os ajustes que resolvem a <b>inconsistência de formatação</b> apontada na auditoria de Mercado.',
+  whyTone:'eu',
+  blocks:[
+    '<b>Perfil</b>: nome, e-mail, avatar, cargo.',
+    '<b>Preferências</b>: idioma (pt-BR/en), fuso horário, formato de número/data, tema.',
+    '<b>Trocar senha</b> (com senha atual).',
+    'Atalho no <b>menu do avatar</b> do header → Conta · Segurança · Sair.',
+  ],
+  endpoints:[
+    ['get','/v1/account/profile','dados do perfil'],
+    ['patch','/v1/account/profile','atualiza nome/avatar/idioma/fuso'],
+    ['patch','/v1/account/password','troca de senha autenticada'],
+    ['get','/v1/account/preferences','formato número/data, tema'],
+  ],
+  files:['screen_account.jsx','shell.jsx (menu do avatar)'],
+  accept:[
+    'Trocar idioma/fuso reflete em datas e números de todo o console.',
+    'Menu do avatar abre Conta, Segurança e Sair.',
+  ],
+},
+{
+  id:'A3', tone:'crit', eff:'G', group:'Administração', nav:'Usuários & Permissões',
+  title:'Usuários, Papéis & Permissões (RBAC)',
+  why:'O HITL e as ações sensíveis já carimbam um campo <code>operator</code>, e o handoff principal exige <b>“confirmação + operator”</b> em ações de risco — mas <b>não há tela para gerir quem é operador</b>, convidar pessoas ou definir o que cada papel pode fazer. Sem isso, autonomia e aprovação de ordens não têm controle de acesso.',
+  whyTone:'crit',
+  blocks:[
+    '<b>Lista de usuários</b> com papel, status e último acesso.',
+    '<b>Convidar</b> por e-mail; reenviar / revogar convite.',
+    '<b>Papéis</b>: Visualizador · Operador · Admin (e papéis custom).',
+    '<b>Matriz de permissões</b> por recurso (aprovar ordem, mudar risco, alterar autonomia, gerir chaves, ver auditoria).',
+    'Ativar/suspender usuário; transferência de propriedade.',
+  ],
+  endpoints:[
+    ['get','/v1/users','lista usuários + papel + último acesso'],
+    ['post','/v1/users/invite','convida por e-mail'],
+    ['patch','/v1/users/{id}/role','altera papel'],
+    ['del','/v1/users/{id}','remove / suspende'],
+    ['get','/v1/roles','papéis + matriz de permissões'],
+    ['patch','/v1/roles/{id}','edita permissões do papel'],
+  ],
+  files:['screen_users.jsx','data_admin.js (users, roles, permissions)'],
+  accept:[
+    'Um “Visualizador” não vê os botões de aprovar ordem / mudar risco.',
+    'Convite gera usuário pendente; aceitar ativa com o papel definido.',
+    'Toda ação sensível valida a permissão do papel no front e no back.',
+  ],
+},
+{
+  id:'A4', tone:'crit', eff:'M', group:'Administração', nav:'Trilha de Auditoria',
+  title:'Trilha de Auditoria (Audit Log / Ledger)',
+  why:'As Configurações afirmam que <b>“alterações são registradas no ledger”</b> e cada aprovação de ordem grava o <code>operator</code> — mas <b>não existe tela para ver esse histórico</b>. Para um produto financeiro com humano-no-loop, a trilha de auditoria é requisito de compliance, não um extra.',
+  whyTone:'crit',
+  blocks:[
+    '<b>Timeline filtrável</b>: quem · o quê · quando · valor antes→depois.',
+    'Filtros por <b>ator</b>, <b>tipo de ação</b> (login, aprovar ordem, mudar risco, autonomia, chave de API), <b>período</b> e <b>entidade</b>.',
+    'Detalhe expansível com <b>diff</b> do antes/depois e IP/dispositivo.',
+    '<b>Exportar CSV/JSON</b> para auditoria externa; retenção configurável.',
+  ],
+  endpoints:[
+    ['get','/v1/audit','lista paginada + filtros (actor, action, from, to)'],
+    ['get','/v1/audit/{id}','detalhe + diff antes/depois'],
+    ['get','/v1/audit/export','CSV/JSON do período filtrado'],
+  ],
+  files:['screen_audit.jsx','data_admin.js (auditEvents)'],
+  accept:[
+    'Aprovar uma ordem cria uma entrada com operador, horário e payload.',
+    'Filtro por ator + período retorna só os eventos correspondentes.',
+    'Export gera arquivo com as mesmas linhas exibidas.',
+  ],
+},
+{
+  id:'A5', tone:'crit', eff:'G', group:'Administração', nav:'Conexões & Chaves',
+  title:'Conexões de Exchange & Chaves de API',
+  why:'Hoje “Exchange” é apenas um <code>&lt;select&gt;</code> com “binance” nas Configurações — não há onde inserir credenciais, definir permissões (leitura vs. trade), testar a conexão ou rotacionar chaves. Sem isso o modo real (dry-run off) é impossível, e as chaves ficam sem gestão de segurança.',
+  whyTone:'crit',
+  blocks:[
+    '<b>Conexões de exchange</b>: adicionar (API key + secret), escopo (somente leitura / trade), <b>testar conexão</b>, status, rotacionar, revogar.',
+    '<b>IP allowlist</b> e mascaramento do secret (nunca exibir após salvar).',
+    '<b>Chaves da plataforma</b> (acesso externo / webhooks): criar, escopar, revogar, ver último uso.',
+    'Aviso forte ao habilitar escopo de <b>trade</b> + confirmação.',
+  ],
+  endpoints:[
+    ['get','/v1/exchanges/connections','conexões + status + escopo'],
+    ['post','/v1/exchanges/connect','adiciona credencial (key/secret/escopo)'],
+    ['post','/v1/exchanges/{id}/test','testa conectividade e permissões'],
+    ['del','/v1/exchanges/{id}','revoga conexão'],
+    ['get','/v1/api-keys','chaves da plataforma + último uso'],
+    ['post','/v1/api-keys','cria chave escopada'],
+  ],
+  files:['screen_connections.jsx','data_admin.js (connections, apiKeys)'],
+  accept:[
+    'Secret é mascarado após salvar e nunca volta na resposta.',
+    '“Testar conexão” mostra sucesso/erro real com as permissões detectadas.',
+    'Dry-run off só é permitido com uma conexão de trade válida.',
+  ],
+},
+{
+  id:'A6', tone:'core', eff:'M', group:'Administração', nav:'Notificações & Canais',
+  title:'Notificações & Canais de entrega',
+  why:'Existe o <b>drawer de Alertas</b> e uma seção de Alertas nas Configurações — mas o <code>PATCH /v1/alerts/config</code> é <b>write-only</b> e não há onde definir <b>para onde</b> os alertas vão (e-mail, Telegram, Slack, webhook) nem qual severidade dispara cada canal.',
+  whyTone:'eu',
+  blocks:[
+    '<b>Canais</b>: e-mail, Telegram, Slack, webhook — conectar e <b>testar envio</b>.',
+    '<b>Regras</b>: evento × severidade → canal (ex.: “circuit breaker → Telegram + e-mail”).',
+    '<b>Quiet hours</b> e agrupamento para evitar flood.',
+    'Resolve o gap de <b>read-back</b> expondo o GET da config de alertas.',
+  ],
+  endpoints:[
+    ['get','/v1/notifications/channels','canais conectados + status'],
+    ['patch','/v1/notifications/channels','conecta/edita canal'],
+    ['post','/v1/notifications/channels/{id}/test','envia notificação de teste'],
+    ['get','/v1/alerts/config','read-back da config (gap atual)'],
+  ],
+  files:['screen_notifications.jsx','screen_settings.jsx (link da seção Alertas)'],
+  accept:[
+    'Conectar Telegram + “testar” entrega uma mensagem real.',
+    'Uma regra crítica dispara nos canais escolhidos; quiet hours suprime os baixos.',
+  ],
+},
+{
+  id:'A7', tone:'core', eff:'M', group:'Administração', nav:'Segurança & Sessões',
+  title:'Segurança & Sessões ativas',
+  why:'Decorre de A1/A3: uma vez que há login e papéis, o operador precisa ver e revogar <b>dispositivos/sessões</b>, gerir <b>2FA</b> e revisar <b>logins recentes</b> — superfície de segurança hoje inexistente.',
+  whyTone:'eu',
+  blocks:[
+    '<b>Sessões ativas</b> (dispositivo, IP, local, última atividade) com “encerrar”.',
+    '<b>2FA</b>: ativar/desativar, regenerar códigos de backup.',
+    '<b>Histórico de login</b> (sucesso/falha) — alimenta a auditoria.',
+    '<b>IP allowlist</b> da conta (opcional).',
+  ],
+  endpoints:[
+    ['get','/v1/security/sessions','sessões ativas'],
+    ['del','/v1/security/sessions/{id}','revoga sessão'],
+    ['post','/v1/security/2fa/enable','ativa TOTP'],
+    ['get','/v1/security/logins','histórico de acessos'],
+  ],
+  files:['screen_security.jsx','(compartilha layout com screen_account.jsx)'],
+  accept:[
+    'Encerrar uma sessão desloga aquele dispositivo imediatamente.',
+    'Ativar/desativar 2FA exige confirmação por senha.',
+  ],
+},
+{
+  id:'A8', tone:'cond', eff:'M', group:'Administração', nav:'Faturamento & Uso',
+  title:'Faturamento, Plano & Uso',
+  why:'Só se o Criptotrade for ofertado como <b>SaaS multi-conta</b>. Para uso interno/single-tenant, pode ser dispensado. Incluído para a decisão ser explícita, não um esquecimento.',
+  whyTone:'eu',
+  blocks:[
+    '<b>Plano</b> atual, limites e upgrade/downgrade.',
+    '<b>Uso</b> vs. cota (chamadas, agentes, pares).',
+    '<b>Faturas</b> e método de pagamento.',
+  ],
+  endpoints:[
+    ['get','/v1/billing/subscription','plano + status'],
+    ['get','/v1/billing/usage','uso vs. cota'],
+    ['get','/v1/billing/invoices','histórico de faturas'],
+  ],
+  files:['screen_billing.jsx (condicional)'],
+  accept:['Só construir se o produto for cobrado por assinatura — confirmar com o PM.'],
+},
+{
+  id:'A9', tone:'core', eff:'P', group:'Sistema', nav:'Páginas de sistema',
+  title:'Páginas de sistema — 404 · 403 · erro · manutenção',
+  why:'O roteamento é por estado React, sem <b>error boundary</b> nem páginas de borda. Com RBAC (A3), uma tela de <b>403 “sem permissão”</b> passa a ser necessária; e qualquer exceção hoje quebra a tela inteira sem fallback.',
+  whyTone:'eu',
+  blocks:[
+    '<b>404</b> rota inexistente (após deep-link por URL).',
+    '<b>403</b> sem permissão — coerente com os papéis do RBAC.',
+    '<b>Erro global</b> (error boundary) com “recarregar” e id do erro.',
+    '<b>Manutenção</b> / sistema offline.',
+  ],
+  endpoints:[],
+  noEp:'Sem backend — são estados de UI. Reutilizam o padrão de <code>EmptyState/ErrorState</code> já existente em <code>components.jsx</code>.',
+  files:['screen_system.jsx (NotFound/Forbidden/ErrorBoundary/Maintenance)','app.jsx (boundary + fallback)'],
+  accept:[
+    'Acessar uma rota sem permissão mostra 403, não a tela em branco.',
+    'Uma exceção em uma tela cai no error boundary, não derruba o app.',
+  ],
+},
+{
+  id:'A10', tone:'core', eff:'M', group:'Sistema', nav:'Onboarding / 1ª configuração',
+  title:'Onboarding — assistente de primeira configuração',
+  why:'Na primeira entrada, o operador cai numa interface densa de 11 telas sem direção. Um <b>wizard</b> guiado encadeia as decisões iniciais usando telas que já existem — reduz o tempo até o primeiro ciclo em dry-run.',
+  whyTone:'eu',
+  blocks:[
+    'Passos: <b>conectar exchange</b> (A5) → <b>definir risco/capital</b> (Configurações) → <b>escolher estratégia/agentes</b> → <b>revisar</b> → <b>iniciar em dry-run</b>.',
+    'Barra de progresso, “pular por agora”, estado de conclusão persistido.',
+    'Reaproveita endpoints existentes — pouca lógica nova.',
+  ],
+  endpoints:[
+    ['get','/v1/onboarding/status','passos concluídos'],
+    ['patch','/v1/onboarding/status','marca passo concluído'],
+  ],
+  files:['screen_onboarding.jsx'],
+  accept:[
+    'Primeiro login abre o wizard; concluir leva ao dashboard.',
+    'Status persiste — não reaparece após concluído.',
+  ],
+},
+];
+
+/* ===== render ===== */
+const counts = SCREENS.reduce((a,s)=>(a[s.tone]=(a[s.tone]||0)+1,a),{});
+document.getElementById('meta-count').textContent = `${SCREENS.length} telas faltantes · ${counts.crit||0} críticas · ${counts.cond||0} condicional`;
+
+function scrCard(s){
+  const epHtml = s.endpoints.length
+    ? `<div class="blk"><div class="bl">Endpoints (backend)</div>${s.endpoints.map(e=>ep(e[0],e[1],e[2])).join('')}</div>`
+    : `<div class="blk"><div class="bl">Endpoints</div><div style="font-size:12.5px;color:var(--ink-2)">${s.noEp}</div></div>`;
+  return `<div class="scr ${s.tone}" id="${s.id}">
+    <div class="scr-h">
+      <span class="id">${s.id}</span>
+      <span class="ti">${s.title}</span>
+      <span class="right"><span class="eff">${EFF[s.eff]}</span>${STATUS[s.tone]}</span>
+    </div>
+    <div class="scr-b">
+      <div class="why ${s.whyTone==='eu'?'eu':''}"><span class="k">Por que falta →</span><div>${s.why}</div></div>
+      <div class="twocol">
+        <div>
+          <div class="blk"><div class="bl">Blocos de UI</div><ul class="feat">${s.blocks.map(b=>`<li>${b}</li>`).join('')}</ul></div>
+          <div class="blk"><div class="bl">Arquivos a criar</div><div style="display:flex;flex-wrap:wrap;gap:6px">${s.files.map(f=>`<span class="filechip">${f}</span>`).join('')}</div>
+          <div style="margin-top:9px;font-size:11.5px;color:var(--ink-3)">Nav proposto: <b style="color:var(--ink-2)">${s.group} › ${s.nav}</b></div></div>
+        </div>
+        <div>
+          ${epHtml}
+          <div class="blk accept"><div class="al">Critério de aceite</div><ul>${s.accept.map(a=>`<li>${a}</li>`).join('')}</ul></div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+const SECTIONS = [
+  { id:'resumo', num:'00', title:'Panorama da cobertura' },
+  { id:'legenda', num:'01', title:'Como ler' },
+  { id:'navmap', num:'02', title:'Onde entram no nav' },
+  { id:'acesso', num:'03', title:'Acesso & Autenticação', items:['A1'] },
+  { id:'admin', num:'04', title:'Administração & Conta', items:['A2','A3','A4','A5','A6','A7','A8'] },
+  { id:'sistema', num:'05', title:'Sistema & Onboarding', items:['A9','A10'] },
+  { id:'arquivos', num:'06', title:'Arquivos & sequência' },
+];
+const byId = Object.fromEntries(SCREENS.map(s=>[s.id,s]));
+
+/* nav */
+document.getElementById('nav').innerHTML = SECTIONS.map(s=>{
+  const its=(s.items||[]).map(i=>byId[i]);
+  const worst = its.some(i=>i.tone==='crit')?'crit':its.some(i=>i.tone==='core')?'core':its.length?'cond':null;
+  const dot = worst?`<span class="sd" style="background:${SDOT[worst]}"></span>`:'';
+  return `<a href="#${s.id}"><span class="sn">${s.num}</span>${s.title}${dot}</a>`;
+}).join('');
+
+/* sections */
+document.getElementById('doc').innerHTML = SECTIONS.map(s=>{
+  let body='';
+  if(s.id==='resumo'){
+    body = `<div class="tally">
+        <div class="t"><div class="n">11</div><div class="l">telas atuais — toda a operação de trading</div></div>
+        <div class="t"><div class="n" style="color:var(--new)">${SCREENS.length}</div><div class="l">telas administrativas faltantes</div></div>
+        <div class="t"><div class="n" style="color:var(--crit)">${counts.crit}</div><div class="l">críticas (auth, RBAC, auditoria, chaves)</div></div>
+        <div class="t"><div class="n" style="color:var(--cond)">${counts.cond}</div><div class="l">condicional (faturamento, se SaaS)</div></div>
+      </div>
+      <div class="note blue"><div>▣&nbsp;</div><div><b>O diagnóstico:</b> o produto está completo na <b>operação</b> (mercado, risco, HITL, ordens, agentes, validação, observabilidade) e <b>vazio na administração</b>. Há evidências disso no próprio app — o avatar “OP” sem destino, o <code>operator</code> registrado sem tela de gestão, o “ledger” citado sem visualizador, e a Exchange como simples dropdown sem gestão de chaves.</div></div>
+      <div class="note amber"><div>⚠&nbsp;</div><div><b>Dependência:</b> A3 (RBAC), A4 (auditoria), A5 (chaves) e A7 (segurança) só fazem sentido depois de A1 (autenticação). Comece pela porta de entrada.</div></div>`;
+  } else if(s.id==='legenda'){
+    body = `<div class="legend">
+        <div class="it">${STATUS.crit}<div class="t">Faltante · crítica</div><div class="d">Bloqueia segurança, compliance ou o modo real. Construir primeiro.</div></div>
+        <div class="it">${STATUS.core}<div class="t">Faltante · essencial</div><div class="d">Esperada em qualquer produto sério; sem ela a experiência fica incompleta.</div></div>
+        <div class="it">${STATUS.cond}<div class="t">Condicional</div><div class="d">Só se aplica em certo modelo de negócio (ex.: SaaS cobrado).</div></div>
+        <div class="it"><span class="eff">P · M · G</span><div class="t">Esforço</div><div class="d">P = horas · M = 1–2 dias · G = 3+ dias (depende de backend novo).</div></div>
+      </div>`;
+  } else if(s.id==='navmap'){
+    body = `<div class="sec-desc">Proposta: um grupo novo <b>“Administração”</b> no rodapé da sidebar (separado da Operação), o login fora do shell, e as páginas de sistema como estados globais. Em cinza o que já existe; em azul o que entra.</div>
+      <div class="navmap">
+        <div class="navcol">
+          <div class="h">Sidebar hoje<span class="tag">11 itens · shell.jsx</span></div>
+          <div class="navgrp">
+            <div class="gl">Operação</div>
+            ${['Visão Geral','Mercado','Risco & Capital','Console HITL','Ordens'].map(x=>`<div class="navrow exist"><span class="ic"></span>${x}</div>`).join('')}
+            <div class="gl">Inteligência</div>
+            ${['Agentes & Estratégias','Diário','Validação'].map(x=>`<div class="navrow exist"><span class="ic"></span>${x}</div>`).join('')}
+            <div class="gl">Sistema</div>
+            ${['Observabilidade','Configurações'].map(x=>`<div class="navrow exist"><span class="ic"></span>${x}</div>`).join('')}
+          </div>
+        </div>
+        <div class="navcol">
+          <div class="h">Sidebar proposta<span class="tag">+1 grupo · +6 itens</span></div>
+          <div class="navgrp">
+            <div class="gl">Operação · Inteligência · Sistema</div>
+            <div class="navrow exist"><span class="ic"></span>… 11 itens atuais (sem mudança)</div>
+            <div class="gl" style="color:var(--new)">Administração · novo</div>
+            ${[['Conta & Perfil','A2'],['Usuários & Permissões','A3'],['Conexões & Chaves','A5'],['Trilha de Auditoria','A4'],['Notificações & Canais','A6'],['Segurança & Sessões','A7'],['Faturamento & Uso','A8']].map(x=>`<div class="navrow new"><span class="ic"></span>${x[0]}<span class="nb">${x[1]}</span></div>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="note blue"><div>↪&nbsp;</div><div><b>Fora da sidebar:</b> <b>A1 Autenticação</b> vive antes do shell (login/2FA); <b>A9 Páginas de sistema</b> e <b>A10 Onboarding</b> são estados globais. Itens de Administração devem ser <b>filtrados pelo papel</b> (RBAC) — um Visualizador não vê “Usuários & Permissões”.</div></div>`;
+  } else if(s.id==='arquivos'){
+    const rows = [
+      ['screen_auth.jsx','A1 · login, 2FA, recuperação, guarda de rota'],
+      ['screen_account.jsx','A2 · perfil + preferências'],
+      ['screen_users.jsx','A3 · usuários, papéis, matriz de permissões'],
+      ['screen_audit.jsx','A4 · trilha de auditoria + export'],
+      ['screen_connections.jsx','A5 · conexões de exchange + chaves de API'],
+      ['screen_notifications.jsx','A6 · canais e regras de notificação'],
+      ['screen_security.jsx','A7 · sessões, 2FA, histórico de login'],
+      ['screen_billing.jsx','A8 · plano/uso/faturas (condicional)'],
+      ['screen_system.jsx','A9 · 404 / 403 / erro / manutenção'],
+      ['screen_onboarding.jsx','A10 · wizard de 1ª configuração'],
+      ['data_admin.js','mock de users, roles, audit, connections, channels'],
+      ['shell.jsx','grupo “Administração” no NAV + menu do avatar (filtrado por papel)'],
+      ['app.jsx','guarda de rota, error boundary, registro das telas'],
+    ];
+    body = `<div class="sec-desc">Mesmo padrão das telas existentes: React via Babel, cada arquivo expõe em <code>window</code>; ponto único de troca por dados reais fica no <code>data_admin.js</code> (espelha <code>data_ext.js</code>).</div>
+      <table class="files"><thead><tr><th>Arquivo</th><th>Conteúdo</th></tr></thead><tbody>
+      ${rows.map(r=>`<tr><td class="f"><span class="filechip">${r[0]}</span></td><td>${r[1]}</td></tr>`).join('')}
+      </tbody></table>
+      <div style="height:18px"></div>
+      <div class="road">
+        <div class="sprint"><div class="sh"><div class="n">FASE 1</div><div class="t">Porta & controle</div></div>
+          <ul><li><span class="tag">A1</span>Autenticação + 2FA</li><li><span class="tag">A3</span>Usuários & RBAC</li><li><span class="tag">A9</span>403/erro boundary</li></ul></div>
+        <div class="sprint"><div class="sh"><div class="n">FASE 2</div><div class="t">Segurança & rastro</div></div>
+          <ul><li><span class="tag">A5</span>Conexões & chaves</li><li><span class="tag">A4</span>Trilha de auditoria</li><li><span class="tag">A7</span>Segurança & sessões</li><li><span class="tag">A2</span>Conta & perfil</li></ul></div>
+        <div class="sprint"><div class="sh"><div class="n">FASE 3</div><div class="t">Adoção & negócio</div></div>
+          <ul><li><span class="tag">A6</span>Notificações & canais</li><li><span class="tag">A10</span>Onboarding</li><li><span class="tag">A8</span>Faturamento (se SaaS)</li></ul></div>
+      </div>`;
+  } else {
+    body = (s.items||[]).map(i=>scrCard(byId[i])).join('');
+  }
+  return `<section id="${s.id}">
+    <div class="sec-head"><span class="sec-num">${s.num}</span><span class="sec-title">${s.title}</span></div>
+    ${body}
+  </section>`;
+}).join('');
+</script>
+</body>
+</html>

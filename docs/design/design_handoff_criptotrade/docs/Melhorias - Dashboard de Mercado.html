@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Análise & Melhorias — Dashboard de Mercado · Criptotrade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#F4F6F8;--surface:#fff;--surface-2:#F6F8FA;--surface-3:#EEF1F4;--border:#E4E8EC;--border-2:#D5DAE0;
+    --ink:#14181C;--ink-2:#5B636C;--ink-3:#8A929B;--ink-4:#AEB5BD;
+    --ok:#0E9D6E;--ok-bg:#E7F6EF;--ok-line:#B7E6D2;
+    --warn:#C77F08;--warn-bg:#FBF1DD;--warn-line:#EEDBAC;
+    --info:#2563EB;--info-bg:#E7EEFD;--info-line:#C9D8FA;
+    --crit:#DC2B2B;--crit-bg:#FCEAEA;--crit-line:#F3C9C9;
+    --violet:#7C5CFC;
+    --sans:'IBM Plex Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+    --sh-sm:0 1px 2px rgba(20,24,28,.05);--sh:0 1px 2px rgba(20,24,28,.04),0 2px 6px rgba(20,24,28,.05);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;-webkit-font-smoothing:antialiased;line-height:1.5;}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+  code{font-family:var(--mono);font-size:.85em;background:var(--surface-3);padding:1.5px 6px;border-radius:5px;color:var(--ink);}
+  a{color:var(--info);text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-.01em;}
+
+  .wrap{display:grid;grid-template-columns:256px 1fr;max-width:1340px;margin:0 auto;}
+  .side{position:sticky;top:0;height:100vh;overflow-y:auto;padding:26px 16px;border-right:1px solid var(--border);background:var(--surface);}
+  .side .mk{width:30px;height:30px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-family:var(--mono);font-weight:600;}
+  .side-brand{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .side-brand b{font-size:15px;}
+  .side-sub{font-size:11px;color:var(--ink-3);font-family:var(--mono);margin-bottom:22px;}
+  .side-lbl{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-4);padding:14px 8px 5px;}
+  .side a{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:6px;color:var(--ink-2);font-size:13px;font-weight:500;}
+  .side a:hover{background:var(--surface-2);color:var(--ink);text-decoration:none;}
+  .side a .sn{font-family:var(--mono);font-size:10.5px;color:var(--ink-4);width:18px;}
+  .side a .sev{margin-left:auto;width:7px;height:7px;border-radius:99px;}
+
+  .main{padding:40px 48px 120px;min-width:0;}
+  .doc-kicker{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--info);}
+  .doc-title{font-size:31px;font-weight:600;letter-spacing:-.025em;margin-top:8px;}
+  .doc-sub{color:var(--ink-2);font-size:15px;margin-top:10px;max-width:680px;}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px;}
+  .meta{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-family:var(--mono);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:5px 10px;color:var(--ink-2);}
+
+  section{margin-top:50px;scroll-margin-top:20px;}
+  .sec-head{display:flex;align-items:baseline;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:6px;}
+  .sec-num{font-family:var(--mono);font-size:13px;color:var(--ink-3);font-weight:600;}
+  .sec-title{font-size:21px;font-weight:600;letter-spacing:-.02em;}
+  .sec-desc{color:var(--ink-2);font-size:14px;margin:14px 0 20px;max-width:780px;}
+
+  /* severity + effort pills */
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid transparent;white-space:nowrap;}
+  .pill .d{width:6px;height:6px;border-radius:99px;background:currentColor;}
+  .s-p0{background:var(--crit-bg);color:var(--crit);border-color:var(--crit-line);}
+  .s-p1{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-line);}
+  .s-p2{background:var(--info-bg);color:var(--info);border-color:var(--info-line);}
+  .s-quick{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-line);}
+  .eff{font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:5px;background:var(--surface-3);color:var(--ink-2);border:1px solid var(--border-2);}
+  .areachip{font-family:var(--mono);font-size:10.5px;background:var(--surface-3);padding:2px 8px;border-radius:5px;color:var(--ink-2);}
+
+  /* exec summary */
+  .hero{display:grid;grid-template-columns:1.05fr 1fr;gap:22px;align-items:start;margin-top:26px;}
+  .shot{border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--sh);background:var(--surface);}
+  .shot img{display:block;width:100%;}
+  .shot .cap{font-size:11.5px;color:var(--ink-3);padding:9px 13px;border-top:1px solid var(--border);font-family:var(--mono);}
+  .tally{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+  .tally .t{border:1px solid var(--border);border-radius:10px;padding:13px 14px;background:var(--surface);}
+  .tally .t .n{font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:-.02em;}
+  .tally .t .l{font-size:11.5px;color:var(--ink-2);margin-top:2px;}
+  .toplist{border:1px solid var(--border);border-radius:11px;background:var(--surface);overflow:hidden;}
+  .toplist .row{display:flex;gap:11px;align-items:flex-start;padding:13px 15px;border-bottom:1px solid var(--border);}
+  .toplist .row:last-child{border-bottom:none;}
+  .toplist .row .tx{font-size:13px;}
+  .toplist .row .tx b{font-weight:600;}
+  .toplist .row .tx .m{color:var(--ink-2);font-size:12.5px;margin-top:2px;}
+
+  /* improvement card */
+  .imp{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--sh-sm);margin-bottom:16px;overflow:hidden;}
+  .imp.p0{border-left:3px solid var(--crit);}
+  .imp.p1{border-left:3px solid var(--warn);}
+  .imp.p2{border-left:3px solid var(--info);}
+  .imp-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--border);background:var(--surface-2);}
+  .imp-h .id{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink-3);}
+  .imp-h .ti{font-size:15px;font-weight:600;letter-spacing:-.01em;}
+  .imp-h .right{margin-left:auto;display:flex;gap:7px;align-items:center;}
+  .imp-b{padding:16px 18px;}
+  .field{margin-bottom:14px;}
+  .field:last-child{margin-bottom:0;}
+  .field .fl{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-4);margin-bottom:5px;display:flex;align-items:center;gap:6px;}
+  .field .fl .gl{width:5px;height:14px;border-radius:2px;}
+  .field p{margin:0;font-size:13.5px;color:var(--ink);line-height:1.55;}
+  .field.obs .fl .gl{background:var(--crit);}
+  .field.imp-why .fl .gl{background:var(--warn);}
+  .field.fix .fl .gl{background:var(--ok);}
+  ul.clean{margin:4px 0 0;padding-left:0;list-style:none;}
+  ul.clean li{margin:6px 0;font-size:13px;color:var(--ink-2);padding-left:18px;position:relative;line-height:1.5;}
+  ul.clean li::before{content:'';position:absolute;left:3px;top:8px;width:5px;height:5px;border-radius:99px;background:var(--ink-4);}
+  ul.acc li::before{background:var(--ok);border-radius:2px;}
+  .splitcols{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  .devbox{background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:13px 15px;}
+  .devbox .bl{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-4);margin-bottom:8px;}
+  .filechips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+
+  .note{display:flex;gap:9px;border-radius:9px;padding:12px 14px;font-size:12.5px;margin:8px 0 0;}
+  .note.blue{background:var(--info-bg);border:1px solid var(--info-line);color:#1d4ed8;}
+  .note.green{background:var(--ok-bg);border:1px solid var(--ok-line);color:#0a6b4c;}
+  .note b{font-weight:600;}
+
+  /* legend */
+  .legend{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+  .legend .it{border:1px solid var(--border);border-radius:9px;padding:13px 15px;background:var(--surface);}
+  .legend .it .t{font-weight:600;font-size:13px;margin:7px 0 3px;}
+  .legend .it .d{font-size:12.5px;color:var(--ink-2);}
+
+  /* roadmap */
+  .road{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .sprint{border:1px solid var(--border);border-radius:11px;background:var(--surface);overflow:hidden;}
+  .sprint .sh{padding:12px 15px;border-bottom:1px solid var(--border);background:var(--surface-2);}
+  .sprint .sh .n{font-family:var(--mono);font-size:11px;color:var(--ink-3);font-weight:600;}
+  .sprint .sh .t{font-size:14px;font-weight:600;margin-top:2px;}
+  .sprint .sh .g{font-size:11.5px;color:var(--ink-2);margin-top:3px;}
+  .sprint ul{margin:0;padding:12px 15px 14px;list-style:none;}
+  .sprint li{font-size:12.5px;color:var(--ink-2);padding:5px 0 5px 22px;position:relative;border-bottom:1px solid var(--border);}
+  .sprint li:last-child{border-bottom:none;}
+  .sprint li .tag{position:absolute;left:0;top:6px;font-family:var(--mono);font-size:10px;font-weight:600;color:var(--ink-4);}
+
+  @media print{.side{display:none;}.wrap{display:block;}.main{padding:0 8px;}section,.imp{break-inside:avoid;}.hero{grid-template-columns:1fr;}}
+  @media (max-width:920px){.wrap{grid-template-columns:1fr;}.side{display:none;}.hero,.splitcols,.legend{grid-template-columns:1fr;}.road,.tally{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="side">
+    <div class="side-brand"><div class="mk">C</div><b>Criptotrade</b></div>
+    <div class="side-sub">Análise & Melhorias</div>
+    <div id="nav"></div>
+  </nav>
+  <main class="main">
+    <div class="doc-kicker">Análise de produto · Handoff de execução</div>
+    <div class="doc-title">Dashboard de Mercado — melhorias priorizadas</div>
+    <div class="doc-sub">Auditoria de UX, dados e engenharia da tela <code>#market</code>, com varredura sistêmica das demais telas. Cada item traz o que foi observado, por que importa, a recomendação e as tarefas concretas para o dev — com arquivos, rotas e critério de aceite.</div>
+    <div class="meta-row">
+      <span class="meta">escopo · /#market (foco) + sistema</span>
+      <span class="meta">base · screen_market.jsx · app.jsx · data.js</span>
+      <span class="meta" id="meta-count"></span>
+      <span class="meta">data · jun/2026</span>
+    </div>
+    <div id="doc"></div>
+  </main>
+</div>
+
+<script>
+/* ============ helpers ============ */
+const SEV = {
+  p0:'<span class="pill s-p0"><span class="d"></span>P0 · crítico</span>',
+  p1:'<span class="pill s-p1"><span class="d"></span>P1 · alto</span>',
+  p2:'<span class="pill s-p2"><span class="d"></span>P2 · médio</span>',
+};
+const SEVDOT = { p0:'var(--crit)', p1:'var(--warn)', p2:'var(--info)' };
+const eff = e => `<span class="eff">esforço ${e}</span>`;
+const area = a => `<span class="areachip">${a}</span>`;
+const files = arr => arr.map(f=>`<code>${f}</code>`).join(' ');
+
+/* ============ content model ============ */
+const ITEMS = [
+{
+  id:'M1', sev:'p0', effort:'G', area:'Dados',
+  title:'O dashboard não rebinda ao par selecionado',
+  observed:'O seletor global de par (header) mostra <b>ETH/USDT a $3.420</b>, mas o gráfico, o sinal, os indicadores e o volume profile exibem dados de <b>BTC ~$67k</b>. Em <code>screen_market.jsx</code> tudo lê singletons globais (<code>CT.candles</code>, <code>CT.indicators</code>, <code>CT.signal</code>, <code>CT.sr</code>, <code>CT.volumeProfile</code>, <code>CT.patterns</code>, <code>CT.regime</code>); só o rótulo <code>mPair</code> muda. Em <code>data.js</code> existe uma única série, ancorada em <code>base 65200</code>.',
+  impact:'É o defeito mais grave da tela: o operador toma decisão sobre um ativo olhando os números de outro. Quebra a confiança em todo o painel e torna o seletor de par decorativo. Métricas e header já rebindam por par (<code>CT.metricsBySymbol</code>), o que torna a incoerência ainda mais visível.',
+  fix:'Toda a análise de mercado deve ser indexada por par e re-renderizar quando <code>CT_PAIR</code> muda — exatamente como Visão Geral já faz com as métricas.',
+  tasks:[
+    'Backend: expor o namespace <code>GET /v1/market/{pair}/*</code> (candles, indicators, regime, levels, volume-profile, patterns, signal) — a lógica já existe em <code>src/analysis/*</code>.',
+    'Frontend: chavear os dados por par (<code>CT.marketBySymbol[pair]</code>) e ler o par via o mesmo hook do header (<code>useCurrentPair</code>).',
+    'Garantir que candle, sinal, indicadores e VP reajam à troca de par sem reload.',
+  ],
+  filesArr:['screen_market.jsx','data.js','app.jsx'],
+  accept:[
+    'Trocar de ETH→BTC→SOL muda preço, eixo, indicadores e sinal de forma coerente em < 300 ms.',
+    'O preço do header e o último candle do gráfico são sempre o mesmo número.',
+  ],
+},
+{
+  id:'M2', sev:'p0', effort:'P', area:'Bug',
+  title:'Botão “Ver no HITL” não navega',
+  observed:'O botão usa <code>onClick={() => location.hash = \'\'}</code>. O roteamento do app é por estado React (<code>active</code> em <code>app.jsx</code>, via <code>onNav</code>) — não por hash. Resultado: o clique não faz nada (ou volta à Visão Geral).',
+  impact:'Quebra o único fluxo de ação da tela de Mercado → aprovar o sinal no HITL. O usuário fica preso.',
+  fix:'Propagar uma função de navegação real para a tela e levar o sinal junto (par + id do sinal) para o HITL abrir já filtrado.',
+  tasks:[
+    'Passar <code>onNav</code> (de <code>App</code>) até <code>MarketScreen</code> e chamar <code>onNav(\'hitl\')</code>.',
+    'Opcional: carregar o contexto do sinal atual no HITL (par, lado, confiança) ao chegar.',
+  ],
+  filesArr:['screen_market.jsx','app.jsx'],
+  accept:['Clicar em “Ver no HITL” abre o Console HITL; o sinal correspondente aparece em destaque.'],
+},
+{
+  id:'M3', sev:'p0', effort:'M', area:'Estados',
+  title:'Faltam estados de carregando / vazio / erro / dados defasados',
+  observed:'A Visão Geral tem um seletor exemplar de estados (OK · Carregando · Vazio · Offline). A tela de Mercado <b>não tem nenhum</b> — só o caminho feliz. Como todas as rotas de mercado ainda serão construídas (status “Expor rota” no handoff), a tela vai quebrar ou mostrar dados velhos quando o feed cair.',
+  impact:'Em trading, dado defasado é pior que dado ausente: o operador age sobre um preço que já mudou. Sem skeleton/erro a tela parece “congelada” e sem timestamp não há como saber a frescor.',
+  fix:'Replicar o padrão da Visão Geral em cada cartão: skeleton no carregamento, vazio (par sem dados / timeframe sem candles), erro (feed indisponível, com retry) e um selo “atualizado há Xs”.',
+  tasks:[
+    'Skeleton por cartão (gráfico, sinal, indicadores, S/R, VP).',
+    'Estado de erro com botão “tentar de novo” por painel.',
+    'Selo de frescor no cabeçalho do gráfico: <code>atualizado há 3s</code> + indicador ao vivo/pausado.',
+    'Backend: timestamp <code>as_of</code> em cada resposta de <code>/v1/market/*</code>.',
+  ],
+  filesArr:['screen_market.jsx','components.jsx','screen_overview.jsx (padrão a reusar)'],
+  accept:[
+    'Feed lento → skeleton; feed em erro → estado de erro com retry; dado > N s → selo “defasado” em âmbar.',
+  ],
+},
+{
+  id:'M4', sev:'p1', effort:'G', area:'Gráfico',
+  title:'Gráfico de candles é estático — sem crosshair, tooltip, eixo de tempo ou zoom',
+  observed:'O <code>CandleChart</code> é um SVG fixo. Não há crosshair, tooltip de OHLCV ao passar o mouse, rótulos de tempo no eixo X (datas/horas), nem zoom/pan. O OHLCV do cabeçalho é só do último candle.',
+  impact:'É o elemento central da tela e o que o operador mais inspeciona. Sem leitura ponto-a-ponto e sem eixo temporal, o gráfico serve de ilustração, não de ferramenta de análise.',
+  fix:'Adicionar crosshair + tooltip (O/H/L/C/Vol + horário), eixo X com marcações de tempo, e um sub-painel de volume sob os candles. Pan/zoom como passo seguinte.',
+  tasks:[
+    'Crosshair + tooltip seguindo o cursor (snap ao candle).',
+    'Eixo X com timestamps; legenda das linhas (BB / médias).',
+    'Sub-painel de histograma de volume alinhado ao eixo de tempo.',
+    'Seletor de timeframe (ver M5).',
+  ],
+  filesArr:['charts.jsx','screen_market.jsx'],
+  accept:['Hover em qualquer candle mostra OHLCV + horário; eixo X legível; volume visível abaixo dos preços.'],
+},
+{
+  id:'M5', sev:'p1', effort:'P', area:'Gráfico',
+  title:'Timeframe fixo em “1H”, sem como trocar',
+  observed:'O título do gráfico é <code>mPair + \' · 1H\'</code> — hard-coded. Não existe seletor de timeframe, embora a Visão Geral tenha o padrão de períodos (1d/7d/30d/90d/Tudo).',
+  impact:'Análise técnica é multi-timeframe por natureza. Travar em 1H limita a leitura de tendência (4H/1D) e de entrada (5m/15m).',
+  fix:'Adicionar seletor 1m · 5m · 15m · 1H · 4H · 1D, persistido (localStorage), reusando o estilo do segmented control da Visão Geral.',
+  tasks:['Seletor de TF no cabeçalho do gráfico.','Param <code>?tf=</code> na rota de candles/indicadores.','Persistir escolha por usuário.'],
+  filesArr:['screen_market.jsx','charts.jsx'],
+  accept:['Trocar TF recarrega candles e indicadores; escolha sobrevive a reload.'],
+},
+{
+  id:'M6', sev:'p1', effort:'M', area:'Sinal',
+  title:'Banda de sinal sem transparência (porquê) nem frescor',
+  observed:'A banda “Sinal atual” mostra ação, entrada, stop, TP, tamanho, R:R e notional — mas não mostra <b>por que</b> (o breakdown de confiança de 5 fatores que o <code>StrategyAgent</code> já calcula, citado no handoff), nem <b>quando</b> (timestamp/validade).',
+  impact:'O HITL exige decisão humana informada. Um sinal “COMPRA · 71%” sem rationale nem prazo de validade é uma caixa-preta — o operador aprova no escuro ou ignora.',
+  fix:'Adicionar breakdown de confiança expansível (peso × score por fator), o texto de rationale e o frescor/validade do sinal.',
+  tasks:[
+    'Expor <code>confidence_factors[]</code> no sinal (mesmo gap citado no HITL).',
+    'Mostrar rationale e <code>as_of</code> + “válido até / recalcula em”.',
+    'Micro-gráfico de evolução da confiança (últimos ciclos).',
+  ],
+  filesArr:['screen_market.jsx','src/agents/strategy_agent.py (backend)'],
+  accept:['Cada sinal mostra os 5 fatores com peso e score, o horário de cálculo e um indicador de validade.'],
+},
+{
+  id:'M7', sev:'p1', effort:'M', area:'i18n',
+  title:'Formatação numérica inconsistente',
+  observed:'Os chips do gráfico usam separador por espaço (<code>O 67 676</code>, eixo <code>69 699</code>) enquanto a banda de sinal usa pt-BR (<code>$67.626,88</code>). Convivem dois formatos de milhar na mesma tela.',
+  impact:'Detalhe que mina a percepção de qualidade e pode confundir leitura rápida de preço sob pressão.',
+  fix:'Centralizar toda formatação em helpers <code>Intl.NumberFormat(\'pt-BR\')</code> já usados (<code>fmtUsd</code>/<code>fmtNum</code>) e remover os <code>.toLocaleString()</code> avulsos do cabeçalho e do eixo.',
+  tasks:['Substituir formatações avulsas por <code>fmtUsd/fmtNum</code>.','Padronizar eixo de preço do <code>CandleChart</code>.'],
+  filesArr:['screen_market.jsx','charts.jsx','components.jsx'],
+  accept:['Todos os preços e volumes seguem o mesmo formato pt-BR em toda a tela.'],
+},
+{
+  id:'M8', sev:'p1', effort:'M', area:'Acessibilidade',
+  title:'Gráficos e estados codificados só por cor; SVGs sem semântica',
+  observed:'Existe a tweak “Daltônico” (boa!), mas alta/baixa, suporte/resistência e o histograma MACD continuam dependendo da cor. Os SVGs (candles, gauge, volume profile) não têm <code>role</code>/<code>aria-label</code>/<code>&lt;title&gt;</code> nem alternativa textual.',
+  impact:'Operadores com baixa visão/daltonismo perdem informação; leitores de tela não acessam o gráfico. Risco real num produto de decisão financeira.',
+  fix:'Adicionar redundância não-cromática (ícone ▲/▼ ou rótulo) e expor os SVGs com <code>role="img"</code> + <code>aria-label</code> resumindo o estado; toggles de overlay com <code>aria-pressed</code>.',
+  tasks:['Ícone/rótulo de direção além da cor.','<code>role/aria-label/title</code> nos charts.','<code>aria-pressed</code> nos <code>OverlayToggle</code>.','Verificar contraste AA dos textos sobre <code>--surface-2</code>.'],
+  filesArr:['charts.jsx','screen_market.jsx'],
+  accept:['Direção legível sem cor; cada gráfico anuncia um resumo a leitor de tela; toggles anunciam estado.'],
+},
+{
+  id:'M9', sev:'p1', effort:'M', area:'Layout',
+  title:'Layout rígido e overflow horizontal',
+  observed:'A grade do topo é <code>1fr 300px</code> fixa e a banda de sinal usa flex com bordas fixas que quebra de forma estranha em telas estreitas. O app inteiro exibe uma barra de rolagem horizontal (min-width forçando o conteúdo).',
+  impact:'Em laptops menores e telas verticais, o rail direito aperta e a banda de KPIs do sinal embaralha. O scroll horizontal é um cheiro de layout não-responsivo.',
+  fix:'Definir breakpoints: empilhar rail abaixo do gráfico < 1100px; transformar a banda de sinal em grid responsivo; eliminar o min-width que causa o scroll horizontal.',
+  tasks:['Breakpoints para a grade do topo e a banda de sinal.','Investigar e remover a fonte do overflow horizontal global.'],
+  filesArr:['screen_market.jsx','styles.css'],
+  accept:['Sem scroll horizontal de 1280px a 1440px; rail empilha sem cortar conteúdo em telas estreitas.'],
+},
+{
+  id:'M10', sev:'p2', effort:'P', area:'Volume Profile',
+  title:'LVN anunciado mas não renderizado',
+  observed:'O subtítulo do cartão diz “POC · VAH/VAL · <b>LVN</b>”, mas o <code>VolumeProfileChart</code> só desenha POC, VAH e VAL — não há marcação de LVN (low-volume nodes).',
+  impact:'Promete informação que não entrega; LVNs são justamente as zonas de rompimento rápido — úteis para stops e alvos.',
+  fix:'Renderizar os LVNs (marcador/linha pontilhada) ou remover do subtítulo até implementar.',
+  tasks:['Desenhar <code>vp.lvn[]</code> no chart.','Backend: incluir <code>lvn[]</code> em <code>/v1/market/{pair}/volume-profile</code>.'],
+  filesArr:['screen_market.jsx','data.js'],
+  accept:['LVNs visíveis e rotulados, ou o termo sai do subtítulo.'],
+},
+{
+  id:'M11', sev:'p2', effort:'M', area:'Regime',
+  title:'Regime sem contexto temporal; extremos sem valor',
+  observed:'O cartão de regime mostra o regime atual + confiança 71%, mas não diz <b>há quanto tempo</b> está nele nem qual foi a última transição. Os selos EUFORIA/PÂNICO são estáticos, sem valor nem limiar.',
+  impact:'Saber que o mercado está “Lateral há 6h, antes Alta forte” muda a leitura de risco. Extremos sem número não acionam decisão.',
+  fix:'Mostrar duração no regime atual e a última transição; transformar Euforia/Pânico em indicadores com valor e limiar.',
+  tasks:['<code>regime_since</code> + última transição.','Valores e thresholds de euforia/pânico (índice de sentimento).','Mini-timeline de regimes do dia.'],
+  filesArr:['screen_market.jsx','src/analysis/regime_detector.py (backend)'],
+  accept:['Cartão informa tempo no regime e última troca; extremos exibem valor vs limiar.'],
+},
+{
+  id:'M12', sev:'p2', effort:'M', area:'Indicadores',
+  title:'Sem confluência multi-timeframe nem divergências',
+  observed:'RSI, MACD, Estocástico e Volume/ATR aparecem só no 1H. Não há tabela de confluência (ex.: RSI 1H vs 4H vs 1D) nem destaque de divergência preço×indicador, embora o conceito de divergência já apareça no OBV.',
+  impact:'Confluência e divergência são onde mora o edge da análise técnica; mostrá-las eleva o painel de “lista de indicadores” para “suporte de decisão”.',
+  fix:'Adicionar uma faixa de confluência MTF (semáforo por TF) e sinalizar divergências detectadas (RSI/MACD/OBV vs preço).',
+  tasks:['Tabela MTF compacta por indicador.','Flag de divergência com seta/legenda.'],
+  filesArr:['screen_market.jsx','src/analysis/indicators.py (backend)'],
+  accept:['Faixa MTF mostra alinhamento por timeframe; divergências aparecem destacadas.'],
+},
+{
+  id:'M13', sev:'p2', effort:'M', area:'Ações',
+  title:'Tela sem ações além de “Ver no HITL”',
+  observed:'Não dá para criar alerta de preço/indicador, simular ordem (modo paper) nem favoritar/comparar pares a partir do Mercado.',
+  impact:'O operador precisa sair da tela para agir. Em modo paper, “simular ordem com este sinal” seria um ciclo de aprendizado natural e seguro.',
+  fix:'Adicionar “Criar alerta” (preço/indicador) e “Simular ordem” a partir do sinal; considerar watchlist no seletor de par.',
+  tasks:['Ação “Criar alerta” → feed de Alertas existente.','Ação “Simular ordem (paper)” pré-preenchendo do sinal.'],
+  filesArr:['screen_market.jsx','app.jsx (AlertsDrawer)'],
+  accept:['É possível criar um alerta e simular uma ordem sem deixar a tela de Mercado.'],
+},
+];
+
+const SYS = [
+{
+  id:'S1', sev:'p1', effort:'M', area:'Consistência',
+  title:'Generalizar estados de dados para todas as telas',
+  observed:'O padrão Carregando/Vazio/Erro/Offline só existe na Visão Geral. Demais telas (Mercado, Ordens, Agentes, Validação) assumem o caminho feliz.',
+  impact:'Conforme as rotas reais entram, qualquer tela sem esses estados vai quebrar ou enganar o operador.',
+  fix:'Extrair um wrapper <code>&lt;DataState&gt;</code> (skeleton/empty/error/stale) reutilizável e aplicá-lo em todos os painéis que buscam dados.',
+  tasks:['Componente <code>DataState</code> em <code>components.jsx</code>.','Aplicar nas telas que consomem API.'],
+  filesArr:['components.jsx','screen_*.jsx'],
+  accept:['Toda tela que busca dados tem os quatro estados, visualmente idênticos.'],
+},
+{
+  id:'S2', sev:'p2', effort:'P', area:'Header',
+  title:'Header sobrecarregado e sem responsividade',
+  observed:'O header acumula par+preço, regime, circuit breaker, autonomia, status, sino e avatar numa linha só — contribuindo para o overflow horizontal.',
+  impact:'Em telas menores o conteúdo é cortado; a densidade de chips compete com a tela.',
+  fix:'Colapsar regime/CB/autonomia num agrupador compacto < 1200px; garantir wrap controlado.',
+  tasks:['Priorizar par+preço; agrupar status secundários.','Breakpoint do header.'],
+  filesArr:['shell.jsx','styles.css'],
+  accept:['Header não causa scroll horizontal e mantém par+preço sempre visíveis.'],
+},
+{
+  id:'S3', sev:'p2', effort:'P', area:'Navegação',
+  title:'Sem deep-link por tela (estado em vez de URL)',
+  observed:'A navegação é puramente por estado React; a URL nunca muda. Não há como compartilhar/abrir <code>#market</code> direto, e o botão de M2 falhou justamente por assumir hash.',
+  impact:'Impossível favoritar/compartilhar uma tela; refresh sempre volta à Visão Geral; integrações por link não funcionam.',
+  fix:'Sincronizar <code>active</code> com o hash da URL (ler no load, escrever ao navegar).',
+  tasks:['Bind bidirecional <code>active</code> ↔ <code>location.hash</code>.'],
+  filesArr:['app.jsx'],
+  accept:['Abrir <code>/#market</code> cai direto no Mercado; refresh preserva a tela; navegar atualiza a URL.'],
+},
+];
+
+/* ============ render ============ */
+function impCard(it){
+  return `<div class="imp ${it.sev}" id="${it.id}">
+    <div class="imp-h">
+      <span class="id">${it.id}</span>
+      <span class="ti">${it.title}</span>
+      <span class="right">${area(it.area)} ${eff(it.effort)} ${SEV[it.sev]}</span>
+    </div>
+    <div class="imp-b">
+      <div class="field obs"><div class="fl"><span class="gl"></span>O que observamos</div><p>${it.observed}</p></div>
+      <div class="field imp-why"><div class="fl"><span class="gl"></span>Por que importa</div><p>${it.impact}</p></div>
+      <div class="field fix"><div class="fl"><span class="gl"></span>Recomendação</div><p>${it.fix}</p></div>
+      <div class="splitcols">
+        <div class="devbox"><div class="bl">Tarefas do dev</div><ul class="clean">${it.tasks.map(t=>`<li>${t}</li>`).join('')}</ul>
+          <div class="bl" style="margin-top:12px;">Onde mexer</div><div class="filechips">${files(it.filesArr)}</div></div>
+        <div class="devbox"><div class="bl">Critério de aceite</div><ul class="clean acc">${it.accept.map(a=>`<li>${a}</li>`).join('')}</ul></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+const SECTIONS = [
+  { id:'resumo', num:'00', title:'Resumo executivo', kind:'hero' },
+  { id:'legenda', num:'01', title:'Como ler', kind:'legend' },
+  { id:'dados', num:'02', title:'Coerência de dados & navegação', items:['M1','M2','M3'],
+    desc:'Os três bloqueadores. Enquanto não resolvidos, a tela mostra dados de outro ativo, não navega e não tem como sinalizar feed defasado — tudo o mais é secundário.' },
+  { id:'grafico', num:'03', title:'Gráfico & timeframe', items:['M4','M5'],
+    desc:'Tornar o elemento central da tela uma ferramenta de análise, não uma ilustração.' },
+  { id:'sinal', num:'04', title:'Sinal & transparência', items:['M6'],
+    desc:'O elo com o HITL: o operador precisa do porquê e do quando para decidir.' },
+  { id:'qualidade', num:'05', title:'Qualidade: i18n, acessibilidade, layout', items:['M7','M8','M9'],
+    desc:'Acabamento que separa protótipo de produto: formatação única, uso sem depender de cor, e layout responsivo sem scroll horizontal.' },
+  { id:'analise', num:'06', title:'Profundidade analítica', items:['M10','M11','M12','M13'],
+    desc:'Melhorias que elevam o painel de “lista de indicadores” para suporte real de decisão.' },
+  { id:'sistema', num:'07', title:'Melhorias sistêmicas', items:['S1','S2','S3'],
+    desc:'Padrões transversais detectados na varredura das demais telas — valem para todo o console.' },
+  { id:'roadmap', num:'08', title:'Sequência sugerida', kind:'road' },
+];
+
+const ALL = [...ITEMS, ...SYS];
+const byId = Object.fromEntries(ALL.map(i=>[i.id,i]));
+const counts = ALL.reduce((a,i)=>(a[i.sev]=(a[i.sev]||0)+1,a),{});
+
+/* nav */
+document.getElementById('nav').innerHTML = SECTIONS.map(s=>{
+  const its = (s.items||[]).map(id=>byId[id]);
+  const worst = its.some(i=>i.sev==='p0')?'p0':its.some(i=>i.sev==='p1')?'p1':its.length?'p2':null;
+  const dot = worst?`<span class="sev" style="background:${SEVDOT[worst]}"></span>`:'';
+  return `<a href="#${s.id}"><span class="sn">${s.num}</span>${s.title}${dot}</a>`;
+}).join('');
+
+document.getElementById('meta-count').textContent = `${ALL.length} achados · ${counts.p0||0} P0 · ${counts.p1||0} P1 · ${counts.p2||0} P2`;
+
+/* sections */
+const docEl = document.getElementById('doc');
+docEl.innerHTML = SECTIONS.map(s=>{
+  let body='';
+  if(s.kind==='hero'){
+    body = `<div class="tally">
+        <div class="t"><div class="n" style="color:var(--crit)">${counts.p0||0}</div><div class="l">Bloqueadores (P0) — dados, navegação e estados</div></div>
+        <div class="t"><div class="n" style="color:var(--warn)">${counts.p1||0}</div><div class="l">Alto impacto (P1) — gráfico, sinal, qualidade</div></div>
+        <div class="t"><div class="n" style="color:var(--info)">${counts.p2||0}</div><div class="l">Médio (P2) — profundidade e refinamentos</div></div>
+      </div>
+      <div class="hero">
+        <div class="shot"><img src="screenshots/market_analysis.png" alt="Estado atual do Dashboard de Mercado" /><div class="cap">estado atual · /#market — note o preço do header (ETH $3.420) vs. o gráfico (BTC ~$67k)</div></div>
+        <div>
+          <div class="toplist">
+            <div class="row"><span class="pill s-p0"><span class="d"></span>P0</span><div class="tx"><b>Dados não seguem o par.</b><div class="m">Header em ETH, gráfico e sinal em BTC. O seletor de par é decorativo na tela de Mercado. <code>M1</code></div></div></div>
+            <div class="row"><span class="pill s-p0"><span class="d"></span>P0</span><div class="tx"><b>“Ver no HITL” não navega.</b><div class="m">Usa hash num app roteado por estado. Único fluxo de ação da tela está quebrado. <code>M2</code></div></div></div>
+            <div class="row"><span class="pill s-p0"><span class="d"></span>P0</span><div class="tx"><b>Sem loading / erro / frescor.</b><div class="m">Só o caminho feliz; dado defasado passa despercebido. <code>M3</code></div></div></div>
+            <div class="row"><span class="pill s-p1"><span class="d"></span>P1</span><div class="tx"><b>Gráfico estático e sem porquê do sinal.</b><div class="m">Sem crosshair/eixo de tempo/TF; sinal sem rationale nem validade. <code>M4–M6</code></div></div></div>
+          </div>
+          <div class="note blue"><div>⌘&nbsp;</div><div><b>Boa base.</b> A tela tem cobertura analítica forte (regime, VP, padrões, Fibonacci) e já existem tweaks de densidade e paleta daltônica. As melhorias abaixo são sobre <b>coerência, interação e estados</b> — não sobre refazer o conceito.</div></div>
+        </div>
+      </div>`;
+  } else if(s.kind==='legend'){
+    body = `<div class="legend">
+        <div class="it">${SEV.p0}<div class="t">Crítico — bloqueia uso ou engana</div><div class="d">Dado incorreto, fluxo quebrado ou ausência de estado de erro. Fazer primeiro.</div></div>
+        <div class="it">${SEV.p1}<div class="t">Alto — limita o valor da tela</div><div class="d">A tela funciona, mas não entrega o que promete (análise rasa, sem responsividade).</div></div>
+        <div class="it">${SEV.p2}<div class="t">Médio — profundidade e acabamento</div><div class="d">Eleva de bom para excelente; agendar após P0/P1.</div></div>
+        <div class="it"><span class="eff">esforço P · M · G</span><div class="t">Esforço estimado</div><div class="d">P = poucas horas · M = 1–2 dias · G = vários dias / depende de backend novo.</div></div>
+      </div>
+      <div class="note green" style="margin-top:14px;"><div>✓&nbsp;</div><div>Cada achado abaixo traz <b>tarefas do dev</b>, <b>arquivos a tocar</b> e <b>critério de aceite</b> — pronto para virar issue. Referências de backend (<code>src/...</code>) seguem o handoff existente.</div></div>`;
+  } else if(s.kind==='road'){
+    body = `<div class="road">
+        <div class="sprint"><div class="sh"><div class="n">SPRINT 1</div><div class="t">Confiança & uso</div><div class="g">Tornar a tela verdadeira e navegável</div></div>
+          <ul><li><span class="tag">M1</span>Rebind por par</li><li><span class="tag">M2</span>Corrigir “Ver no HITL”</li><li><span class="tag">M3</span>Estados + frescor</li><li><span class="tag">S3</span>Deep-link por URL</li></ul></div>
+        <div class="sprint"><div class="sh"><div class="n">SPRINT 2</div><div class="t">Ferramenta de análise</div><div class="g">Gráfico, sinal e acabamento</div></div>
+          <ul><li><span class="tag">M4</span>Crosshair/tooltip/eixo</li><li><span class="tag">M5</span>Seletor de timeframe</li><li><span class="tag">M6</span>Porquê + validade do sinal</li><li><span class="tag">M7</span>Formatação única</li><li><span class="tag">M9</span>Responsividade</li></ul></div>
+        <div class="sprint"><div class="sh"><div class="n">SPRINT 3</div><div class="t">Profundidade</div><div class="g">Edge analítico e inclusão</div></div>
+          <ul><li><span class="tag">M8</span>Acessibilidade</li><li><span class="tag">M12</span>Confluência MTF + divergências</li><li><span class="tag">M11</span>Contexto de regime</li><li><span class="tag">M10</span>LVN no VP</li><li><span class="tag">M13</span>Alertas / simular ordem</li><li><span class="tag">S1·S2</span>Padrões sistêmicos</li></ul></div>
+      </div>`;
+  } else {
+    body = (s.desc?`<div class="sec-desc">${s.desc}</div>`:'') + s.items.map(id=>impCard(byId[id])).join('');
+  }
+  return `<section id="${s.id}">
+    <div class="sec-head"><span class="sec-num">${s.num}</span><span class="sec-title">${s.title}</span></div>
+    ${body}
+  </section>`;
+}).join('');
+</script>
+</body>
+</html>
