@@ -398,26 +398,49 @@ class SquadOrchestrator:
         ]
         for oid, pos in to_close:
             exit_price = self._exit_price(pos, current_price)
-            del self._open_positions[oid]
+            self._record_close(oid, pos, exit_price)
+
+    def _record_close(
+        self,
+        oid: str,
+        pos: dict[str, Any],
+        exit_price: float,
+        exit_fee: float = 0.0,
+        entry_fee: float = 0.0,
+        closed_qty: float | None = None,
+        keep_open: bool = False,
+    ) -> None:
+        """Book a position close: ledger event + circuit-breaker feed.
+
+        Single close path shared by stop/TP exits and (future) fill matching, so
+        P&L accounting and breaker feeding cannot diverge. ``closed_qty`` allows
+        partial closes; ``keep_open=True`` books the chunk without removing the
+        (shrunken) lot from the position book. Feeds the breaker exactly once.
+        """
+        qty = closed_qty if closed_qty is not None else pos["quantity"]
+        if not keep_open:
+            self._open_positions.pop(oid, None)
             self._positions.delete(oid)
-            self.ledger.log_position_closed(
-                order_id=oid,
-                symbol=pos["symbol"],
-                side=pos["side"],
-                entry_price=pos["entry_price"],
-                exit_price=exit_price,
-                quantity=pos["quantity"],
-                opened_at=pos.get("opened_at"),
-            )
-            direction = 1.0 if pos["side"] == "buy" else -1.0
-            pnl = direction * (exit_price - pos["entry_price"]) * pos["quantity"]
-            entry_notional = pos["entry_price"] * pos["quantity"]
-            pnl_pct = pnl / entry_notional * 100 if entry_notional else 0.0
-            self.circuit_breaker.record_trade_result(pnl_pct)
-            logger.info(
-                "Position closed %s %s at %.2f (entry %.2f, pnl %.2f%%)",
-                pos["side"], pos["symbol"], exit_price, pos["entry_price"], pnl_pct,
-            )
+        fee = entry_fee + exit_fee
+        self.ledger.log_position_closed(
+            order_id=oid,
+            symbol=pos["symbol"],
+            side=pos["side"],
+            entry_price=pos["entry_price"],
+            exit_price=exit_price,
+            quantity=qty,
+            fee=fee,
+            opened_at=pos.get("opened_at"),
+        )
+        direction = 1.0 if pos["side"] == "buy" else -1.0
+        pnl = direction * (exit_price - pos["entry_price"]) * qty - fee
+        entry_notional = pos["entry_price"] * qty
+        pnl_pct = pnl / entry_notional * 100 if entry_notional else 0.0
+        self.circuit_breaker.record_trade_result(pnl_pct)
+        logger.info(
+            "Position closed %s %s at %.2f (entry %.2f, pnl %.2f%%)",
+            pos["side"], pos["symbol"], exit_price, pos["entry_price"], pnl_pct,
+        )
 
     @staticmethod
     def _exit_price(pos: dict[str, Any], current_price: float) -> float | None:
