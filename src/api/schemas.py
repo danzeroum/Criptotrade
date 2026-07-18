@@ -191,6 +191,30 @@ class AgentConfigOut(AgentStatusOut):
     params: Dict[str, Any] = Field(default_factory=dict)
 
 
+# ----------------------------------------------------------------- audit (A4)
+class AuditEventOut(BaseModel):
+    """Normalized audit-trail envelope (see src/audit/normalize.py)."""
+
+    id: int
+    ts: str
+    action: str
+    actor: str
+    entity: Optional[str] = None
+    ip: Optional[str] = None
+    ua: Optional[str] = None
+    success: Optional[bool] = None
+    before: Optional[Dict[str, Any]] = None
+    after: Optional[Dict[str, Any]] = None
+    detail: Optional[str] = None
+
+
+class AuditEventDetailOut(AuditEventOut):
+    """Envelope + the raw ledger record, for the detail/diff view."""
+
+    event_type: str
+    data: Dict[str, Any] = Field(default_factory=dict)
+
+
 # ----------------------------------------------------------------- process log
 class ProcessEventOut(BaseModel):
     case_id: str

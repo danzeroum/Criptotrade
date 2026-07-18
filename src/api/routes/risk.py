@@ -11,7 +11,7 @@ from typing import Any, Dict, List
 import yaml
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-from src.api.authn import require_perm
+from src.api.authn import Principal, require_perm
 from src.api.deps import get_ledger, get_metrics_calculator
 from src.api.schemas import (
     APIResponse,
@@ -248,10 +248,11 @@ async def get_risk_config() -> APIResponse[RiskConfigOut]:
     "/config",
     response_model=APIResponse[RiskConfigOut],
     summary="Atualiza parâmetros de risco (grava em risk_params.yaml)",
-    dependencies=[Depends(require_perm("change_risk"))],
 )
 async def patch_risk_config(
     patch: RiskConfigPatch = Body(...),
+    ledger: TradingLedger = Depends(get_ledger),
+    principal: Principal = Depends(require_perm("change_risk")),
 ) -> APIResponse[RiskConfigOut]:
     if not patch.confirm:
         raise HTTPException(
@@ -263,6 +264,7 @@ async def patch_risk_config(
             },
         )
     cfg = _load_yaml()
+    before = (await get_risk_config()).data.model_dump()
 
     updates = patch.model_dump(exclude_none=True)
     if "max_position_size_pct" in updates:
@@ -289,4 +291,15 @@ async def patch_risk_config(
                 "docs": "/v1/docs",
             },
         ) from exc
-    return await get_risk_config()
+    result = await get_risk_config()
+    after = result.data.model_dump()
+    changed = sorted(k for k in after if after[k] != before[k])
+    if changed:
+        # A4: config changes feed the audit trail with a real before→after diff.
+        ledger.log_decision("config_changed", {
+            "actor": principal.actor,
+            "scope": "risk",
+            "before": {k: before[k] for k in changed},
+            "after": {k: after[k] for k in changed},
+        })
+    return result

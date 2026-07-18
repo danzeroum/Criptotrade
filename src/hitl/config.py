@@ -97,12 +97,15 @@ class HITLConfigStore:
         level_info(level)  # validate
         if not reason or len(reason.strip()) < 5:
             raise ValueError("A 'reason' of at least 5 characters is required")
+        previous = self._level
         self._level = level
         self._last_changed_at = datetime.now(timezone.utc).isoformat()
         self._last_changed_by = operator
+        # ``previous_level`` is additive (event name stays stable) — it gives
+        # the A4 audit screen a real before→after diff for autonomy changes.
         self._ledger.log_decision(
             "hitl_level_changed",
-            {"level": level, "reason": reason, "operator": operator},
+            {"level": level, "previous_level": previous, "reason": reason, "operator": operator},
         )
         return self
 

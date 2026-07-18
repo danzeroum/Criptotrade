@@ -20,6 +20,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from src.api.routes import (
     agents,
     alerts,
+    audit,
     auth,
     backtest,
     config,
@@ -272,6 +273,8 @@ def create_app() -> FastAPI:
     app.include_router(journal.router, prefix=PREFIX, dependencies=guarded)
     app.include_router(config.router, prefix=PREFIX, dependencies=guarded)
     app.include_router(trades.router, prefix=PREFIX, dependencies=guarded)
+    # A4: every route additionally requires view_audit (operador+/machine).
+    app.include_router(audit.router, prefix=PREFIX, dependencies=guarded)
     # A3: per-route manage_users enforcement lives inside the module.
     app.include_router(users.router, prefix=PREFIX)
     app.include_router(users.roles_router, prefix=PREFIX)
