@@ -17,6 +17,7 @@ const SCREENS = {
   settings:      ScreenSettings,
   users:         ScreenUsers,
   audit:         ScreenAudit,
+  security:      ScreenSecurity,
 };
 
 // ---- Error boundaries (A9) ----
@@ -267,11 +268,16 @@ function App() {
   // A9/A3: screens that demand a permission — navigating without it renders
   // the Forbidden page (coherent with the backend's 403 envelope), not a blank.
   const ROUTE_PERMS = { users: 'manage_users', audit: 'view_audit' };
+  // A7: self-service screens need a real authenticated session (kind 'user'),
+  // which is a different gate than a role permission.
+  const USER_ONLY_ROUTES = ['security'];
   const deniedPerm = ROUTE_PERMS[screen] && !CT_AUTH.can(ROUTE_PERMS[screen])
     ? ROUTE_PERMS[screen] : null;
+  const denied = deniedPerm
+    || (USER_ONLY_ROUTES.includes(screen) && auth.kind !== 'user');
   const ActiveScreen = screen === 'notfound'
     ? NotFoundScreen
-    : (deniedPerm ? null : (SCREENS[screen] ?? ScreenOverview));
+    : (denied ? null : (SCREENS[screen] ?? ScreenOverview));
 
   // ---- A1 gate: probe → login → shell ----
   if (!booted) {
@@ -303,7 +309,7 @@ function App() {
         <div className="content">
           <div className="content-inner screen-enter">
             <ErrorBoundary key={screen}>
-              {deniedPerm
+              {denied
                 ? <ForbiddenScreen navigate={navigate} requiredPermission={deniedPerm}
                     role={auth.user?.role ?? (auth.kind === 'demo' ? 'visualizador' : undefined)} />
                 : <ActiveScreen navigate={navigate} addToast={addToast} />}

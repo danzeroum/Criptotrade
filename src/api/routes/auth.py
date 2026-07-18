@@ -26,8 +26,9 @@ from src.api.authn import (
     get_principal, set_session_cookies,
 )
 from src.api.schemas import (
-    APIResponse, AuthUserOut, ForgotPasswordIn, InviteAcceptIn, LoginIn, MeOut,
-    ResetPasswordIn, TwoFactorDisableIn, TwoFactorEnableIn, TwoFactorVerifyIn,
+    APIResponse, AuthUserOut, BackupRegenerateIn, ForgotPasswordIn, InviteAcceptIn,
+    LoginIn, MeOut, ResetPasswordIn, TwoFactorDisableIn, TwoFactorEnableIn,
+    TwoFactorVerifyIn,
 )
 from src.auth import security
 from src.core.ratelimit import build_rate_limiter
@@ -335,6 +336,29 @@ async def two_factor_enable(body: TwoFactorEnableIn, request: Request) -> APIRes
     )
     deps.get_ledger().log_auth_event(
         "2fa_enabled", actor=user["email"], email=user["email"],
+        ip=_client_ip(request), user_agent=_user_agent(request),
+    )
+    return APIResponse(data={"backup_codes": codes})  # shown once
+
+
+@router.post("/2fa/backup/regenerate", response_model=APIResponse[dict])
+async def two_factor_backup_regenerate(
+    body: BackupRegenerateIn, request: Request
+) -> APIResponse[dict]:
+    """A7: mint a fresh set of backup codes (password re-confirmation required);
+    every previous code stops working immediately."""
+    user = _require_user(request)
+    if not security.verify_password(user.get("password_hash"), body.password):
+        raise HTTPException(status_code=401, detail=_GENERIC_LOGIN_ERROR)
+    if not user.get("totp_enabled"):
+        raise HTTPException(status_code=400, detail={
+            "error": "totp_not_enabled",
+            "message": "Ative a verificação em duas etapas antes de gerar códigos de backup.",
+        })
+    codes, hashes = security.generate_backup_codes()
+    deps.get_user_store().update_backup_codes(user["id"], hashes)
+    deps.get_ledger().log_auth_event(
+        "2fa_backup_regenerated", actor=user["email"], email=user["email"],
         ip=_client_ip(request), user_agent=_user_agent(request),
     )
     return APIResponse(data={"backup_codes": codes})  # shown once

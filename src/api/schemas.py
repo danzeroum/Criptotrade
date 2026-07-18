@@ -635,6 +635,24 @@ class TwoFactorDisableIn(BaseModel):
     password: str
 
 
+class BackupRegenerateIn(BaseModel):
+    """A7: regenerating backup codes re-confirms the password."""
+
+    password: str
+
+
+class SessionOut(BaseModel):
+    """A7: one active session of the logged-in user (self-service listing)."""
+
+    id: str
+    created_at: str
+    last_seen_at: str
+    ip: Optional[str] = None
+    user_agent: Optional[str] = None
+    remember: bool = False
+    current: bool = False
+
+
 class AuthUserOut(BaseModel):
     id: str
     email: str

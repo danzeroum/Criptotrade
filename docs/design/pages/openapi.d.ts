@@ -175,6 +175,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/2fa/backup/regenerate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Two Factor Backup Regenerate
+         * @description A7: mint a fresh set of backup codes (password re-confirmation required);
+         *     every previous code stops working immediately.
+         */
+        post: operations["two_factor_backup_regenerate_v1_auth_2fa_backup_regenerate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/2fa/disable": {
         parameters: {
             query?: never;
@@ -846,6 +867,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/security/logins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Meu histórico de logins (sucessos e falhas do MEU e-mail) */
+        get: operations["login_history_v1_security_logins_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/security/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Minhas sessões ativas (a atual vem marcada) */
+        get: operations["list_sessions_v1_security_sessions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/security/sessions/revoke-others": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Encerra todas as minhas sessões exceto a atual */
+        post: operations["revoke_other_sessions_v1_security_sessions_revoke_others_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/security/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Encerra uma das minhas sessões (a atual encerra o login) */
+        delete: operations["revoke_session_v1_security_sessions__session_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/trades/closed": {
         parameters: {
             query?: never;
@@ -1154,6 +1243,13 @@ export interface components {
             _links?: components["schemas"]["Links"] | null;
             /** Data */
             data: components["schemas"]["RoleOut"][];
+            meta?: components["schemas"]["Meta"] | null;
+        };
+        /** APIResponse[List[SessionOut]] */
+        APIResponse_List_SessionOut__: {
+            _links?: components["schemas"]["Links"] | null;
+            /** Data */
+            data: components["schemas"]["SessionOut"][];
             meta?: components["schemas"]["Meta"] | null;
         };
         /** APIResponse[List[UserOut]] */
@@ -1496,6 +1592,14 @@ export interface components {
             total_trades: number;
             /** Win Rate */
             win_rate: number;
+        };
+        /**
+         * BackupRegenerateIn
+         * @description A7: regenerating backup codes re-confirms the password.
+         */
+        BackupRegenerateIn: {
+            /** Password */
+            password: string;
         };
         /** BollingerOut */
         BollingerOut: {
@@ -2202,6 +2306,32 @@ export interface components {
             /** Strength */
             strength: number;
         };
+        /**
+         * SessionOut
+         * @description A7: one active session of the logged-in user (self-service listing).
+         */
+        SessionOut: {
+            /** Created At */
+            created_at: string;
+            /**
+             * Current
+             * @default false
+             */
+            current: boolean;
+            /** Id */
+            id: string;
+            /** Ip */
+            ip?: string | null;
+            /** Last Seen At */
+            last_seen_at: string;
+            /**
+             * Remember
+             * @default false
+             */
+            remember: boolean;
+            /** User Agent */
+            user_agent?: string | null;
+        };
         /** SignalOut */
         SignalOut: {
             /** Action */
@@ -2731,6 +2861,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["APIResponse_AuditEventDetailOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    two_factor_backup_regenerate_v1_auth_2fa_backup_regenerate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BackupRegenerateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_dict_"];
                 };
             };
             /** @description Validation Error */
@@ -4029,6 +4192,109 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["APIResponse_List_RoleOut__"];
+                };
+            };
+        };
+    };
+    login_history_v1_security_logins_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_List_AuditEventOut__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sessions_v1_security_sessions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_List_SessionOut__"];
+                };
+            };
+        };
+    };
+    revoke_other_sessions_v1_security_sessions_revoke_others_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_dict_"];
+                };
+            };
+        };
+    };
+    revoke_session_v1_security_sessions__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_dict_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
