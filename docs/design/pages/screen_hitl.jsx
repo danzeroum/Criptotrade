@@ -258,7 +258,8 @@ function ScreenHITL({ addToast }) {
         </div>
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: '1fr 300px', gap: 20, alignItems: 'start' }}>
+      {/* M9: class-based grid so the rail stacks below the list < 1100px. */}
+      <div className="grid grid-chart-rail" style={{ gap: 20 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
             <h2 style={{ fontSize: 15, fontWeight: 600 }}>Ordens Pendentes</h2>

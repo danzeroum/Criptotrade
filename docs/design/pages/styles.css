@@ -346,7 +346,11 @@ input, select, textarea { font-family: inherit; }
 /* ---- Market screen responsive grids (M9) ---- */
 /* These replace the inline gridTemplateColumns in screen_market.jsx so media
    queries can reflow them (inline styles can't be overridden by a class). */
-.grid-kpi5 { grid-template-columns: repeat(5, 1fr); }
+/* C5: fully fluid — auto-fit reflows at any width, no discrete breakpoints.
+   140px min (not the audit's 120px): at 120px a 5-up row at 1024px clips the
+   price KPI's last digit; 140px wraps 4+1 there instead and still keeps one
+   row from ~1300px up. */
+.grid-kpi5 { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
 .grid-chart-rail { grid-template-columns: 1fr 300px; align-items: start; }
 .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
 .grid-regime4 { grid-template-columns: repeat(4, 1fr); }
@@ -355,11 +359,9 @@ input, select, textarea { font-family: inherit; }
   .grid-chart-rail { grid-template-columns: 1fr; }   /* signal rail stacks below chart */
   .grid-3 { grid-template-columns: 1fr 1fr; }
   .grid-regime4 { grid-template-columns: 1fr 1fr; }
-  .grid-kpi5 { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 720px) {
   .grid-3, .grid-regime4 { grid-template-columns: 1fr; }
-  .grid-kpi5 { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* ---- Reusable auto-reflowing KPI/stat-tile row (R8) ----
