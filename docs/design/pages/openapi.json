@@ -881,6 +881,42 @@
         "title": "APIResponse[List[RoleOut]]",
         "type": "object"
       },
+      "APIResponse_List_SessionOut__": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/SessionOut"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[List[SessionOut]]",
+        "type": "object"
+      },
       "APIResponse_List_UserOut__": {
         "properties": {
           "_links": {
@@ -2071,6 +2107,20 @@
           "equity"
         ],
         "title": "BacktestResultOut",
+        "type": "object"
+      },
+      "BackupRegenerateIn": {
+        "description": "A7: regenerating backup codes re-confirms the password.",
+        "properties": {
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "title": "BackupRegenerateIn",
         "type": "object"
       },
       "BollingerOut": {
@@ -4139,6 +4189,62 @@
         "title": "SRLevelOut",
         "type": "object"
       },
+      "SessionOut": {
+        "description": "A7: one active session of the logged-in user (self-service listing).",
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "current": {
+            "default": false,
+            "title": "Current",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ip"
+          },
+          "last_seen_at": {
+            "title": "Last Seen At",
+            "type": "string"
+          },
+          "remember": {
+            "default": false,
+            "title": "Remember",
+            "type": "boolean"
+          },
+          "user_agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Agent"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "last_seen_at"
+        ],
+        "title": "SessionOut",
+        "type": "object"
+      },
       "SignalOut": {
         "properties": {
           "action": {
@@ -5382,6 +5488,48 @@
         "summary": "Detalhe de um evento (envelope + payload bruto, com diff antes\u2192depois)",
         "tags": [
           "audit"
+        ]
+      }
+    },
+    "/v1/auth/2fa/backup/regenerate": {
+      "post": {
+        "description": "A7: mint a fresh set of backup codes (password re-confirmation required);\nevery previous code stops working immediately.",
+        "operationId": "two_factor_backup_regenerate_v1_auth_2fa_backup_regenerate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupRegenerateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_dict_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Two Factor Backup Regenerate",
+        "tags": [
+          "auth"
         ]
       }
     },
@@ -7243,6 +7391,146 @@
         "summary": "Get Roles",
         "tags": [
           "users"
+        ]
+      }
+    },
+    "/v1/security/logins": {
+      "get": {
+        "operationId": "login_history_v1_security_logins_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_List_AuditEventOut__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Meu hist\u00f3rico de logins (sucessos e falhas do MEU e-mail)",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/v1/security/sessions": {
+      "get": {
+        "operationId": "list_sessions_v1_security_sessions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_List_SessionOut__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Minhas sess\u00f5es ativas (a atual vem marcada)",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/v1/security/sessions/revoke-others": {
+      "post": {
+        "operationId": "revoke_other_sessions_v1_security_sessions_revoke_others_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_dict_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Encerra todas as minhas sess\u00f5es exceto a atual",
+        "tags": [
+          "security"
+        ]
+      }
+    },
+    "/v1/security/sessions/{session_id}": {
+      "delete": {
+        "operationId": "revoke_session_v1_security_sessions__session_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_dict_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Encerra uma das minhas sess\u00f5es (a atual encerra o login)",
+        "tags": [
+          "security"
         ]
       }
     },

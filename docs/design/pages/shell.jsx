@@ -23,10 +23,13 @@ const ADMIN_NAV = [
   { id: 'users', icon: 'user', label: 'Usuários & Permissões', perm: 'manage_users' },
   // A4: operador+ (view_audit) — o demo público nunca vê a trilha (e-mail/IP reais).
   { id: 'audit', icon: 'clock', label: 'Trilha de Auditoria', perm: 'view_audit' },
+  // A7: self-service — qualquer sessão autenticada (não é permissão de papel).
+  { id: 'security', icon: 'lock', label: 'Segurança & Sessões', userOnly: true },
 ];
 
 function Sidebar({ active, onNavigate, pendingCount }) {
-  const adminItems = ADMIN_NAV.filter(item => CT_AUTH.can(item.perm));
+  const adminItems = ADMIN_NAV.filter(item =>
+    item.perm ? CT_AUTH.can(item.perm) : (item.userOnly ? CT_AUTH.kind() === 'user' : true));
   return (
     <aside className="sidebar">
       <div className="brand">

@@ -361,6 +361,44 @@ class SessionStore:
                 (_iso(_now()), user_id),
             )
 
+    # -------------------------------------------------------- self-service (A7)
+    def list_for_user(self, user_id: str) -> list:
+        """ACTIVE sessions of one user (not revoked, not expired), most recent
+        first — the '/v1/security/sessions' listing."""
+        now = _now()
+        with connection(self._path()) as conn:
+            rows = conn.execute(
+                "SELECT * FROM sessions WHERE user_id = ? AND revoked_at IS NULL"
+                " ORDER BY last_seen_at DESC",
+                (user_id,),
+            ).fetchall()
+        return [
+            _row(r) for r in rows
+            if datetime.fromisoformat(r["idle_expires_at"]) >= now
+            and datetime.fromisoformat(r["absolute_expires_at"]) >= now
+        ]
+
+    def revoke_for_user(self, session_id: str, user_id: str) -> bool:
+        """Revoke one session ONLY if it belongs to ``user_id`` (self-service:
+        another user's id must look like it doesn't exist). True if revoked."""
+        with connection(self._path()) as conn:
+            cur = conn.execute(
+                "UPDATE sessions SET revoked_at = ? WHERE id = ? AND user_id = ?"
+                " AND revoked_at IS NULL",
+                (_iso(_now()), session_id, user_id),
+            )
+            return cur.rowcount > 0
+
+    def revoke_others(self, user_id: str, keep_session_id: str) -> int:
+        """Revoke every other active session of the user; returns the count."""
+        with connection(self._path()) as conn:
+            cur = conn.execute(
+                "UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND id != ?"
+                " AND revoked_at IS NULL",
+                (_iso(_now()), user_id, keep_session_id),
+            )
+            return cur.rowcount
+
 
 def bootstrap_admin(store: Optional[UserStore] = None) -> Optional[Dict[str, Any]]:
     """One-shot first-admin seed (D3): only when the users table is EMPTY and

@@ -153,6 +153,15 @@ const CT_API = (() => {
       return r.blob();
     },
 
+    // ---- A7: security & sessions (self-service) ----
+    getSessions:          ()         => req('/v1/security/sessions'),
+    revokeSession:        (id)       => req(`/v1/security/sessions/${id}`, { method: 'DELETE' }),
+    revokeOtherSessions:  ()         => req('/v1/security/sessions/revoke-others', { method: 'POST', body: '{}' }),
+    getLoginHistory:      (limit = 20) =>
+      req(`/v1/security/logins?limit=${limit}`, {}, { unwrap: false }),
+    regenerateBackupCodes:(password) =>
+      req('/v1/auth/2fa/backup/regenerate', { method: 'POST', body: JSON.stringify({ password }) }),
+
     // ---- A1: authentication ----
     getMe:            ()         => req('/v1/auth/me'),
     login:            (body)     => req('/v1/auth/login', { method: 'POST', body: JSON.stringify(body) }),

@@ -31,6 +31,7 @@ from src.api.routes import (
     orders,
     process,
     risk,
+    security,
     trades,
     users,
 )
@@ -275,6 +276,8 @@ def create_app() -> FastAPI:
     app.include_router(trades.router, prefix=PREFIX, dependencies=guarded)
     # A4: every route additionally requires view_audit (operador+/machine).
     app.include_router(audit.router, prefix=PREFIX, dependencies=guarded)
+    # A7: strictly self-service — every route 401s without a user session.
+    app.include_router(security.router, prefix=PREFIX, dependencies=guarded)
     # A3: per-route manage_users enforcement lives inside the module.
     app.include_router(users.router, prefix=PREFIX)
     app.include_router(users.roles_router, prefix=PREFIX)

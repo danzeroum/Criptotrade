@@ -458,5 +458,21 @@
       before: null, after: null, detail: '3 perdas consecutivas' },
   ];
 
+  // A7: mock sessions/logins for the security screen (mirrors /v1/security/*).
+  CT.securitySessions = [
+    { id: 's1', created_at: '2026-07-18T08:00:00+00:00', last_seen_at: '2026-07-18T09:30:00+00:00',
+      ip: '187.20.14.2', user_agent: 'Mozilla/5.0 (X11; Linux x86_64) Chrome/126.0', remember: false, current: true },
+    { id: 's2', created_at: '2026-07-16T21:10:00+00:00', last_seen_at: '2026-07-17T07:45:00+00:00',
+      ip: '177.94.3.71', user_agent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5) Safari/604.1', remember: true, current: false },
+  ];
+  CT.securityLogins = [
+    { id: 93, ts: '2026-07-18T08:00:00+00:00', action: 'login', actor: 'demo@criptotrade.dev',
+      ip: '187.20.14.2', ua: 'Mozilla/5.0 (X11; Linux x86_64) Chrome/126.0', success: true },
+    { id: 90, ts: '2026-07-17T23:41:00+00:00', action: 'login', actor: 'demo@criptotrade.dev',
+      ip: '45.12.9.30', ua: 'Mozilla/5.0 (Windows NT 10.0) Firefox/128.0', success: false },
+    { id: 88, ts: '2026-07-16T21:10:00+00:00', action: 'login', actor: 'demo@criptotrade.dev',
+      ip: '177.94.3.71', ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5) Safari/604.1', success: true },
+  ];
+
   window.CT = CT;
 })();
