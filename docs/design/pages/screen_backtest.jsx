@@ -32,10 +32,10 @@ function FoldTable({ folds }) {
           return (
             <tr key={i}>
               <td style={{ fontFamily: 'var(--mono)' }}>#{f.fold ?? i + 1}</td>
-              <td className="num">{(f.train_sharpe ?? f.trainSharpe)?.toFixed(2)}</td>
-              <td className="num">{(f.test_sharpe ?? f.testSharpe)?.toFixed(2)}</td>
+              <td className="num">{fmtNum(f.train_sharpe ?? f.trainSharpe)}</td>
+              <td className="num">{fmtNum(f.test_sharpe ?? f.testSharpe)}</td>
               <td className="num" style={{ color: delta >= 0 ? 'var(--up)' : 'var(--down)' }}>
-                {delta > 0 ? '+' : ''}{delta.toFixed(2)}
+                {delta > 0 ? '+' : ''}{fmtNum(delta)}
               </td>
             </tr>
           );
@@ -271,10 +271,10 @@ function ScreenBacktest({ addToast }) {
                 <MetricCard label="Win rate" value={result.win_rate * 100} format="pct_direct" />
                 <MetricCard label="P&L %" value={result.pnl_pct} format="pct_direct" delta={result.pnl_pct} />
                 <MetricCard label="P&L $" value={result.pnl_usdt} format="usd" />
-                <MetricCard label="Sharpe" value={result.sharpe?.toFixed(2)} />
+                <MetricCard label="Sharpe" value={fmtNum(result.sharpe)} />
                 <MetricCard label="Max drawdown" value={result.max_drawdown} format="pct_direct" delta={result.max_drawdown} />
-                <MetricCard label="Profit factor" value={result.profit_factor?.toFixed(2)} />
-                <MetricCard label="Expectancy" value={result.expectancy?.toFixed(2)} sub="% por trade" />
+                <MetricCard label="Profit factor" value={fmtNum(result.profit_factor)} />
+                <MetricCard label="Expectancy" value={fmtNum(result.expectancy)} sub="% por trade" />
               </div>
               {result.equity && result.equity.length > 0 && (
                 <div className="card">
@@ -292,13 +292,13 @@ function ScreenBacktest({ addToast }) {
               <div className="card">
                 <div className="card-head"><span className="card-title"><Icon name="activity" />Monte Carlo</span></div>
                 <div className="card-pad">
-                  <div className="stat-row"><span className="stat-k">Simulações</span><span className="stat-v">{mc.n?.toLocaleString('en')}</span></div>
-                  <div className="stat-row"><span className="stat-k">P5 (pior)</span><span className="stat-v down">${mc.p5?.toFixed(0)}</span></div>
-                  <div className="stat-row"><span className="stat-k">P50 (mediana)</span><span className="stat-v">${mc.p50?.toFixed(0)}</span></div>
-                  <div className="stat-row"><span className="stat-k">P95 (melhor)</span><span className="stat-v up">${mc.p95?.toFixed(0)}</span></div>
+                  <div className="stat-row"><span className="stat-k">Simulações</span><span className="stat-v">{mc.n != null ? fmtNum(mc.n, 0) : '—'}</span></div>
+                  <div className="stat-row"><span className="stat-k">P5 (pior)</span><span className="stat-v down">{fmtUsd(mc.p5, 0)}</span></div>
+                  <div className="stat-row"><span className="stat-k">P50 (mediana)</span><span className="stat-v">{fmtUsd(mc.p50, 0)}</span></div>
+                  <div className="stat-row"><span className="stat-k">P95 (melhor)</span><span className="stat-v up">{fmtUsd(mc.p95, 0)}</span></div>
                   <div className="stat-row">
                     <span className="stat-k">% lucrativas</span>
-                    <span className="stat-v">{((mc.profitable_pct ?? mc.profitablePct) * 100).toFixed(1)}%</span>
+                    <span className="stat-v">{fmtNum((mc.profitable_pct ?? mc.profitablePct) * 100, 1)}%</span>
                   </div>
                   <div style={{ marginTop: 12 }}>
                     <Badge variant={mc.rejected ? 'down' : 'ok'}>
@@ -332,7 +332,7 @@ function ScreenBacktest({ addToast }) {
                   </div>
                   <div className="stat-row">
                     <span className="stat-k">Desvio Sharpe</span>
-                    <span className="stat-v">{(wf.sharpe_deviation ?? wf.sharpeDeviation)?.toFixed(3)}</span>
+                    <span className="stat-v">{fmtNum(wf.sharpe_deviation ?? wf.sharpeDeviation, 3)}</span>
                   </div>
                 </div>
               </div>

@@ -18,6 +18,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.api.routes import (
+    account,
     agents,
     alerts,
     audit,
@@ -278,6 +279,8 @@ def create_app() -> FastAPI:
     app.include_router(audit.router, prefix=PREFIX, dependencies=guarded)
     # A7: strictly self-service — every route 401s without a user session.
     app.include_router(security.router, prefix=PREFIX, dependencies=guarded)
+    # A2: same self-service contract as /v1/security.
+    app.include_router(account.router, prefix=PREFIX, dependencies=guarded)
     # A3: per-route manage_users enforcement lives inside the module.
     app.include_router(users.router, prefix=PREFIX)
     app.include_router(users.roles_router, prefix=PREFIX)

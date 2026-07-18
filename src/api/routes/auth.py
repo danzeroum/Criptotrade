@@ -75,6 +75,7 @@ def _auth_user_out(user: Dict[str, Any]) -> AuthUserOut:
     return AuthUserOut(
         id=user["id"], email=user["email"], name=user.get("name"),
         role=user["role"], totp_enabled=bool(user.get("totp_enabled")),
+        avatar_color=user.get("avatar_color"),
     )
 
 
@@ -277,12 +278,15 @@ async def me(request: Request) -> APIResponse[MeOut]:
     mode = auth_mode()
     if principal.kind == "user":
         user = deps.get_user_store().get(principal.user_id)
+        from src.api.routes.account import DEFAULT_PREFS
         from src.auth.rbac import permissions_for
 
+        prefs = {**DEFAULT_PREFS, **deps.get_user_store().get_prefs(principal.user_id)}
         return APIResponse(data=MeOut(
             mode=mode, authenticated=True,
             user=_auth_user_out(user) if user else None,
             permissions=permissions_for(principal),
+            prefs=prefs,
         ))
     if principal.kind == "demo":
         return APIResponse(data=MeOut(

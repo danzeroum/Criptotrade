@@ -29,9 +29,8 @@ function parseUA(ua) {
 }
 window.parseUA = parseUA;
 
-const fmtSecTs = (ts) => {
-  try { return new Date(ts).toLocaleString('pt-BR'); } catch (_) { return ts ?? '—'; }
-};
+// A2: timestamps go through the central locale/timezone-aware helper.
+const fmtSecTs = (ts) => window.fmtDateTime(ts);
 
 // Password re-confirmation modal (disable 2FA / regenerate backup codes).
 function PasswordConfirmModal({ title, cta, onConfirm, onClose }) {

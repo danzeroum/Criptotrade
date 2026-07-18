@@ -135,7 +135,7 @@ function ScreenUsers({ addToast }) {
                   </td>
                   <td><Badge variant={STATUS_BADGE[u.status] ?? 'neutral'}>{STATUS_LABEL[u.status] ?? u.status}</Badge></td>
                   <td style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink-2)' }}>
-                    {u.last_login_at ? new Date(u.last_login_at).toLocaleString('pt-BR') : '—'}
+                    {u.last_login_at ? fmtDateTime(u.last_login_at) : '—'}
                   </td>
                   <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                     {u.status === 'pending' && u.invite_id && (

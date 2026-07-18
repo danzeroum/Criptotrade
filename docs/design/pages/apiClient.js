@@ -153,6 +153,13 @@ const CT_API = (() => {
       return r.blob();
     },
 
+    // ---- A2: account & preferences (self-service) ----
+    getAccountProfile:  ()       => req('/v1/account/profile'),
+    patchAccountProfile:(body)   => req('/v1/account/profile', { method: 'PATCH', body: JSON.stringify(body) }),
+    changePassword:     (body)   => req('/v1/account/password', { method: 'PATCH', body: JSON.stringify(body) }),
+    getPreferences:     ()       => req('/v1/account/preferences'),
+    patchPreferences:   (body)   => req('/v1/account/preferences', { method: 'PATCH', body: JSON.stringify(body) }),
+
     // ---- A7: security & sessions (self-service) ----
     getSessions:          ()         => req('/v1/security/sessions'),
     revokeSession:        (id)       => req(`/v1/security/sessions/${id}`, { method: 'DELETE' }),
@@ -206,6 +213,40 @@ const CT_PAIR = (() => {
 window.CT_PAIR = CT_PAIR;
 
 /* ============================================================
+   Global preferences store (A2). Mirrors CT_PAIR's pattern.
+   Feeds the CENTRAL formatting helpers (fmtNum/fmtUsd/fmtDateTime…)
+   so changing locale/timezone/format reflects across the whole
+   console — never per-screen (C7 discipline). Defaults preserve
+   today's behavior bit-for-bit: numbers en-US (M7), dates pt-BR,
+   browser timezone. Populated from /v1/auth/me by CT_AUTH.
+   ============================================================ */
+const CT_PREFS = (() => {
+  const DEFAULTS = { locale: 'pt-BR', timezone: 'auto', number_locale: 'auto', date_locale: 'auto' };
+  let current = { ...DEFAULTS, ...(window.MOCK_PREFS ?? {}) };
+  const emit = () => window.dispatchEvent(new CustomEvent('ct:prefs', { detail: current }));
+  return {
+    get: () => current,
+    /** Locale for numbers: 'auto' keeps the M7 canonical en-US. */
+    numberLocale: () => (current.number_locale === 'auto' ? 'en' : current.number_locale),
+    /** Locale for dates: 'auto' keeps today's pt-BR. */
+    dateLocale: () => (current.date_locale === 'auto' ? 'pt-BR' : current.date_locale),
+    /** IANA timezone or null for the browser's own ('auto'). */
+    timezone: () => (current.timezone === 'auto' ? null : current.timezone),
+    apply: (prefs) => {
+      current = { ...DEFAULTS, ...(prefs ?? {}) };
+      emit();
+      return current;
+    },
+    subscribe: (fn) => {
+      const handler = (e) => fn(e.detail);
+      window.addEventListener('ct:prefs', handler);
+      return () => window.removeEventListener('ct:prefs', handler);
+    },
+  };
+})();
+window.CT_PREFS = CT_PREFS;
+
+/* ============================================================
    Global auth/session store (A1). Mirrors CT_PAIR's pattern.
    kind: 'off' (auth disabled — no auth UI), 'user' (real session),
    'demo' (public demo, read-only), 'anonymous' (must log in).
@@ -220,6 +261,9 @@ const CT_AUTH = (() => {
   const emit = () => window.dispatchEvent(new CustomEvent('ct:auth', { detail: current }));
 
   const fromMe = (me) => {
+    // A2: the boot probe carries the user's preferences — hydrate the global
+    // formatting store here so no screen needs an extra request.
+    if (me.prefs) CT_PREFS.apply(me.prefs);
     const authenticated = !!(me.authenticated && me.user);
     let kind = 'anonymous';
     if (me.mode === 'off') kind = 'off';

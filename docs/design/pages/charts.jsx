@@ -74,12 +74,13 @@ function CandleChart({ candles = [], bb = [], width = 680, height = 280, tf = '1
   const bull = 'var(--up)', bear = 'var(--down)';
   const gridYs = [0, 0.25, 0.5, 0.75, 1].map(f => lo + f * (hi - lo));
 
-  const fmtTime = (t) => {
+  const fmtAxisTime = (t) => {
     const d = new Date(t);
     if (Number.isNaN(d.getTime())) return '';
+    // A2: axis labels go through the central helpers (locale + timezone aware).
     return (tf === '1d' || tf === '4h')
-      ? d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
-      : d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      ? window.fmtDate(d, { day: '2-digit', month: '2-digit' })
+      : window.fmtTime(d, { hour: '2-digit', minute: '2-digit' });
   };
 
   const tickIdx = [];
@@ -148,7 +149,7 @@ function CandleChart({ candles = [], bb = [], width = 680, height = 280, tf = '1
 
       {tickIdx.map(i => (
         <text key={i} x={sx(i)} y={height - 8} fontSize="9.5" fill="var(--ink-3)" textAnchor="middle">
-          {fmtTime(get(visible[i], 't', 't'))}
+          {fmtAxisTime(get(visible[i], 't', 't'))}
         </text>
       ))}
 
@@ -165,7 +166,7 @@ function CandleChart({ candles = [], bb = [], width = 680, height = 280, tf = '1
             <line x1={cx} y1={PAD.t} x2={cx} y2={volBase} stroke="var(--ink-4)" strokeWidth="0.6" strokeDasharray="3,2" />
             <line x1={PAD.l} y1={sy(close)} x2={PAD.l + w} y2={sy(close)} stroke="var(--ink-4)" strokeWidth="0.6" strokeDasharray="3,2" />
             <rect x={bx} y={PAD.t} width={boxW} height={boxH} rx="6" fill="var(--surface)" stroke="var(--border)" />
-            <text x={bx + 10} y={PAD.t + 15} fontSize="10" fontFamily="var(--mono)" fill="var(--ink-3)">{fmtTime(get(hc, 't', 't'))}</text>
+            <text x={bx + 10} y={PAD.t + 15} fontSize="10" fontFamily="var(--mono)" fill="var(--ink-3)">{fmtAxisTime(get(hc, 't', 't'))}</text>
             {rows.map((row, k) => (
               <text key={k} x={bx + 10} y={PAD.t + 31 + k * 12} fontSize="10.5" fontFamily="var(--mono)" fill="var(--ink-2)">
                 <tspan fill="var(--ink-4)">{row[0]} </tspan>{row[1]}

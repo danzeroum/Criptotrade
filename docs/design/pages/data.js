@@ -407,6 +407,7 @@
   // A1: mock identity for e2e/demo (CT_AUTH mock branch auto-authenticates as this).
   CT.currentUser = {
     id: 'mock', name: 'Operador Demo', email: 'demo@criptotrade.dev', role: 'admin',
+    job_title: 'Operador-chefe', avatar_color: 'info',
   };
 
   // A3: mock users/roles for the admin screen (mirrors src/auth/rbac.py).

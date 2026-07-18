@@ -32,9 +32,8 @@ const AUDIT_ACTION_BADGE = {
   order_executed: 'neutral', other: 'neutral',
 };
 
-const fmtAudTs = (ts) => {
-  try { return new Date(ts).toLocaleString('pt-BR'); } catch (_) { return ts; }
-};
+// A2: timestamps go through the central locale/timezone-aware helper.
+const fmtAudTs = (ts) => window.fmtDateTime(ts);
 
 // Before→after diff, key by key (only the changed keys arrive from the API).
 function AuditDiff({ before, after }) {

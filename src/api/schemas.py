@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, Generic, List, Optional, TypeVar
+from typing import Any, Dict, Generic, List, Literal, Optional, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -659,6 +659,51 @@ class AuthUserOut(BaseModel):
     name: Optional[str] = None
     role: str
     totp_enabled: bool = False
+    avatar_color: Optional[str] = None
+
+
+# ------------------------------------------------------------- account (A2)
+class ProfileOut(BaseModel):
+    id: str
+    email: str                       # read-only: login identity (change deferred)
+    name: Optional[str] = None
+    job_title: Optional[str] = None
+    avatar_color: Optional[str] = None
+    role: str
+    totp_enabled: bool = False
+    created_at: Optional[str] = None
+
+
+class ProfilePatch(BaseModel):
+    """Self-editable fields only. ``extra='forbid'`` makes an attempted e-mail
+    change an explicit 422 instead of a silent no-op (deliberate — A2)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: Optional[str] = Field(None, max_length=80)
+    job_title: Optional[str] = Field(None, max_length=80)
+    avatar_color: Optional[str] = Field(None, max_length=20)
+
+
+class PasswordChangeIn(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8)
+
+
+class PreferencesOut(BaseModel):
+    locale: str = "pt-BR"
+    timezone: str = "auto"
+    number_locale: str = "auto"
+    date_locale: str = "auto"
+
+
+class PreferencesPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    locale: Optional[Literal["pt-BR", "en"]] = None
+    timezone: Optional[str] = Field(None, max_length=64)
+    number_locale: Optional[Literal["auto", "en-US", "pt-BR"]] = None
+    date_locale: Optional[Literal["auto", "en-US", "pt-BR"]] = None
 
 
 class MeOut(BaseModel):
@@ -668,6 +713,8 @@ class MeOut(BaseModel):
     authenticated: bool
     user: Optional[AuthUserOut] = None
     permissions: List[str] = []
+    # A2: preferences ride the boot probe so the console needs no extra request.
+    prefs: Optional[Dict[str, Any]] = None
 
 
 # ---------------------------------------------------------------- rbac (A3)

@@ -21,6 +21,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/account/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Troca a senha (exige a atual; desconecta as outras sessões) */
+        patch: operations["change_password_v1_account_password_patch"];
+        trace?: never;
+    };
+    "/v1/account/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Minhas preferências de idioma/fuso/formato */
+        get: operations["get_preferences_v1_account_preferences_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Atualiza preferências (refletem em todo o console) */
+        patch: operations["patch_preferences_v1_account_preferences_patch"];
+        trace?: never;
+    };
+    "/v1/account/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Meu perfil (e-mail é somente leitura) */
+        get: operations["get_profile_v1_account_profile_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Atualiza nome/cargo/cor do avatar (e-mail não muda aqui) */
+        patch: operations["patch_profile_v1_account_profile_patch"];
+        trace?: never;
+    };
     "/v1/agents": {
         parameters: {
             query?: never;
@@ -1290,6 +1343,18 @@ export interface components {
             data: components["schemas"]["PortfolioMetricsOut"];
             meta?: components["schemas"]["Meta"] | null;
         };
+        /** APIResponse[PreferencesOut] */
+        APIResponse_PreferencesOut_: {
+            _links?: components["schemas"]["Links"] | null;
+            data: components["schemas"]["PreferencesOut"];
+            meta?: components["schemas"]["Meta"] | null;
+        };
+        /** APIResponse[ProfileOut] */
+        APIResponse_ProfileOut_: {
+            _links?: components["schemas"]["Links"] | null;
+            data: components["schemas"]["ProfileOut"];
+            meta?: components["schemas"]["Meta"] | null;
+        };
         /** APIResponse[RegimeOut] */
         APIResponse_RegimeOut_: {
             _links?: components["schemas"]["Links"] | null;
@@ -1477,6 +1542,8 @@ export interface components {
         };
         /** AuthUserOut */
         AuthUserOut: {
+            /** Avatar Color */
+            avatar_color?: string | null;
             /** Email */
             email: string;
             /** Id */
@@ -1971,6 +2038,8 @@ export interface components {
              * @default []
              */
             permissions: string[];
+            /** Prefs */
+            prefs?: Record<string, never> | null;
             user?: components["schemas"]["AuthUserOut"] | null;
         };
         /** Meta */
@@ -2132,6 +2201,13 @@ export interface components {
          * @enum {string}
          */
         OrderStatus: "pending" | "approved" | "filled" | "rejected" | "cancelled";
+        /** PasswordChangeIn */
+        PasswordChangeIn: {
+            /** Current Password */
+            current_password: string;
+            /** New Password */
+            new_password: string;
+        };
         /** PatternOut */
         PatternOut: {
             /** Confidence */
@@ -2179,6 +2255,40 @@ export interface components {
             /** Win Rate */
             win_rate: number | null;
         };
+        /** PreferencesOut */
+        PreferencesOut: {
+            /**
+             * Date Locale
+             * @default auto
+             */
+            date_locale: string;
+            /**
+             * Locale
+             * @default pt-BR
+             */
+            locale: string;
+            /**
+             * Number Locale
+             * @default auto
+             */
+            number_locale: string;
+            /**
+             * Timezone
+             * @default auto
+             */
+            timezone: string;
+        };
+        /** PreferencesPatch */
+        PreferencesPatch: {
+            /** Date Locale */
+            date_locale?: ("auto" | "en-US" | "pt-BR") | null;
+            /** Locale */
+            locale?: ("pt-BR" | "en") | null;
+            /** Number Locale */
+            number_locale?: ("auto" | "en-US" | "pt-BR") | null;
+            /** Timezone */
+            timezone?: string | null;
+        };
         /** ProcessEventOut */
         ProcessEventOut: {
             /** Activity */
@@ -2191,6 +2301,41 @@ export interface components {
             case_id: string;
             /** Timestamp */
             timestamp: string;
+        };
+        /** ProfileOut */
+        ProfileOut: {
+            /** Avatar Color */
+            avatar_color?: string | null;
+            /** Created At */
+            created_at?: string | null;
+            /** Email */
+            email: string;
+            /** Id */
+            id: string;
+            /** Job Title */
+            job_title?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Role */
+            role: string;
+            /**
+             * Totp Enabled
+             * @default false
+             */
+            totp_enabled: boolean;
+        };
+        /**
+         * ProfilePatch
+         * @description Self-editable fields only. ``extra='forbid'`` makes an attempted e-mail
+         *     change an explicit 422 instead of a silent no-op (deliberate — A2).
+         */
+        ProfilePatch: {
+            /** Avatar Color */
+            avatar_color?: string | null;
+            /** Job Title */
+            job_title?: string | null;
+            /** Name */
+            name?: string | null;
         };
         /** ProtectionOut */
         ProtectionOut: {
@@ -2549,6 +2694,145 @@ export interface operations {
                 };
                 content: {
                     "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    change_password_v1_account_password_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChangeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_dict_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_preferences_v1_account_preferences_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_PreferencesOut_"];
+                };
+            };
+        };
+    };
+    patch_preferences_v1_account_preferences_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreferencesPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_PreferencesOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_profile_v1_account_profile_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_ProfileOut_"];
+                };
+            };
+        };
+    };
+    patch_profile_v1_account_profile_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfilePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_ProfileOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

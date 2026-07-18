@@ -19,8 +19,11 @@ const NAV = [
 // A3: admin group at the sidebar footer, filtered by permission (nav map §02
 // of the admin handoff). A Visualizador/demo never sees these items — and the
 // route guard in app.jsx also blocks direct hash access.
+// Ordem do mapa de nav do handoff (§02): Conta, Usuários, Trilha, Segurança.
 const ADMIN_NAV = [
-  { id: 'users', icon: 'user', label: 'Usuários & Permissões', perm: 'manage_users' },
+  // A2: self-service — qualquer sessão autenticada (não é permissão de papel).
+  { id: 'account', icon: 'user', label: 'Conta & Perfil', userOnly: true },
+  { id: 'users', icon: 'shield', label: 'Usuários & Permissões', perm: 'manage_users' },
   // A4: operador+ (view_audit) — o demo público nunca vê a trilha (e-mail/IP reais).
   { id: 'audit', icon: 'clock', label: 'Trilha de Auditoria', perm: 'view_audit' },
   // A7: self-service — qualquer sessão autenticada (não é permissão de papel).
@@ -76,7 +79,7 @@ window.Sidebar = Sidebar;
 
 // fmtPrice now lives in components.jsx (window.fmtPrice) — single source of truth (M7).
 
-function Header({ onToggleAlerts, alertCount, auth, onLock, onLogout }) {
+function Header({ onToggleAlerts, alertCount, auth, onLock, onLogout, onNavigate }) {
   const mock = !!window.USE_MOCK_DATA;
   const [health, setHealth] = useState(null);
   const [hitl, setHitl] = useState(null);
@@ -118,7 +121,7 @@ function Header({ onToggleAlerts, alertCount, auth, onLock, onLogout }) {
               ${fmtPrice(price)}
             </span>
             <Badge variant={change >= 0 ? 'ok' : 'down'}>
-              {change >= 0 ? '+' : ''}{change.toFixed(2)}%
+              {change >= 0 ? '+' : ''}{fmtNum(change)}%
             </Badge>
           </>
         )}
@@ -153,7 +156,10 @@ function Header({ onToggleAlerts, alertCount, auth, onLock, onLogout }) {
         {auth && auth.kind === 'user' && (
           <div style={{ position: 'relative' }}>
             <button className="user-chip" onClick={() => setMenuOpen(v => !v)}
-              aria-haspopup="menu" aria-expanded={menuOpen} data-testid="user-menu">
+              aria-haspopup="menu" aria-expanded={menuOpen} data-testid="user-menu"
+              style={auth.user?.avatar_color && window.AVATAR_COLOR_VARS?.[auth.user.avatar_color]
+                ? { background: window.AVATAR_COLOR_VARS[auth.user.avatar_color], color: '#fff' }
+                : undefined}>
               {(auth.user?.name ?? auth.user?.email ?? '?').slice(0, 2).toUpperCase()}
             </button>
             {menuOpen && (
@@ -164,6 +170,15 @@ function Header({ onToggleAlerts, alertCount, auth, onLock, onLogout }) {
                     {auth.user?.email} · {auth.user?.role}
                   </div>
                 </div>
+                {/* A2 (aceite): o menu do avatar abre Conta · Segurança · Sair. */}
+                <button className="user-menu-item" role="menuitem"
+                  onClick={() => { setMenuOpen(false); onNavigate?.('account'); }}>
+                  <Icon name="user" size={13} /> Conta
+                </button>
+                <button className="user-menu-item" role="menuitem"
+                  onClick={() => { setMenuOpen(false); onNavigate?.('security'); }}>
+                  <Icon name="shield" size={13} /> Segurança
+                </button>
                 <button className="user-menu-item" role="menuitem"
                   onClick={() => { setMenuOpen(false); onLock?.(); }}>
                   <Icon name="lock" size={13} /> Bloquear tela
