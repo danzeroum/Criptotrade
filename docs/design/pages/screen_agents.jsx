@@ -94,9 +94,17 @@ function AgentConfigDrawer({ agentId, onClose }) {
             : error ? <ErrorState message="Erro ao carregar configuração" onRetry={load} />
             : keys.length === 0 ? <EmptyState label="Sem parâmetros configuráveis" sub="Este agente não expõe parâmetros." />
             : (
+              <fieldset disabled={!CT_AUTH.can('edit_settings')}
+                data-tip={CT_AUTH.can('edit_settings') ? undefined
+                  : (CT_AUTH.kind() === 'demo'
+                    ? 'Somente leitura no ambiente de demonstração — no produto real, este painel edita o agente'
+                    : 'Seu perfil não permite editar agentes')}
+                style={{ border: 'none', padding: 0, margin: 0,
+                  opacity: CT_AUTH.can('edit_settings') ? 1 : .6 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {keys.map(k => <AgentParamField key={k} name={k} value={draft[k]} onChange={setParam} />)}
               </div>
+              </fieldset>
             )}
         </div>
         {!loading && !error && keys.length > 0 && (

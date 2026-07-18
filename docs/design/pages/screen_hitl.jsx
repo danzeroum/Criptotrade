@@ -24,6 +24,11 @@ function ConfidenceBreakdown({ breakdown }) {
 }
 
 function PendingOrderCard({ order, onDecide, highlight = false }) {
+  // A3 gating: authenticated Visualizador sees NO action controls (spec
+  // acceptance); the public demo shows them DISABLED with a discovery tooltip
+  // (approved demo-mode correction). 'off'/operador/admin get the live UI.
+  const canApprove = CT_AUTH.can('approve_order');
+  const demoView = !canApprove && CT_AUTH.kind() === 'demo';
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   // Two-step confirmation on financial actions (mirrors the paper-order confirm
@@ -80,6 +85,25 @@ function PendingOrderCard({ order, onDecide, highlight = false }) {
 
         <ConfidenceBreakdown breakdown={CT.confidenceBreakdown} />
 
+        {!canApprove && !demoView && (
+          <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 7,
+            fontSize: 12, color: 'var(--ink-3)' }}>
+            <Icon name="lock" size={12} /> Somente leitura — seu perfil não aprova ordens.
+          </div>
+        )}
+        {demoView && (
+          <div style={{ marginTop: 14, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Btn variant="down" size="sm" disabled
+              data-tip="Somente leitura no ambiente de demonstração — no produto real, este botão rejeita a ordem">
+              <Icon name="x" size={13} /> Rejeitar
+            </Btn>
+            <Btn variant="up" size="sm" disabled
+              data-tip="Somente leitura no ambiente de demonstração — no produto real, este botão aprova a ordem">
+              <Icon name="check" size={13} /> Aprovar
+            </Btn>
+          </div>
+        )}
+        {canApprove && (
         <div style={{ marginTop: 14, display: 'flex', gap: 8, alignItems: 'center' }}>
           <input
             className="input"
@@ -116,6 +140,7 @@ function PendingOrderCard({ order, onDecide, highlight = false }) {
             </>
           )}
         </div>
+        )}
       </div>
     </div>
   );
@@ -180,10 +205,10 @@ function ScreenHITL({ addToast }) {
       return;
     }
     try {
+      // A3: no client-sent operator — the server stamps the session identity.
       await CT_API.decideOrder(orderId, {
         action,
         operator_note: note || undefined,
-        operator_id: 'operator',
       });
       load();
       addToast?.(action === 'approved' ? 'Ordem aprovada' : 'Ordem rejeitada', 'check');
@@ -203,10 +228,10 @@ function ScreenHITL({ addToast }) {
       return;
     }
     try {
+      // A3: no client-sent operator — the server stamps the session identity.
       const updated = await CT_API.patchHITL({
         level,
         reason: 'Alterado via console',
-        operator: 'operator',
       });
       setConfig(updated);
       addToast?.('Nível de autonomia atualizado', 'check');
@@ -285,16 +310,22 @@ function ScreenHITL({ addToast }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {(config?.levels ?? []).map(lv => {
                 const active = config?.current_level === lv.level;
+                const canAutonomy = CT_AUTH.can('change_autonomy');
+                const demoAutonomy = !canAutonomy && CT_AUTH.kind() === 'demo';
                 return (
                   <button
                     key={lv.level}
-                    onClick={() => setLevel(lv.level)}
+                    onClick={canAutonomy ? () => setLevel(lv.level) : undefined}
+                    disabled={!canAutonomy}
+                    data-tip={demoAutonomy
+                      ? 'Somente leitura no ambiente de demonstração — no produto real, este controle muda a autonomia'
+                      : (!canAutonomy ? 'Seu perfil não altera o nível de autonomia' : undefined)}
                     style={{
                       display: 'flex', alignItems: 'flex-start', gap: 10,
                       padding: '10px 12px', borderRadius: 'var(--r-sm)',
                       border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
                       background: active ? 'var(--surface-2)' : 'transparent',
-                      cursor: 'pointer', textAlign: 'left', width: '100%',
+                      cursor: canAutonomy ? 'pointer' : 'not-allowed', textAlign: 'left', width: '100%',
                     }}
                   >
                     <div style={{

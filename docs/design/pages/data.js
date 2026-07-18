@@ -409,5 +409,23 @@
     id: 'mock', name: 'Operador Demo', email: 'demo@criptotrade.dev', role: 'admin',
   };
 
+  // A3: mock users/roles for the admin screen (mirrors src/auth/rbac.py).
+  CT.adminUsers = [
+    { id: 'u1', name: 'Operador Demo', email: 'demo@criptotrade.dev', role: 'admin',
+      status: 'active', last_login_at: '2026-07-18T09:12:00+00:00' },
+    { id: 'u2', name: 'Ana Operadora', email: 'ana@criptotrade.dev', role: 'operador',
+      status: 'active', last_login_at: '2026-07-17T18:40:00+00:00' },
+    { id: 'invite:i1', name: null, email: 'novo@criptotrade.dev', role: 'visualizador',
+      status: 'pending', invite_id: 'i1', last_login_at: null },
+  ];
+  CT.roles = [
+    { id: 'visualizador', label: 'Visualizador', permissions: [] },
+    { id: 'operador', label: 'Operador',
+      permissions: ['approve_order', 'change_autonomy', 'view_audit'] },
+    { id: 'admin', label: 'Admin',
+      permissions: ['approve_order', 'change_autonomy', 'change_risk',
+                    'edit_settings', 'manage_keys', 'view_audit', 'manage_users'] },
+  ];
+
   window.CT = CT;
 })();

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
+from src.api.authn import Principal, require_perm
 from src.api.deps import get_hitl_store
 from src.api.schemas import APIResponse, AutonomyLevelPatch, HITLConfigOut
 from src.hitl.config import HITLConfigStore
@@ -33,6 +34,7 @@ async def get_hitl_config(
 async def update_hitl_config(
     patch: AutonomyLevelPatch = Body(...),
     store: HITLConfigStore = Depends(get_hitl_store),
+    principal: Principal = Depends(require_perm("change_autonomy")),
 ) -> APIResponse[HITLConfigOut]:
     if patch.level == 3 and not patch.confirm:
         raise HTTPException(
@@ -43,5 +45,6 @@ async def update_hitl_config(
                 "docs": "/v1/docs",
             },
         )
-    store.set_level(patch.level, patch.reason, operator=patch.operator)
+    operator = principal.actor if principal.kind == "user" else patch.operator
+    store.set_level(patch.level, patch.reason, operator=operator)
     return APIResponse(data=HITLConfigOut(**store.snapshot()))

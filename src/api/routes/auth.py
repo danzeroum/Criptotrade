@@ -26,8 +26,8 @@ from src.api.authn import (
     get_principal, set_session_cookies,
 )
 from src.api.schemas import (
-    APIResponse, AuthUserOut, ForgotPasswordIn, LoginIn, MeOut, ResetPasswordIn,
-    TwoFactorDisableIn, TwoFactorEnableIn, TwoFactorVerifyIn,
+    APIResponse, AuthUserOut, ForgotPasswordIn, InviteAcceptIn, LoginIn, MeOut,
+    ResetPasswordIn, TwoFactorDisableIn, TwoFactorEnableIn, TwoFactorVerifyIn,
 )
 from src.auth import security
 from src.core.ratelimit import build_rate_limiter
@@ -252,16 +252,36 @@ async def reset_password(body: ResetPasswordIn, request: Request) -> APIResponse
     return APIResponse(data={"message": "Senha redefinida. Faça login."})
 
 
+@router.post("/invite/accept", response_model=APIResponse[dict])
+async def accept_invite(body: InviteAcceptIn, request: Request) -> APIResponse[dict]:
+    """Public: turns a pending invite into an active account (A3)."""
+    users = deps.get_user_store()
+    user = users.accept_invite(body.token, body.name, body.password)
+    if user is None:
+        raise HTTPException(status_code=400, detail={
+            "error": "invalid_invite",
+            "message": "Convite inválido, expirado ou já utilizado.",
+        })
+    deps.get_ledger().log_auth_event(
+        "user_invite_accepted", actor=user["email"], email=user["email"],
+        ip=_client_ip(request), user_agent=_user_agent(request),
+        detail=f"role={user['role']}",
+    )
+    return APIResponse(data={"accepted": True, "email": user["email"]})
+
+
 @router.get("/me", response_model=APIResponse[MeOut])
 async def me(request: Request) -> APIResponse[MeOut]:
     principal = get_principal(request)
     mode = auth_mode()
     if principal.kind == "user":
         user = deps.get_user_store().get(principal.user_id)
+        from src.auth.rbac import permissions_for
+
         return APIResponse(data=MeOut(
             mode=mode, authenticated=True,
             user=_auth_user_out(user) if user else None,
-            permissions=[],  # populated by RBAC (4b)
+            permissions=permissions_for(principal),
         ))
     if principal.kind == "demo":
         return APIResponse(data=MeOut(

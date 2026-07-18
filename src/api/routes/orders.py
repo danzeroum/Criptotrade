@@ -12,6 +12,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Response
 
+from src.api.authn import Principal, require_perm
 from src.api.deps import get_order_store
 from src.api.schemas import APIResponse, Meta, OrderCreate, OrderDecisionPatch, OrderOut
 from src.hitl.orders import Order, OrderConflictError, OrderStatus, OrderStore
@@ -95,6 +96,7 @@ async def decide_order(
     order_id: str = Path(...),
     patch: OrderDecisionPatch = Body(...),
     store: OrderStore = Depends(get_order_store),
+    principal: Principal = Depends(require_perm("approve_order")),
 ) -> APIResponse[OrderOut]:
     if store.get(order_id) is None:
         raise HTTPException(
@@ -104,11 +106,14 @@ async def decide_order(
                 "message": f"Ordem '{order_id}' não encontrada.",
             },
         )
+    # A3: a real session stamps the authenticated identity — the client-sent
+    # operator only survives for machine keys / legacy AUTH_MODE=off callers.
+    operator = principal.actor if principal.kind == "user" else patch.operator
     try:
         order = store.resolve(
             order_id,
             approved=(patch.decision == "approve"),
-            operator=patch.operator,
+            operator=operator,
             operator_note=patch.operator_note,
         )
     except OrderConflictError as exc:

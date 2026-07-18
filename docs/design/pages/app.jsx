@@ -15,6 +15,7 @@ const SCREENS = {
   journal:       ScreenJournal,
   backtest:      ScreenBacktest,
   settings:      ScreenSettings,
+  users:         ScreenUsers,
 };
 
 // ---- Error boundary ----

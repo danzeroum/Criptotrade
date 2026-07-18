@@ -121,6 +121,17 @@ const CT_API = (() => {
     patchAgentConfig: (id, body) => req(`/v1/agents/${id}/config`, { method: 'PATCH', body: JSON.stringify(body) }),
     patchAlertsConfig:(body)     => req('/v1/alerts/config', { method: 'PATCH', body: JSON.stringify(body) }),
 
+    // ---- A3: users & roles ----
+    getUsers:         ()         => req('/v1/users'),
+    inviteUser:       (body)     => req('/v1/users/invite', { method: 'POST', body: JSON.stringify(body) }),
+    resendInvite:     (id)       => req(`/v1/users/invites/${id}/resend`, { method: 'POST', body: '{}' }),
+    revokeInvite:     (id)       => req(`/v1/users/invites/${id}`, { method: 'DELETE' }),
+    patchUserRole:    (id, role) => req(`/v1/users/${id}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }),
+    patchUserStatus:  (id, status) => req(`/v1/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+    deleteUser:       (id)       => req(`/v1/users/${id}`, { method: 'DELETE' }),
+    getRoles:         ()         => req('/v1/roles'),
+    acceptInvite:     (body)     => req('/v1/auth/invite/accept', { method: 'POST', body: JSON.stringify(body) }),
+
     // ---- A1: authentication ----
     getMe:            ()         => req('/v1/auth/me'),
     login:            (body)     => req('/v1/auth/login', { method: 'POST', body: JSON.stringify(body) }),
@@ -191,21 +202,37 @@ const CT_AUTH = (() => {
     };
   };
 
+  // Mirror of the backend matrix (src/auth/rbac.py) for mock/e2e mode only —
+  // in live mode permissions ALWAYS come from /v1/auth/me.
+  const MOCK_MATRIX = {
+    visualizador: [],
+    operador: ['approve_order', 'change_autonomy', 'view_audit'],
+    admin: ['approve_order', 'change_autonomy', 'change_risk', 'edit_settings',
+            'manage_keys', 'view_audit', 'manage_users'],
+  };
+
   return {
     state: () => current,
     kind: () => current.kind,
-    /** Coarse gate until the RBAC matrix lands (4b): demo is read-only. */
-    can: (_perm) => current.kind !== 'demo' && current.kind !== 'anonymous',
+    /** RBAC gate (A3): 'off' = auth disabled (no gating), user = matrix,
+        demo/anonymous hold nothing (demo renders disabled+tooltip instead). */
+    can: (perm) => {
+      if (current.kind === 'off') return true;
+      if (current.kind === 'user') return current.permissions.includes(perm);
+      return false;
+    },
     load: async () => {
       if (window.USE_MOCK_DATA) {
         const none = window.MOCK_AUTH === 'none';
+        const role = window.MOCK_ROLE ?? window.CT?.currentUser?.role ?? 'admin';
         current = none
           ? { loaded: true, mode: 'required', kind: 'anonymous',
               authenticated: false, user: null, permissions: [] }
-          : { loaded: true, mode: 'mock', kind: 'user', authenticated: true,
-              user: { ...(window.CT?.currentUser ?? { name: 'Demo', email: 'demo@dev' }),
-                      role: window.MOCK_ROLE ?? window.CT?.currentUser?.role ?? 'admin' },
-              permissions: [] };
+          : { loaded: true, mode: 'mock',
+              kind: window.MOCK_AUTH === 'demo' ? 'demo' : 'user',
+              authenticated: window.MOCK_AUTH !== 'demo',
+              user: { ...(window.CT?.currentUser ?? { name: 'Demo', email: 'demo@dev' }), role },
+              permissions: window.MOCK_AUTH === 'demo' ? [] : (MOCK_MATRIX[role] ?? []) };
       } else {
         try {
           current = fromMe(await CT_API.getMe());
