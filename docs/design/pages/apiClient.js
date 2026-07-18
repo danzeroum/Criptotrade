@@ -12,7 +12,18 @@
    ./openapi.d.ts (`npm run gen:types`). CI fails if either drifts (P3-4).
    ============================================================ */
 const CT_API = (() => {
-  const base = window.API_BASE ?? 'http://localhost:8000';
+  // Same-origin by design in production (index.html sets window.API_BASE = "").
+  // Defensive guard: on an HTTPS page, ignore any http:// base (e.g. a stale
+  // deploy leaking the internal 'http://criptotrade-app:8000') — the browser
+  // would block it as Mixed Content — and fall back to same-origin. Local dev
+  // over HTTP keeps the http://localhost:8000 default untouched.
+  const configuredBase = window.API_BASE ?? 'http://localhost:8000';
+  const insecureOnHttps =
+    window.location.protocol === 'https:' && /^http:\/\//i.test(configuredBase);
+  if (insecureOnHttps) {
+    console.warn('Ignoring insecure API_BASE on HTTPS; using same-origin API.');
+  }
+  const base = insecureOnHttps ? '' : configuredBase;
   const getKey = () => window.API_KEY ?? '';
 
   async function req(path, opts = {}) {
