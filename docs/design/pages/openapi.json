@@ -257,6 +257,38 @@
         "title": "APIResponse[ConfluenceOut]",
         "type": "object"
       },
+      "APIResponse_ConnectionOut_": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/ConnectionOut"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[ConnectionOut]",
+        "type": "object"
+      },
       "APIResponse_Dict_str__float__": {
         "properties": {
           "_links": {
@@ -697,6 +729,42 @@
         "title": "APIResponse[List[ClosedTradeOut]]",
         "type": "object"
       },
+      "APIResponse_List_ConnectionOut__": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ConnectionOut"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[List[ConnectionOut]]",
+        "type": "object"
+      },
       "APIResponse_List_EquityPoint__": {
         "properties": {
           "_links": {
@@ -839,6 +907,42 @@
           "data"
         ],
         "title": "APIResponse[List[PatternOut]]",
+        "type": "object"
+      },
+      "APIResponse_List_PlatformKeyOut__": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/PlatformKeyOut"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[List[PlatformKeyOut]]",
         "type": "object"
       },
       "APIResponse_List_ProcessEventOut__": {
@@ -1219,6 +1323,38 @@
           "data"
         ],
         "title": "APIResponse[OrderOut]",
+        "type": "object"
+      },
+      "APIResponse_PlatformKeyCreatedOut_": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/PlatformKeyCreatedOut"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[PlatformKeyCreatedOut]",
         "type": "object"
       },
       "APIResponse_PortfolioMetricsOut_": {
@@ -2840,6 +2976,190 @@
         "title": "ConfluenceOut",
         "type": "object"
       },
+      "ConnectionCreateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "api_key": {
+            "maxLength": 200,
+            "minLength": 6,
+            "title": "Api Key",
+            "type": "string"
+          },
+          "api_secret": {
+            "maxLength": 200,
+            "minLength": 6,
+            "title": "Api Secret",
+            "type": "string"
+          },
+          "confirm": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm"
+          },
+          "exchange_id": {
+            "maxLength": 30,
+            "minLength": 2,
+            "title": "Exchange Id",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "scope": {
+            "default": "read",
+            "enum": [
+              "read",
+              "trade"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "testnet": {
+            "default": true,
+            "title": "Testnet",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "exchange_id",
+          "label",
+          "api_key",
+          "api_secret"
+        ],
+        "title": "ConnectionCreateIn",
+        "type": "object"
+      },
+      "ConnectionOut": {
+        "description": "Exchange connection with the API key MASKED \u2014 the secret never returns\nin ANY response, masked or otherwise (aceite 1).",
+        "properties": {
+          "api_key_masked": {
+            "default": "\u2014",
+            "title": "Api Key Masked",
+            "type": "string"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "exchange_id": {
+            "title": "Exchange Id",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "default": false,
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "last_test_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Test At"
+          },
+          "last_test_detail": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Test Detail"
+          },
+          "last_test_ok": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Test Ok"
+          },
+          "revoked": {
+            "default": false,
+            "title": "Revoked",
+            "type": "boolean"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "testnet": {
+            "default": true,
+            "title": "Testnet",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "exchange_id",
+          "label",
+          "scope"
+        ],
+        "title": "ConnectionOut",
+        "type": "object"
+      },
+      "ConnectionRotateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "api_key": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 6,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key"
+          },
+          "api_secret": {
+            "maxLength": 200,
+            "minLength": 6,
+            "title": "Api Secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "api_secret"
+        ],
+        "title": "ConnectionRotateIn",
+        "type": "object"
+      },
       "EmotionBand": {
         "properties": {
           "band": {
@@ -4239,6 +4559,170 @@
           "target"
         ],
         "title": "PatternOut",
+        "type": "object"
+      },
+      "PlatformKeyCreateIn": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "scope": {
+            "default": "visualizador",
+            "enum": [
+              "visualizador",
+              "operador",
+              "admin"
+            ],
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "title": "PlatformKeyCreateIn",
+        "type": "object"
+      },
+      "PlatformKeyCreatedOut": {
+        "description": "Creation response \u2014 the ONLY place the full key ever appears.",
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "key_prefix": {
+            "title": "Key Prefix",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "revoked": {
+            "default": false,
+            "title": "Revoked",
+            "type": "boolean"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "key_prefix",
+          "scope",
+          "key"
+        ],
+        "title": "PlatformKeyCreatedOut",
+        "type": "object"
+      },
+      "PlatformKeyOut": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "key_prefix": {
+            "title": "Key Prefix",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "revoked": {
+            "default": false,
+            "title": "Revoked",
+            "type": "boolean"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "key_prefix",
+          "scope"
+        ],
+        "title": "PlatformKeyOut",
         "type": "object"
       },
       "PortfolioMetricsOut": {
@@ -6228,6 +6712,108 @@
         ]
       }
     },
+    "/v1/api-keys": {
+      "get": {
+        "operationId": "list_platform_keys_v1_api_keys_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_List_PlatformKeyOut__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Chaves da plataforma (prefixo p/ identifica\u00e7\u00e3o + \u00faltimo uso)",
+        "tags": [
+          "exchanges"
+        ]
+      },
+      "post": {
+        "operationId": "create_platform_key_v1_api_keys_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformKeyCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PlatformKeyCreatedOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cria chave escopada (exibida COMPLETA uma \u00fanica vez)",
+        "tags": [
+          "exchanges"
+        ]
+      }
+    },
+    "/v1/api-keys/{key_id}": {
+      "delete": {
+        "operationId": "revoke_platform_key_v1_api_keys__key_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key_id",
+            "required": true,
+            "schema": {
+              "title": "Key Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_dict_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoga uma chave da plataforma",
+        "tags": [
+          "exchanges"
+        ]
+      }
+    },
     "/v1/audit": {
       "get": {
         "operationId": "list_audit_v1_audit_get",
@@ -7175,6 +7761,267 @@
         "summary": "Atualiza configura\u00e7\u00f5es gerais (in-memory para MVP)",
         "tags": [
           "config"
+        ]
+      }
+    },
+    "/v1/exchanges/connect": {
+      "post": {
+        "operationId": "create_connection_v1_exchanges_connect_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectionCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_ConnectionOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Adiciona credencial de exchange (trade exige confirma\u00e7\u00e3o digitada)",
+        "tags": [
+          "exchanges"
+        ]
+      }
+    },
+    "/v1/exchanges/connections": {
+      "get": {
+        "operationId": "list_connections_v1_exchanges_connections_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_List_ConnectionOut__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Conex\u00f5es de exchange (key mascarada; secret nunca retorna)",
+        "tags": [
+          "exchanges"
+        ]
+      }
+    },
+    "/v1/exchanges/egress-ip": {
+      "get": {
+        "operationId": "egress_ip_v1_exchanges_egress_ip_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_dict_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "IP de egresso da VPS (trave a chave neste IP na exchange)",
+        "tags": [
+          "exchanges"
+        ]
+      }
+    },
+    "/v1/exchanges/{conn_id}": {
+      "delete": {
+        "operationId": "revoke_connection_v1_exchanges__conn_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conn_id",
+            "required": true,
+            "schema": {
+              "title": "Conn Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_dict_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoga uma conex\u00e3o",
+        "tags": [
+          "exchanges"
+        ]
+      }
+    },
+    "/v1/exchanges/{conn_id}/activate": {
+      "patch": {
+        "operationId": "activate_connection_v1_exchanges__conn_id__activate_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conn_id",
+            "required": true,
+            "schema": {
+              "title": "Conn Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_ConnectionOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Torna esta a conex\u00e3o ativa (\u00fanica)",
+        "tags": [
+          "exchanges"
+        ]
+      }
+    },
+    "/v1/exchanges/{conn_id}/rotate": {
+      "post": {
+        "operationId": "rotate_connection_v1_exchanges__conn_id__rotate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conn_id",
+            "required": true,
+            "schema": {
+              "title": "Conn Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectionRotateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_ConnectionOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rotaciona o secret (zera o teste \u2014 live n\u00e3o sobe at\u00e9 re-testar)",
+        "tags": [
+          "exchanges"
+        ]
+      }
+    },
+    "/v1/exchanges/{conn_id}/test": {
+      "post": {
+        "operationId": "test_connection_route_v1_exchanges__conn_id__test_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conn_id",
+            "required": true,
+            "schema": {
+              "title": "Conn Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_dict_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Testa a conex\u00e3o (read-only real \u2014 NUNCA envia ordem)",
+        "tags": [
+          "exchanges"
         ]
       }
     },

@@ -34,10 +34,23 @@ ROLE_LABELS: Dict[str, str] = {
 }
 
 
+def _machine_perms(principal: Principal) -> FrozenSet[str]:
+    """A5: DB platform keys carry a role scope from this matrix; the effective
+    set is that role's permissions ∩ MACHINE_PERMS (a machine never manages
+    users). The legacy env key has role 'admin' → exactly MACHINE_PERMS, as
+    before."""
+    if principal.role in ROLES:
+        role_perms = frozenset(
+            p for p, roles in PERMISSIONS.items() if principal.role in roles
+        )
+        return role_perms & MACHINE_PERMS
+    return MACHINE_PERMS
+
+
 def permissions_for(principal: Principal) -> List[str]:
     """Permissions held by a principal (demo/anonymous hold none)."""
     if principal.kind == "machine":
-        return sorted(MACHINE_PERMS)
+        return sorted(_machine_perms(principal))
     if principal.kind == "user":
         return sorted(p for p, roles in PERMISSIONS.items() if principal.role in roles)
     return []
@@ -45,7 +58,7 @@ def permissions_for(principal: Principal) -> List[str]:
 
 def has_perm(principal: Principal, perm: str) -> bool:
     if principal.kind == "machine":
-        return perm in MACHINE_PERMS
+        return perm in _machine_perms(principal)
     if principal.kind == "user":
         return principal.role in PERMISSIONS.get(perm, frozenset())
     return False

@@ -190,12 +190,16 @@ class OrchestratorLoop:
         lacks the order id to call ``mark_filled``. Linking them is the next step.
         """
         from src.core.db import get_db_path
-        from src.core.exchange_client import ExchangeClient
+        from src.core.exchange_factory import build_exchange_client
         from src.hitl.config import level_from_env, level_info
         from src.hitl.orders import OrderStore, make_approval_handler
         from src.orchestration.squad_orchestrator import SquadOrchestrator
 
-        exchange = ExchangeClient()  # requires EXCHANGE_DRY_RUN; offline in dry-run
+        # A5: reads the ACTIVE managed connection from the shared SQLite (env
+        # fallback when none) and enforces the live-routing gate at startup.
+        # Rotating/switching the connection requires an orchestrator restart
+        # (declared: no hot-reload).
+        exchange = build_exchange_client()  # requires EXCHANGE_DRY_RUN; offline in dry-run
         ledger = TradingLedger()
         db_path = str(get_db_path())
         registry = AgentRegistry(db_path=db_path)  # loop writes cycle_events

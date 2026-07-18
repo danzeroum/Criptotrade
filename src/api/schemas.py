@@ -191,6 +191,69 @@ class AgentConfigOut(AgentStatusOut):
     params: Dict[str, Any] = Field(default_factory=dict)
 
 
+# ----------------------------------------------------- exchanges & keys (A5)
+class ConnectionOut(BaseModel):
+    """Exchange connection with the API key MASKED — the secret never returns
+    in ANY response, masked or otherwise (aceite 1)."""
+
+    id: str
+    exchange_id: str
+    label: str
+    scope: str                      # read | trade
+    testnet: bool = True
+    is_active: bool = False
+    api_key_masked: str = "—"
+    created_at: Optional[str] = None
+    last_test_at: Optional[str] = None
+    last_test_ok: Optional[bool] = None
+    last_test_detail: Optional[Dict[str, Any]] = None
+    revoked: bool = False
+
+
+class ConnectionCreateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    exchange_id: str = Field(min_length=2, max_length=30)
+    label: str = Field(min_length=1, max_length=60)
+    api_key: str = Field(min_length=6, max_length=200)
+    api_secret: str = Field(min_length=6, max_length=200)
+    scope: Literal["read", "trade"] = "read"
+    testnet: bool = True
+    # Trade scope demands the literal typed confirmation (validated SERVER-side).
+    confirm: Optional[str] = None
+
+
+class ConnectionRotateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    api_secret: str = Field(min_length=6, max_length=200)
+    api_key: Optional[str] = Field(None, min_length=6, max_length=200)
+
+
+class PlatformKeyOut(BaseModel):
+    id: str
+    label: str
+    key_prefix: str                 # display-only (nota 3): 'ctk_a1b2c3d4'
+    scope: str
+    created_by: Optional[str] = None
+    created_at: Optional[str] = None
+    last_used_at: Optional[str] = None
+    revoked: bool = False
+
+
+class PlatformKeyCreateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    label: str = Field(min_length=1, max_length=60)
+    scope: Literal["visualizador", "operador", "admin"] = "visualizador"
+
+
+class PlatformKeyCreatedOut(PlatformKeyOut):
+    """Creation response — the ONLY place the full key ever appears."""
+
+    key: str
+
+
 # -------------------------------------------------------- notifications (A6)
 class ChannelOut(BaseModel):
     """Channel with the config MASKED — plaintext secrets never leave the API."""

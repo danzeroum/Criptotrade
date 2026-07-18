@@ -153,6 +153,18 @@ const CT_API = (() => {
       return r.blob();
     },
 
+    // ---- A5: exchange connections & platform keys ----
+    getConnections:   ()         => req('/v1/exchanges/connections'),
+    createConnection: (body)     => req('/v1/exchanges/connect', { method: 'POST', body: JSON.stringify(body) }),
+    testConnection:   (id)       => req(`/v1/exchanges/${id}/test`, { method: 'POST', body: '{}' }),
+    rotateConnection: (id, body) => req(`/v1/exchanges/${id}/rotate`, { method: 'POST', body: JSON.stringify(body) }),
+    activateConnection:(id)      => req(`/v1/exchanges/${id}/activate`, { method: 'PATCH', body: '{}' }),
+    revokeConnection: (id)       => req(`/v1/exchanges/${id}`, { method: 'DELETE' }),
+    getEgressIp:      ()         => req('/v1/exchanges/egress-ip'),
+    getPlatformKeys:  ()         => req('/v1/api-keys'),
+    createPlatformKey:(body)     => req('/v1/api-keys', { method: 'POST', body: JSON.stringify(body) }),
+    revokePlatformKey:(id)       => req(`/v1/api-keys/${id}`, { method: 'DELETE' }),
+
     // ---- A6: notifications & channels ----
     getChannels:      ()         => req('/v1/notifications/channels'),
     createChannel:    (body)     => req('/v1/notifications/channels', { method: 'POST', body: JSON.stringify(body) }),
