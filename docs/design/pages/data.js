@@ -427,5 +427,36 @@
                     'edit_settings', 'manage_keys', 'view_audit', 'manage_users'] },
   ];
 
+  // A4: mock audit-trail events (mirrors the /v1/audit envelope).
+  CT.auditEvents = [
+    { id: 8, ts: '2026-07-18T09:12:00+00:00', action: 'login', actor: 'demo@criptotrade.dev',
+      entity: 'demo@criptotrade.dev', ip: '187.20.14.2', ua: 'Chrome/Linux', success: true,
+      before: null, after: null, detail: null },
+    { id: 7, ts: '2026-07-18T08:55:00+00:00', action: 'config_changed', actor: 'demo@criptotrade.dev',
+      entity: 'risk', ip: null, ua: null, success: null,
+      before: { max_daily_loss_pct: 5.0 }, after: { max_daily_loss_pct: 4.0 }, detail: null,
+      event_type: 'config_changed',
+      data: { actor: 'demo@criptotrade.dev', scope: 'risk',
+              before: { max_daily_loss_pct: 5.0 }, after: { max_daily_loss_pct: 4.0 } } },
+    { id: 6, ts: '2026-07-18T08:40:00+00:00', action: 'autonomy_changed', actor: 'ana@criptotrade.dev',
+      entity: null, ip: null, ua: null, success: null,
+      before: { level: 1 }, after: { level: 2 }, detail: 'Mercado estável, subindo autonomia' },
+    { id: 5, ts: '2026-07-18T08:10:00+00:00', action: 'order_approved', actor: 'ana@criptotrade.dev',
+      entity: 'BTC/USDT', ip: null, ua: null, success: null,
+      before: null, after: null, detail: null },
+    { id: 4, ts: '2026-07-17T22:05:00+00:00', action: 'order_rejected', actor: 'ana@criptotrade.dev',
+      entity: 'ETH/USDT', ip: null, ua: null, success: null,
+      before: null, after: null, detail: null },
+    { id: 3, ts: '2026-07-17T21:00:00+00:00', action: 'position_closed', actor: 'orchestrator',
+      entity: 'BTC/USDT', ip: null, ua: null, success: null,
+      before: null, after: null, detail: 'P&L +12.40 USDT' },
+    { id: 2, ts: '2026-07-17T20:30:00+00:00', action: 'user_management', actor: 'demo@criptotrade.dev',
+      entity: 'novo@criptotrade.dev', ip: null, ua: null, success: true,
+      before: null, after: null, detail: 'novo@criptotrade.dev as visualizador' },
+    { id: 1, ts: '2026-07-17T19:00:00+00:00', action: 'circuit_breaker', actor: 'orchestrator',
+      entity: null, ip: null, ua: null, success: null,
+      before: null, after: null, detail: '3 perdas consecutivas' },
+  ];
+
   window.CT = CT;
 })();

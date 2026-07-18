@@ -21,6 +21,8 @@ const NAV = [
 // route guard in app.jsx also blocks direct hash access.
 const ADMIN_NAV = [
   { id: 'users', icon: 'user', label: 'Usuários & Permissões', perm: 'manage_users' },
+  // A4: operador+ (view_audit) — o demo público nunca vê a trilha (e-mail/IP reais).
+  { id: 'audit', icon: 'clock', label: 'Trilha de Auditoria', perm: 'view_audit' },
 ];
 
 function Sidebar({ active, onNavigate, pendingCount }) {

@@ -36,7 +36,7 @@ const CT_API = (() => {
     return fetch(base + path, { headers, credentials: 'include', ...opts });
   }
 
-  async function req(path, opts = {}) {
+  async function req(path, opts = {}, { unwrap = true } = {}) {
     let r = await rawReq(path, opts);
     // Expired session: try one silent refresh, then retry the original call.
     // On a dead refresh, tell the app (lock screen) — never hard-redirect.
@@ -55,8 +55,15 @@ const CT_API = (() => {
       throw e;
     }
     const j = await r.json();
-    return j.data ?? j;
+    // unwrap:false keeps the {data, meta} envelope (pagination needs meta.total).
+    return unwrap ? (j.data ?? j) : j;
   }
+
+  // Query-string builder that drops empty values (audit filters are optional).
+  const qs = (params) => {
+    const pairs = Object.entries(params).filter(([, v]) => v !== '' && v != null);
+    return pairs.length ? '?' + new URLSearchParams(pairs).toString() : '';
+  };
 
   return {
     // ---- Phase 0: ready endpoints ----
@@ -131,6 +138,20 @@ const CT_API = (() => {
     deleteUser:       (id)       => req(`/v1/users/${id}`, { method: 'DELETE' }),
     getRoles:         ()         => req('/v1/roles'),
     acceptInvite:     (body)     => req('/v1/auth/invite/accept', { method: 'POST', body: JSON.stringify(body) }),
+
+    // ---- A4: audit trail ----
+    // Returns the FULL envelope ({data, meta}) — the screen paginates on meta.total.
+    getAudit:         (params = {}) => req(`/v1/audit${qs(params)}`, {}, { unwrap: false }),
+    getAuditEvent:    (id)          => req(`/v1/audit/${id}`),
+    exportAudit:      async (format = 'csv', params = {}) => {
+      const r = await rawReq(`/v1/audit/export${qs({ format, ...params })}`);
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({ message: r.statusText }));
+        e.status = r.status;
+        throw e;
+      }
+      return r.blob();
+    },
 
     // ---- A1: authentication ----
     getMe:            ()         => req('/v1/auth/me'),

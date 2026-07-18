@@ -124,6 +124,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Trilha de auditoria paginada (filtros: actor, action, entity, from, to) */
+        get: operations["list_audit_v1_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/audit/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Exporta a trilha filtrada COMPLETA (CSV ou JSON, streaming) */
+        get: operations["export_audit_v1_audit_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/audit/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detalhe de um evento (envelope + payload bruto, com diff antes→depois) */
+        get: operations["get_audit_event_v1_audit__event_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/2fa/disable": {
         parameters: {
             query?: never;
@@ -947,6 +998,12 @@ export interface components {
             data: components["schemas"]["AgentStatusOut"];
             meta?: components["schemas"]["Meta"] | null;
         };
+        /** APIResponse[AuditEventDetailOut] */
+        APIResponse_AuditEventDetailOut_: {
+            _links?: components["schemas"]["Links"] | null;
+            data: components["schemas"]["AuditEventDetailOut"];
+            meta?: components["schemas"]["Meta"] | null;
+        };
         /** APIResponse[BacktestJobOut] */
         APIResponse_BacktestJobOut_: {
             _links?: components["schemas"]["Links"] | null;
@@ -1027,6 +1084,13 @@ export interface components {
             _links?: components["schemas"]["Links"] | null;
             /** Data */
             data: components["schemas"]["AgentStatusOut"][];
+            meta?: components["schemas"]["Meta"] | null;
+        };
+        /** APIResponse[List[AuditEventOut]] */
+        APIResponse_List_AuditEventOut__: {
+            _links?: components["schemas"]["Links"] | null;
+            /** Data */
+            data: components["schemas"]["AuditEventOut"][];
             meta?: components["schemas"]["Meta"] | null;
         };
         /** APIResponse[List[CandleOut]] */
@@ -1254,6 +1318,66 @@ export interface components {
             revenge_size_multiplier?: number | null;
             /** Risk Of Ruin Alert Pct */
             risk_of_ruin_alert_pct?: number | null;
+        };
+        /**
+         * AuditEventDetailOut
+         * @description Envelope + the raw ledger record, for the detail/diff view.
+         */
+        AuditEventDetailOut: {
+            /** Action */
+            action: string;
+            /** Actor */
+            actor: string;
+            /** After */
+            after?: Record<string, never> | null;
+            /** Before */
+            before?: Record<string, never> | null;
+            /** Data */
+            data?: Record<string, never>;
+            /** Detail */
+            detail?: string | null;
+            /** Entity */
+            entity?: string | null;
+            /** Event Type */
+            event_type: string;
+            /** Id */
+            id: number;
+            /** Ip */
+            ip?: string | null;
+            /** Success */
+            success?: boolean | null;
+            /** Ts */
+            ts: string;
+            /** Ua */
+            ua?: string | null;
+        };
+        /**
+         * AuditEventOut
+         * @description Normalized audit-trail envelope (see src/audit/normalize.py).
+         */
+        AuditEventOut: {
+            /** Action */
+            action: string;
+            /** Actor */
+            actor: string;
+            /** After */
+            after?: Record<string, never> | null;
+            /** Before */
+            before?: Record<string, never> | null;
+            /** Detail */
+            detail?: string | null;
+            /** Entity */
+            entity?: string | null;
+            /** Id */
+            id: number;
+            /** Ip */
+            ip?: string | null;
+            /** Success */
+            success?: boolean | null;
+            /** Ts */
+            ts: string;
+            /** Ua */
+            ua?: string | null;
         };
         /** AuthUserOut */
         AuthUserOut: {
@@ -2503,6 +2627,110 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["APIResponse_list_AlertOut__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_audit_v1_audit_get: {
+        parameters: {
+            query?: {
+                actor?: string | null;
+                action?: string | null;
+                entity?: string | null;
+                from?: string | null;
+                to?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_List_AuditEventOut__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_audit_v1_audit_export_get: {
+        parameters: {
+            query?: {
+                format?: string;
+                actor?: string | null;
+                action?: string | null;
+                entity?: string | null;
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_audit_event_v1_audit__event_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_AuditEventDetailOut_"];
                 };
             };
             /** @description Validation Error */

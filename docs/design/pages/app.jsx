@@ -16,6 +16,7 @@ const SCREENS = {
   backtest:      ScreenBacktest,
   settings:      ScreenSettings,
   users:         ScreenUsers,
+  audit:         ScreenAudit,
 };
 
 // ---- Error boundaries (A9) ----
@@ -265,7 +266,7 @@ function App() {
 
   // A9/A3: screens that demand a permission — navigating without it renders
   // the Forbidden page (coherent with the backend's 403 envelope), not a blank.
-  const ROUTE_PERMS = { users: 'manage_users' };
+  const ROUTE_PERMS = { users: 'manage_users', audit: 'view_audit' };
   const deniedPerm = ROUTE_PERMS[screen] && !CT_AUTH.can(ROUTE_PERMS[screen])
     ? ROUTE_PERMS[screen] : null;
   const ActiveScreen = screen === 'notfound'
