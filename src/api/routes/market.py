@@ -17,6 +17,7 @@ from src.core.pairs import allowed_pairs
 from src.api.schemas import (
     APIResponse,
     CandleOut,
+    Meta,
     ConfidenceFactor,
     ConfluenceOut,
     IndicatorsOut,
@@ -160,7 +161,8 @@ async def get_candles(
     symbol = _decode_pair(pair)
     ohlcv = await _fetch_candles(symbol, tf, limit, client)
     candles = [CandleOut(t=int(r[0]), o=r[1], h=r[2], lo=r[3], c=r[4], v=r[5]) for r in ohlcv]
-    return APIResponse(data=candles)
+    # List-shaped payload: freshness travels in the envelope's meta (M3).
+    return APIResponse(data=candles, meta=Meta(total=len(candles), timestamp=_as_of(ohlcv)))
 
 
 @router.get(
@@ -188,6 +190,7 @@ async def get_ticker(
         change_24h_pct=round(change, 4),
         high_24h=round(max(float(c[2]) for c in ohlcv), 8),
         low_24h=round(min(float(c[3]) for c in ohlcv), 8),
+        as_of=_as_of(ohlcv),
     ))
 
 
@@ -335,6 +338,7 @@ async def get_levels(
         support=sorted(support_zones, key=lambda x: x.price, reverse=True),
         resistance=sorted(resistance_zones, key=lambda x: x.price),
         fib=fib_levels,
+        as_of=_as_of(ohlcv),
     ))
 
 
@@ -391,6 +395,7 @@ async def get_volume_profile(
         val=result.value_area_low,
         lvn=result.low_volume_nodes,
         bins=out_bins,
+        as_of=_as_of(ohlcv),
     ))
 
 
@@ -422,7 +427,8 @@ async def get_patterns(
         )
         for r in results
     ]
-    return APIResponse(data=patterns)
+    # List-shaped payload: freshness travels in the envelope's meta (M3).
+    return APIResponse(data=patterns, meta=Meta(total=len(patterns), timestamp=_as_of(ohlcv)))
 
 
 @router.get(

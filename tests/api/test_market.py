@@ -102,6 +102,25 @@ def test_indicators_include_as_of(client):
     assert "as_of" in r.json()["data"]
 
 
+def test_ticker_levels_volume_profile_include_as_of(client):
+    """M3: every object-shaped market payload carries a freshness anchor."""
+    for path in ("ticker", "levels", "volume-profile"):
+        r = client.get(f"/v1/market/BTC-USDT/{path}")
+        assert r.status_code == 200
+        assert "as_of" in r.json()["data"], f"missing as_of in {path}"
+
+
+def test_list_market_responses_carry_meta_timestamp(client):
+    """M3: list-shaped payloads (candles, patterns) put freshness in meta."""
+    for path in ("candles", "patterns"):
+        r = client.get(f"/v1/market/BTC-USDT/{path}")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["meta"] is not None, f"missing meta in {path}"
+        assert "timestamp" in body["meta"]
+        assert body["meta"]["total"] == len(body["data"])
+
+
 def test_regime_includes_temporal_context(client):
     """M11: regime carries duration, last transition and an extreme flag."""
     r = client.get("/v1/market/BTC-USDT/regime")

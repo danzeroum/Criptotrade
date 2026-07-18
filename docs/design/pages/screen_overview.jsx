@@ -67,6 +67,10 @@ function ScreenOverview() {
   } else if (metrics) {
     body = (
       <>
+        {/* S1: same freshness treatment as Mercado, fed by the API's calculated_at. */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+          <FreshnessBadge asOf={metrics.calculated_at} />
+        </div>
         <div className="grid kpi-row" style={{ marginBottom: 16 }}>
           <div className="card"><KPI label="Valor do portfólio" value={metrics.portfolio_value_usdt} format="usd" icon="dollar" /></div>
           <div className="card"><KPI label={`P&L (${period})`} value={metrics.pnl_period_usdt} format="usd" delta={(metrics.pnl_period_pct ?? 0) * 100} icon="trending" /></div>
