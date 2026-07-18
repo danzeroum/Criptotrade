@@ -18,10 +18,16 @@ const SCREENS = {
   users:         ScreenUsers,
 };
 
-// ---- Error boundary ----
+// ---- Error boundaries (A9) ----
+// Short, support-friendly error id, logged alongside the stack so the operator
+// can quote it and the log line can be found.
+const newErrorId = () =>
+  Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+
 class ErrorBoundary extends React.Component {
-  constructor(props) { super(props); this.state = { error: null }; }
-  static getDerivedStateFromError(e) { return { error: e }; }
+  constructor(props) { super(props); this.state = { error: null, errorId: null }; }
+  static getDerivedStateFromError(e) { return { error: e, errorId: newErrorId() }; }
+  componentDidCatch(e) { console.error(`[ct:${this.state.errorId}]`, e); }
   render() {
     if (this.state.error) {
       return (
@@ -30,14 +36,32 @@ class ErrorBoundary extends React.Component {
           <div style={{ fontSize: 14, color: 'var(--ink-2)', marginBottom: 8 }}>
             Erro inesperado nesta tela
           </div>
-          <div style={{ fontSize: 12, fontFamily: 'var(--mono)', color: 'var(--ink-3)', marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontFamily: 'var(--mono)', color: 'var(--ink-3)', marginBottom: 6 }}>
             {this.state.error?.message ?? String(this.state.error)}
           </div>
-          <Btn variant="ghost" size="sm" onClick={() => this.setState({ error: null })}>
+          <div style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--ink-4)', marginBottom: 16 }}>
+            erro {this.state.errorId}
+          </div>
+          <Btn variant="ghost" size="sm" onClick={() => this.setState({ error: null, errorId: null })}>
             <Icon name="refresh" size={13} /> Tentar novamente
           </Btn>
         </div>
       );
+    }
+    return this.props.children;
+  }
+}
+
+// Top-level boundary: an exception OUTSIDE a screen (shell, drawers, auth) no
+// longer kills the app — it lands on the fatal page with the error id (A9).
+class GlobalBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null, errorId: null }; }
+  static getDerivedStateFromError(e) { return { error: e, errorId: newErrorId() }; }
+  componentDidCatch(e) { console.error(`[ct:${this.state.errorId}]`, e); }
+  render() {
+    if (this.state.error) {
+      return <FatalErrorScreen errorId={this.state.errorId}
+        message={this.state.error?.message ?? String(this.state.error)} />;
     }
     return this.props.children;
   }
@@ -142,7 +166,9 @@ function ToastContainer({ toasts }) {
 function App() {
   const getInitialScreen = () => {
     const hash = window.location.hash.replace('#', '');
-    return SCREENS[hash] ? hash : 'overview';
+    if (!hash || SCREENS[hash]) return hash || 'overview';
+    if (hash.startsWith('reset/')) return 'overview';  // pre-auth deep link (A1)
+    return 'notfound';
   };
 
   const [screen,       setScreen]       = useState(getInitialScreen);
@@ -202,6 +228,7 @@ function App() {
     const onHash = () => {
       const hash = window.location.hash.replace('#', '');
       if (SCREENS[hash]) setScreen(hash);
+      else if (hash && !hash.startsWith('reset/')) setScreen('notfound');
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
@@ -236,13 +263,23 @@ function App() {
     return () => es?.close?.();
   }, [addToast, authReady]);
 
-  const ActiveScreen = SCREENS[screen] ?? ScreenOverview;
+  // A9/A3: screens that demand a permission — navigating without it renders
+  // the Forbidden page (coherent with the backend's 403 envelope), not a blank.
+  const ROUTE_PERMS = { users: 'manage_users' };
+  const deniedPerm = ROUTE_PERMS[screen] && !CT_AUTH.can(ROUTE_PERMS[screen])
+    ? ROUTE_PERMS[screen] : null;
+  const ActiveScreen = screen === 'notfound'
+    ? NotFoundScreen
+    : (deniedPerm ? null : (SCREENS[screen] ?? ScreenOverview));
 
   // ---- A1 gate: probe → login → shell ----
   if (!booted) {
     return <div style={{ display: 'grid', placeItems: 'center', height: '100vh' }}>
       <LoadingState label="Carregando…" />
     </div>;
+  }
+  if (auth.mode === 'unreachable') {
+    return <MaintenanceRetry />;
   }
   if (auth.kind === 'anonymous') {
     const resetMatch = window.location.hash.match(/^#reset\/(.+)$/);
@@ -265,7 +302,10 @@ function App() {
         <div className="content">
           <div className="content-inner screen-enter">
             <ErrorBoundary key={screen}>
-              <ActiveScreen navigate={navigate} addToast={addToast} />
+              {deniedPerm
+                ? <ForbiddenScreen navigate={navigate} requiredPermission={deniedPerm}
+                    role={auth.user?.role ?? (auth.kind === 'demo' ? 'visualizador' : undefined)} />
+                : <ActiveScreen navigate={navigate} addToast={addToast} />}
             </ErrorBoundary>
           </div>
         </div>
@@ -299,6 +339,15 @@ function App() {
   );
 }
 
+// A9: maintenance with an automatic 10s reconnect loop (re-probes /me).
+function MaintenanceRetry() {
+  useEffect(() => {
+    const id = setInterval(() => { CT_AUTH.load(); }, 10_000);
+    return () => clearInterval(id);
+  }, []);
+  return <MaintenanceScreen onRetry={() => CT_AUTH.load()} />;
+}
+
 // ---- Mount ----
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);
+root.render(<GlobalBoundary><App /></GlobalBoundary>);
