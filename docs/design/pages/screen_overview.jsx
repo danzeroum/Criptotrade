@@ -19,6 +19,10 @@ const O_STATUS = {
 };
 
 function ScreenOverview() {
+  // A9 e2e hook: lets the boundary test force a render exception (mock only).
+  if (window.USE_MOCK_DATA && window.MOCK_THROW_SCREEN === 'overview') {
+    throw new Error('Falha simulada para teste do boundary');
+  }
   const mock = !!window.USE_MOCK_DATA;
   const [scope] = useCurrentPair();
   const [period, setPeriod] = useState('7d');
