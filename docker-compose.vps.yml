@@ -27,7 +27,7 @@ services:
       - .env
     environment:
       - LEDGER_DIR=/app/data/ledger
-      - EXCHANGE_DRY_RUN=true
+      - EXCHANGE_DRY_RUN=${EXCHANGE_DRY_RUN:-true}
     expose:
       - "8000"
     volumes:
@@ -66,7 +66,7 @@ services:
       - .env
     environment:
       - API_URL=http://criptotrade-app:8000
-      - EXCHANGE_DRY_RUN=true
+      - EXCHANGE_DRY_RUN=${EXCHANGE_DRY_RUN:-true}
     command: ["streamlit","run","src/dashboard/app.py","--server.port=8501","--server.address=0.0.0.0","--server.headless=true","--server.enableCORS=false","--server.enableXsrfProtection=false"]
     expose:
       - "8501"
@@ -85,7 +85,7 @@ services:
       - .env
     environment:
       - LEDGER_DIR=/app/data/ledger
-      - EXCHANGE_DRY_RUN=true
+      - EXCHANGE_DRY_RUN=${EXCHANGE_DRY_RUN:-true}
       - ORCHESTRATOR_INTERVAL_SECONDS=60
     volumes:
       - ./data:/app/data
