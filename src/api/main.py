@@ -29,6 +29,7 @@ from src.api.routes import (
     journal,
     market,
     metrics,
+    notifications,
     orders,
     process,
     risk,
@@ -199,7 +200,41 @@ async def _lifespan(app: FastAPI):
     # interrupted when the process died and will not be auto-retried.
     from src.api.routes.backtest import _reconcile_orphans
     _reconcile_orphans()
+    # A6: background dispatcher tailing alerts.jsonl (the shared meeting point
+    # of both processes). Duplicate-safe by design: the cursor is claimed with
+    # an optimistic UPDATE, so even N workers yield exactly one delivery.
+    # NOTIFY_DISPATCH_INTERVAL_S <= 0 disables the loop.
+    import asyncio
+
+    from src.api import deps as _deps
+
+    interval = float(os.getenv("NOTIFY_DISPATCH_INTERVAL_S", "5"))
+    stop_event: asyncio.Event | None = None
+    task: asyncio.Task | None = None
+    if interval > 0:
+        _deps.get_dispatcher().ensure_initialized()
+        stop_event = asyncio.Event()
+
+        async def _notify_loop() -> None:
+            while not stop_event.is_set():
+                try:
+                    await asyncio.to_thread(_deps.get_dispatcher().dispatch_pending)
+                except Exception:  # noqa: BLE001 - the loop must survive anything
+                    _log.warning("Notification dispatch pass failed", exc_info=True)
+                try:
+                    await asyncio.wait_for(stop_event.wait(), timeout=interval)
+                except asyncio.TimeoutError:
+                    pass
+
+        task = asyncio.create_task(_notify_loop())
     yield
+    if stop_event is not None:
+        stop_event.set()
+    if task is not None:
+        try:
+            await asyncio.wait_for(task, timeout=5.0)
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            task.cancel()
 
 
 def _init_sentry() -> None:
@@ -281,6 +316,8 @@ def create_app() -> FastAPI:
     app.include_router(security.router, prefix=PREFIX, dependencies=guarded)
     # A2: same self-service contract as /v1/security.
     app.include_router(account.router, prefix=PREFIX, dependencies=guarded)
+    # A6: channel secrets — every route requires edit_settings (admin).
+    app.include_router(notifications.router, prefix=PREFIX, dependencies=guarded)
     # A3: per-route manage_users enforcement lives inside the module.
     app.include_router(users.router, prefix=PREFIX)
     app.include_router(users.roles_router, prefix=PREFIX)

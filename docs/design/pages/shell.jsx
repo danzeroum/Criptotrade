@@ -26,6 +26,8 @@ const ADMIN_NAV = [
   { id: 'users', icon: 'shield', label: 'Usuários & Permissões', perm: 'manage_users' },
   // A4: operador+ (view_audit) — o demo público nunca vê a trilha (e-mail/IP reais).
   { id: 'audit', icon: 'clock', label: 'Trilha de Auditoria', perm: 'view_audit' },
+  // A6: contém secrets de canal — só admin (edit_settings); oculta no demo.
+  { id: 'notifications', icon: 'bell', label: 'Notificações & Canais', perm: 'edit_settings' },
   // A7: self-service — qualquer sessão autenticada (não é permissão de papel).
   { id: 'security', icon: 'lock', label: 'Segurança & Sessões', userOnly: true },
 ];

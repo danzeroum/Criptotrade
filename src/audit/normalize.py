@@ -34,6 +34,8 @@ AUDIT_EXACT_TYPES: Tuple[str, ...] = (
     "circuit_breaker_tripped",
     "circuit_breaker_reset",
     "order_executed",
+    "notification_sent",
+    "notification_failed",
 )
 
 _USER_MGMT_TYPES: Tuple[str, ...] = (
@@ -55,7 +57,7 @@ _AUDITABLE_SQL = (
 ACTIONS: Tuple[str, ...] = (
     "login", "logout", "security", "user_management",
     "order_approved", "order_rejected", "autonomy_changed", "config_changed",
-    "position_closed", "circuit_breaker", "order_executed",
+    "position_closed", "circuit_breaker", "order_executed", "notification",
 )
 
 # ------------------------------------------------- actor/entity (SQL ↔ Python)
@@ -113,6 +115,8 @@ def action_of(event_type: str, data: Dict[str, Any]) -> str:
         return "autonomy_changed"
     if event_type in ("circuit_breaker_tripped", "circuit_breaker_reset"):
         return "circuit_breaker"
+    if event_type in ("notification_sent", "notification_failed"):
+        return "notification"
     if event_type in ("config_changed", "position_closed", "order_executed"):
         return event_type
     return "other"
@@ -180,6 +184,8 @@ def _action_predicate(action: str) -> Tuple[str, List[Any]]:
         return "event_type = 'hitl_level_changed'", []
     if action == "circuit_breaker":
         return "event_type IN ('circuit_breaker_tripped','circuit_breaker_reset')", []
+    if action == "notification":
+        return "event_type IN ('notification_sent','notification_failed')", []
     if action in ("config_changed", "position_closed", "order_executed"):
         return "event_type = ?", [action]
     raise ValueError(f"unknown audit action: {action}")

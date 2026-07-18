@@ -137,6 +137,15 @@ _behavioral_thresholds: Dict[str, float] = {
 }
 
 
+@router.get(
+    "/alerts/config",
+    response_model=APIResponse[Dict[str, float]],
+    summary="Thresholds do behavioral guard (read-back — fecha o gap do A6)",
+)
+async def get_alerts_config() -> APIResponse[Dict[str, float]]:
+    return APIResponse(data=dict(_behavioral_thresholds))
+
+
 @router.patch(
     "/alerts/config",
     response_model=APIResponse[Dict[str, float]],

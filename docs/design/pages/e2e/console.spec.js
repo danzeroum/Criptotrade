@@ -6,8 +6,9 @@ const NAV = [
   "Visão Geral", "HITL Controls", "Ordens", "Agentes", "Risco",
   "Mercado", "Observabilidade", "Diário", "Backtest", "Config",
 ];
-// A2/A3/A4/A7: the mock user is an admin, so the Administração group adds these items.
-const ADMIN_NAV = ["Conta & Perfil", "Usuários & Permissões", "Trilha de Auditoria", "Segurança & Sessões"];
+// A2/A3/A4/A6/A7: the mock user is an admin, so the Administração group adds these items.
+const ADMIN_NAV = ["Conta & Perfil", "Usuários & Permissões", "Trilha de Auditoria",
+  "Notificações & Canais", "Segurança & Sessões"];
 
 test.beforeEach(async ({ page }) => {
   // Screens read window.USE_MOCK_DATA and render mock data instead of fetching.

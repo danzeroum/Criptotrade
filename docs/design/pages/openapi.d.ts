@@ -150,7 +150,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Thresholds do behavioral guard (read-back — fecha o gap do A6) */
+        get: operations["get_alerts_config_v1_alerts_config_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -782,6 +783,113 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/notifications/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Canais conectados (configs mascaradas) + status de teste */
+        get: operations["list_channels_v1_notifications_channels_get"];
+        put?: never;
+        /** Conecta um canal (secrets cifrados em repouso) */
+        post: operations["create_channel_v1_notifications_channels_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notifications/channels/{channel_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove um canal */
+        delete: operations["delete_channel_v1_notifications_channels__channel_id__delete"];
+        options?: never;
+        head?: never;
+        /** Edita um canal (mask inalterada = mantém o secret) */
+        patch: operations["patch_channel_v1_notifications_channels__channel_id__patch"];
+        trace?: never;
+    };
+    "/v1/notifications/channels/{channel_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Envia uma notificação de teste REAL pelo canal */
+        post: operations["test_channel_v1_notifications_channels__channel_id__test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notifications/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Regras evento × severidade → canais */
+        get: operations["list_rules_v1_notifications_rules_get"];
+        put?: never;
+        /** Cria uma regra de entrega */
+        post: operations["create_rule_v1_notifications_rules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notifications/rules/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove uma regra */
+        delete: operations["delete_rule_v1_notifications_rules__rule_id__delete"];
+        options?: never;
+        head?: never;
+        /** Edita uma regra */
+        patch: operations["patch_rule_v1_notifications_rules__rule_id__patch"];
+        trace?: never;
+    };
+    "/v1/notifications/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Quiet hours + janela de agrupamento anti-flood */
+        get: operations["get_settings_v1_notifications_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Atualiza quiet hours/agrupamento */
+        patch: operations["patch_settings_v1_notifications_settings_patch"];
+        trace?: never;
+    };
     "/v1/orders": {
         parameters: {
             query?: never;
@@ -1152,6 +1260,12 @@ export interface components {
             data: components["schemas"]["BacktestJobOut"];
             meta?: components["schemas"]["Meta"] | null;
         };
+        /** APIResponse[ChannelOut] */
+        APIResponse_ChannelOut_: {
+            _links?: components["schemas"]["Links"] | null;
+            data: components["schemas"]["ChannelOut"];
+            meta?: components["schemas"]["Meta"] | null;
+        };
         /** APIResponse[CircuitBreakerOut] */
         APIResponse_CircuitBreakerOut_: {
             _links?: components["schemas"]["Links"] | null;
@@ -1242,6 +1356,13 @@ export interface components {
             data: components["schemas"]["CandleOut"][];
             meta?: components["schemas"]["Meta"] | null;
         };
+        /** APIResponse[List[ChannelOut]] */
+        APIResponse_List_ChannelOut__: {
+            _links?: components["schemas"]["Links"] | null;
+            /** Data */
+            data: components["schemas"]["ChannelOut"][];
+            meta?: components["schemas"]["Meta"] | null;
+        };
         /** APIResponse[List[ClosedTradeOut]] */
         APIResponse_List_ClosedTradeOut__: {
             _links?: components["schemas"]["Links"] | null;
@@ -1298,6 +1419,13 @@ export interface components {
             data: components["schemas"]["RoleOut"][];
             meta?: components["schemas"]["Meta"] | null;
         };
+        /** APIResponse[List[RuleOut]] */
+        APIResponse_List_RuleOut__: {
+            _links?: components["schemas"]["Links"] | null;
+            /** Data */
+            data: components["schemas"]["RuleOut"][];
+            meta?: components["schemas"]["Meta"] | null;
+        };
         /** APIResponse[List[SessionOut]] */
         APIResponse_List_SessionOut__: {
             _links?: components["schemas"]["Links"] | null;
@@ -1329,6 +1457,12 @@ export interface components {
         APIResponse_MonteCarloOut_: {
             _links?: components["schemas"]["Links"] | null;
             data: components["schemas"]["MonteCarloOut"];
+            meta?: components["schemas"]["Meta"] | null;
+        };
+        /** APIResponse[NotificationSettingsOut] */
+        APIResponse_NotificationSettingsOut_: {
+            _links?: components["schemas"]["Links"] | null;
+            data: components["schemas"]["NotificationSettingsOut"];
             meta?: components["schemas"]["Meta"] | null;
         };
         /** APIResponse[OrderOut] */
@@ -1365,6 +1499,12 @@ export interface components {
         APIResponse_RiskConfigOut_: {
             _links?: components["schemas"]["Links"] | null;
             data: components["schemas"]["RiskConfigOut"];
+            meta?: components["schemas"]["Meta"] | null;
+        };
+        /** APIResponse[RuleOut] */
+        APIResponse_RuleOut_: {
+            _links?: components["schemas"]["Links"] | null;
+            data: components["schemas"]["RuleOut"];
             meta?: components["schemas"]["Meta"] | null;
         };
         /** APIResponse[SignalOut] */
@@ -1693,6 +1833,56 @@ export interface components {
             t: number;
             /** V */
             v: number;
+        };
+        /** ChannelCreateIn */
+        ChannelCreateIn: {
+            /** Config */
+            config?: Record<string, never>;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "email" | "telegram" | "slack" | "webhook";
+            /** Label */
+            label: string;
+        };
+        /**
+         * ChannelOut
+         * @description Channel with the config MASKED — plaintext secrets never leave the API.
+         */
+        ChannelOut: {
+            /** Config Masked */
+            config_masked?: Record<string, never>;
+            /** Created At */
+            created_at?: string | null;
+            /**
+             * Destination Masked
+             * @default —
+             */
+            destination_masked: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Label */
+            label: string;
+            /** Last Error */
+            last_error?: string | null;
+            /** Last Test At */
+            last_test_at?: string | null;
+            /** Last Test Ok */
+            last_test_ok?: boolean | null;
+        };
+        /** ChannelPatchIn */
+        ChannelPatchIn: {
+            /** Config */
+            config?: Record<string, never> | null;
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Label */
+            label?: string | null;
         };
         /** CircuitBreakerOut */
         CircuitBreakerOut: {
@@ -2081,6 +2271,39 @@ export interface components {
             /** Rejected */
             rejected: boolean;
         };
+        /** NotificationSettingsOut */
+        NotificationSettingsOut: {
+            /**
+             * Group Window Min
+             * @default 5
+             */
+            group_window_min: number;
+            /** Quiet End */
+            quiet_end?: string | null;
+            /** Quiet Start */
+            quiet_start?: string | null;
+            /**
+             * Quiet Tz
+             * @default America/Sao_Paulo
+             */
+            quiet_tz: string;
+        };
+        /** NotificationSettingsPatch */
+        NotificationSettingsPatch: {
+            /**
+             * Clear Quiet Hours
+             * @default false
+             */
+            clear_quiet_hours: boolean;
+            /** Group Window Min */
+            group_window_min?: number | null;
+            /** Quiet End */
+            quiet_end?: string | null;
+            /** Quiet Start */
+            quiet_start?: string | null;
+            /** Quiet Tz */
+            quiet_tz?: string | null;
+        };
         /**
          * OrderCreate
          * @description Submit a new order. Validation makes it hard to use incorrectly.
@@ -2443,6 +2666,51 @@ export interface components {
             label: string;
             /** Permissions */
             permissions: string[];
+        };
+        /** RuleIn */
+        RuleIn: {
+            /**
+             * Alert Type
+             * @default *
+             */
+            alert_type: string;
+            /** Channel Ids */
+            channel_ids?: string[];
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Min Severity
+             * @default high
+             * @enum {string}
+             */
+            min_severity: "low" | "medium" | "high" | "critical";
+        };
+        /** RuleOut */
+        RuleOut: {
+            /** Alert Type */
+            alert_type: string;
+            /** Channel Ids */
+            channel_ids: string[];
+            /** Enabled */
+            enabled: boolean;
+            /** Id */
+            id: string;
+            /** Min Severity */
+            min_severity: string;
+        };
+        /** RulePatchIn */
+        RulePatchIn: {
+            /** Alert Type */
+            alert_type?: string | null;
+            /** Channel Ids */
+            channel_ids?: string[] | null;
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Min Severity */
+            min_severity?: ("low" | "medium" | "high" | "critical") | null;
         };
         /** SRLevelOut */
         SRLevelOut: {
@@ -2983,6 +3251,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_alerts_config_v1_alerts_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_Dict_str__float__"];
                 };
             };
         };
@@ -4199,6 +4487,328 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["APIResponse_List_EquityPoint__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_channels_v1_notifications_channels_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_List_ChannelOut__"];
+                };
+            };
+        };
+    };
+    create_channel_v1_notifications_channels_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChannelCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_ChannelOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_channel_v1_notifications_channels__channel_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_dict_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_channel_v1_notifications_channels__channel_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChannelPatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_ChannelOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_channel_v1_notifications_channels__channel_id__test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_dict_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_rules_v1_notifications_rules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_List_RuleOut__"];
+                };
+            };
+        };
+    };
+    create_rule_v1_notifications_rules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_RuleOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_rule_v1_notifications_rules__rule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_dict_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_rule_v1_notifications_rules__rule_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RulePatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_RuleOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_settings_v1_notifications_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_NotificationSettingsOut_"];
+                };
+            };
+        };
+    };
+    patch_settings_v1_notifications_settings_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationSettingsPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_NotificationSettingsOut_"];
                 };
             };
             /** @description Validation Error */

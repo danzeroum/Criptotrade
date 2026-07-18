@@ -153,6 +153,20 @@ const CT_API = (() => {
       return r.blob();
     },
 
+    // ---- A6: notifications & channels ----
+    getChannels:      ()         => req('/v1/notifications/channels'),
+    createChannel:    (body)     => req('/v1/notifications/channels', { method: 'POST', body: JSON.stringify(body) }),
+    patchChannel:     (id, body) => req(`/v1/notifications/channels/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    deleteChannel:    (id)       => req(`/v1/notifications/channels/${id}`, { method: 'DELETE' }),
+    testChannel:      (id)       => req(`/v1/notifications/channels/${id}/test`, { method: 'POST', body: '{}' }),
+    getNotifRules:    ()         => req('/v1/notifications/rules'),
+    createNotifRule:  (body)     => req('/v1/notifications/rules', { method: 'POST', body: JSON.stringify(body) }),
+    patchNotifRule:   (id, body) => req(`/v1/notifications/rules/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    deleteNotifRule:  (id)       => req(`/v1/notifications/rules/${id}`, { method: 'DELETE' }),
+    getNotifSettings: ()         => req('/v1/notifications/settings'),
+    patchNotifSettings:(body)    => req('/v1/notifications/settings', { method: 'PATCH', body: JSON.stringify(body) }),
+    getAlertsConfig:  ()         => req('/v1/alerts/config'),
+
     // ---- A2: account & preferences (self-service) ----
     getAccountProfile:  ()       => req('/v1/account/profile'),
     patchAccountProfile:(body)   => req('/v1/account/profile', { method: 'PATCH', body: JSON.stringify(body) }),

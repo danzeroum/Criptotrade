@@ -191,6 +191,81 @@ class AgentConfigOut(AgentStatusOut):
     params: Dict[str, Any] = Field(default_factory=dict)
 
 
+# -------------------------------------------------------- notifications (A6)
+class ChannelOut(BaseModel):
+    """Channel with the config MASKED — plaintext secrets never leave the API."""
+
+    id: str
+    kind: str
+    label: str
+    enabled: bool
+    config_masked: Dict[str, Any] = Field(default_factory=dict)
+    destination_masked: str = "—"
+    created_at: Optional[str] = None
+    last_test_at: Optional[str] = None
+    last_test_ok: Optional[bool] = None
+    last_error: Optional[str] = None
+
+
+class ChannelCreateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["email", "telegram", "slack", "webhook"]
+    label: str = Field(min_length=1, max_length=60)
+    config: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ChannelPatchIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    label: Optional[str] = Field(None, min_length=1, max_length=60)
+    enabled: Optional[bool] = None
+    config: Optional[Dict[str, Any]] = None
+
+
+class RuleOut(BaseModel):
+    id: str
+    alert_type: str
+    min_severity: str
+    channel_ids: List[str]
+    enabled: bool
+
+
+class RuleIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    alert_type: str = Field("*", max_length=60)
+    min_severity: Literal["low", "medium", "high", "critical"] = "high"
+    channel_ids: List[str] = Field(default_factory=list)
+    enabled: bool = True
+
+
+class RulePatchIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    alert_type: Optional[str] = Field(None, max_length=60)
+    min_severity: Optional[Literal["low", "medium", "high", "critical"]] = None
+    channel_ids: Optional[List[str]] = None
+    enabled: Optional[bool] = None
+
+
+class NotificationSettingsOut(BaseModel):
+    quiet_start: Optional[str] = None
+    quiet_end: Optional[str] = None
+    quiet_tz: str = "America/Sao_Paulo"
+    group_window_min: int = 5
+
+
+class NotificationSettingsPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    quiet_start: Optional[str] = Field(None, pattern=r"^\d{2}:\d{2}$")
+    quiet_end: Optional[str] = Field(None, pattern=r"^\d{2}:\d{2}$")
+    quiet_tz: Optional[str] = Field(None, max_length=64)
+    group_window_min: Optional[int] = Field(None, ge=1, le=120)
+    clear_quiet_hours: bool = False
+
+
 # ----------------------------------------------------------------- audit (A4)
 class AuditEventOut(BaseModel):
     """Normalized audit-trail envelope (see src/audit/normalize.py)."""
