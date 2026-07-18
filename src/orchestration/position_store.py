@@ -81,6 +81,17 @@ class PositionStore:
         except Exception:  # pragma: no cover
             logger.warning("PositionStore.delete failed for %s", order_id, exc_info=True)
 
+    def count(self) -> int:
+        """Return the number of currently open positions (best-effort; 0 on error)."""
+        try:
+            with connection(self._db()) as conn:
+                conn.execute(_CREATE_POSITIONS)
+                row = conn.execute("SELECT COUNT(*) FROM open_positions").fetchone()
+                return int(row[0]) if row else 0
+        except Exception:  # pragma: no cover - persistence must never break a scrape
+            logger.warning("PositionStore.count failed", exc_info=True)
+            return 0
+
     def load_all(self) -> dict[str, dict[str, Any]]:
         out: dict[str, dict[str, Any]] = {}
         try:

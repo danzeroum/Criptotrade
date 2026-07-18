@@ -33,6 +33,19 @@ def test_position_store_roundtrip(tmp_path):
     assert store.load_all() == {}
 
 
+def test_position_store_count(tmp_path):
+    db = tmp_path / "state.db"
+    store = PositionStore(lambda: db)
+    assert store.count() == 0  # empty (table created on demand)
+
+    store.upsert("o1", _POS)
+    store.upsert("o2", _POS)
+    assert store.count() == 2
+
+    store.delete("o1")
+    assert store.count() == 1
+
+
 def test_circuit_state_roundtrip(tmp_path):
     db = tmp_path / "state.db"
     assert load_circuit_state(lambda: db) is None  # nothing persisted yet
