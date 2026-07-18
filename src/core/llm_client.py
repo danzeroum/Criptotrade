@@ -18,7 +18,9 @@ Design guarantees (do not break these):
 Provider is pluggable via ``LLM_PROVIDER``:
 
 * ``google`` (default) — Gemini via ``langchain-google-genai`` (pinned dep).
-* ``openai``  — via ``langchain-openai`` (optional).
+* ``deepseek`` — via ``langchain-openai`` against DeepSeek's OpenAI-compatible
+  API (pinned dep; ``DEEPSEEK_API_KEY``, optional ``DEEPSEEK_BASE_URL``).
+* ``openai``  — via ``langchain-openai``.
 * ``anthropic`` — Claude via ``langchain-anthropic`` (optional).
 """
 from __future__ import annotations
@@ -34,9 +36,14 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_MODELS = {
     "google": "gemini-1.5-flash",
+    # deepseek-chat (not -reasoner): the reasoner ignores temperature and its
+    # latency does not fit a trading cycle; chat handles the JSON prompts fine.
+    "deepseek": "deepseek-chat",
     "openai": "gpt-4o-mini",
     "anthropic": "claude-haiku-4-5-20251001",
 }
+
+_DEEPSEEK_DEFAULT_BASE_URL = "https://api.deepseek.com"
 
 
 def _truthy(value: Optional[str]) -> bool:
@@ -50,6 +57,7 @@ def _provider() -> str:
 def _api_key_for(provider: str) -> Optional[str]:
     keys = {
         "google": os.getenv("GOOGLE_API_KEY"),
+        "deepseek": os.getenv("DEEPSEEK_API_KEY"),
         "openai": os.getenv("OPENAI_API_KEY"),
         "anthropic": os.getenv("ANTHROPIC_API_KEY"),
     }
@@ -91,6 +99,14 @@ class LLMClient:
 
             return ChatGoogleGenerativeAI(
                 model=self.model, google_api_key=api_key, temperature=self.temperature
+            )
+        if self.provider == "deepseek":
+            # DeepSeek exposes an OpenAI-compatible API — same client, other base.
+            from langchain_openai import ChatOpenAI
+
+            return ChatOpenAI(
+                model=self.model, api_key=api_key, temperature=self.temperature,
+                base_url=os.getenv("DEEPSEEK_BASE_URL", _DEEPSEEK_DEFAULT_BASE_URL),
             )
         if self.provider == "openai":
             from langchain_openai import ChatOpenAI
