@@ -10,7 +10,7 @@ import os
 import secrets
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
@@ -20,6 +20,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from src.api.routes import (
     agents,
     alerts,
+    auth,
     backtest,
     config,
     hitl,
@@ -31,6 +32,7 @@ from src.api.routes import (
     risk,
     trades,
 )
+from src.api.authn import auth_mode, require_principal, resolve_principal
 from src.api.observability import PrometheusMiddleware, metrics_response
 from src.api.request_id import RequestIdMiddleware
 from src.core.db import init_db
@@ -47,6 +49,13 @@ PUBLIC_PATHS: set[str] = {
     "/v1/redoc",
     "/v1/openapi.json",
 }
+# Auth endpoints must be reachable without an API key — the browser has none
+# (login/refresh/reset happen BEFORE any credential exists).
+PUBLIC_PREFIXES: tuple[str, ...] = ("/v1/auth/",)
+
+
+def _is_public(path: str) -> bool:
+    return path in PUBLIC_PATHS or path.startswith(PUBLIC_PREFIXES)
 
 
 def _valid_keys() -> set[str]:
@@ -67,8 +76,13 @@ def _enforce_prod_security() -> None:
     if os.getenv("APP_ENV", "").strip().lower() != "production":
         return
     problems: list[str] = []
-    if not _valid_keys():
-        problems.append("API_KEYS must be a non-empty allowlist (auth is fail-open without it)")
+    # Session auth (AUTH_MODE=demo/required) also closes the gate — the demo
+    # principal is read-only and writes need a real session or an API key.
+    if not _valid_keys() and auth_mode() == "off":
+        problems.append(
+            "API_KEYS must be a non-empty allowlist, or AUTH_MODE must be "
+            "'demo'/'required' (auth is fail-open otherwise)"
+        )
     origins = {o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",")}
     if not origins - {""} or "*" in origins:
         problems.append("CORS_ORIGINS must be an explicit origin allowlist, not '*'")
@@ -82,27 +96,32 @@ def _enforce_prod_security() -> None:
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
-    """Require ``X-API-Key`` when keys are configured.
+    """Resolve the request principal; legacy X-API-Key gate under AUTH_MODE=off.
 
-    Lenient by design: if ``API_KEYS`` is unset/empty the API is open. This keeps
-    local dev and the dashboard frictionless while allowing auth in shared/staging
-    deployments simply by setting the env var.
+    A1 turns this from a reject-only gate into a *resolver*: every request gets
+    a ``request.state.principal`` (machine via ``X-API-Key``, user via session
+    cookie, demo/anonymous otherwise — see ``src/api/authn.py``). Enforcement
+    lives in the ``require_principal`` router dependency. The one legacy
+    behavior kept bit-for-bit: under ``AUTH_MODE=off`` with ``API_KEYS`` set,
+    requests without a valid key are rejected here exactly as before, so
+    existing deployments don't change semantics.
     """
 
     async def dispatch(self, request: Request, call_next):
-        keys = _valid_keys()
-        if not keys or request.url.path in PUBLIC_PATHS:
-            return await call_next(request)
-        provided = request.headers.get("X-API-Key", "")
-        if not any(secrets.compare_digest(provided, k) for k in keys):
-            return JSONResponse(
-                status_code=401,
-                content={
-                    "error": "unauthorized",
-                    "message": "Header 'X-API-Key' ausente ou inválido.",
-                    "docs": "/v1/docs",
-                },
-            )
+        request.state.principal = resolve_principal(request)
+        if auth_mode() == "off":
+            keys = _valid_keys()
+            if keys and not _is_public(request.url.path):
+                provided = request.headers.get("X-API-Key", "")
+                if not any(secrets.compare_digest(provided, k) for k in keys):
+                    return JSONResponse(
+                        status_code=401,
+                        content={
+                            "error": "unauthorized",
+                            "message": "Header 'X-API-Key' ausente ou inválido.",
+                            "docs": "/v1/docs",
+                        },
+                    )
         return await call_next(request)
 
 
@@ -168,6 +187,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 async def _lifespan(app: FastAPI):
     # Apply pending SQLite migrations on startup (idempotent; both processes do it).
     init_db()
+    # One-shot first-admin seed from ADMIN_EMAIL/ADMIN_PASSWORD (D3; no-op when
+    # the users table already has rows or the envs are unset).
+    from src.auth.store import bootstrap_admin
+    bootstrap_admin()
     # Mark any backtest jobs still "running" at startup as errored — they were
     # interrupted when the process died and will not be auto-retried.
     from src.api.routes.backtest import _reconcile_orphans
@@ -213,11 +236,15 @@ def create_app() -> FastAPI:
     )
 
     app.add_middleware(APIKeyMiddleware)
+    cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
+        allow_origins=cors_origins,
         allow_methods=["GET", "POST", "PATCH"],
         allow_headers=["X-API-Key", "Content-Type"],
+        # Cookies only cross origin when the allowlist is explicit ('*' + creds
+        # is invalid per the CORS spec; production is same-origin via /api).
+        allow_credentials="*" not in cors_origins,
     )
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RateLimitMiddleware)
@@ -226,18 +253,24 @@ def create_app() -> FastAPI:
     # Outermost: bind a correlation id before anything else runs or logs.
     app.add_middleware(RequestIdMiddleware)
 
-    app.include_router(metrics.router, prefix=PREFIX)
-    app.include_router(hitl.router, prefix=PREFIX)
-    app.include_router(orders.router, prefix=PREFIX)
-    app.include_router(agents.router, prefix=PREFIX)
-    app.include_router(process.router, prefix=PREFIX)
-    app.include_router(alerts.router, prefix=PREFIX)
-    app.include_router(market.router, prefix=PREFIX)
-    app.include_router(risk.router, prefix=PREFIX)
-    app.include_router(backtest.router, prefix=PREFIX)
-    app.include_router(journal.router, prefix=PREFIX)
-    app.include_router(config.router, prefix=PREFIX)
-    app.include_router(trades.router, prefix=PREFIX)
+    # Auth endpoints are public by design (the browser has no credential yet).
+    app.include_router(auth.router, prefix=PREFIX)
+    # Every other router sits behind the principal gate (no-op under
+    # AUTH_MODE=off; rejects anonymous under 'required'; CSRF check for
+    # cookie-authenticated writes) — see src/api/authn.py.
+    guarded = [Depends(require_principal)]
+    app.include_router(metrics.router, prefix=PREFIX, dependencies=guarded)
+    app.include_router(hitl.router, prefix=PREFIX, dependencies=guarded)
+    app.include_router(orders.router, prefix=PREFIX, dependencies=guarded)
+    app.include_router(agents.router, prefix=PREFIX, dependencies=guarded)
+    app.include_router(process.router, prefix=PREFIX, dependencies=guarded)
+    app.include_router(alerts.router, prefix=PREFIX, dependencies=guarded)
+    app.include_router(market.router, prefix=PREFIX, dependencies=guarded)
+    app.include_router(risk.router, prefix=PREFIX, dependencies=guarded)
+    app.include_router(backtest.router, prefix=PREFIX, dependencies=guarded)
+    app.include_router(journal.router, prefix=PREFIX, dependencies=guarded)
+    app.include_router(config.router, prefix=PREFIX, dependencies=guarded)
+    app.include_router(trades.router, prefix=PREFIX, dependencies=guarded)
 
     @app.get("/health", tags=["infra"])
     async def health() -> dict:

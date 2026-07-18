@@ -87,6 +87,32 @@ class TradingLedger:
         """Log human-in-the-loop approval decision."""
         self.log_decision("hitl_approval", {"approved": approved, "order": order, "user": user})
 
+    def log_auth_event(
+        self,
+        event: str,
+        *,
+        actor: str,
+        email: str | None = None,
+        ip: str | None = None,
+        user_agent: str | None = None,
+        success: bool = True,
+        detail: str | None = None,
+    ) -> None:
+        """Append an authentication/security event (A1; the A4 audit-trail feed).
+
+        Event types are ``auth_<event>`` (login, logout, 2fa_enabled,
+        password_reset, session_refresh_reuse, ...). Names are STABLE — the A4
+        audit screen will filter on them; carry actor + IP + user-agent so the
+        audit detail view works with no schema change.
+        """
+        self.log_decision(
+            f"auth_{event}",
+            {
+                "actor": actor, "email": email, "ip": ip,
+                "user_agent": user_agent, "success": success, "detail": detail,
+            },
+        )
+
     def log_process_event(
         self,
         case_id: str,

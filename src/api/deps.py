@@ -96,11 +96,26 @@ def get_metrics_calculator() -> PortfolioMetricsCalculator:
     return PortfolioMetricsCalculator(get_ledger(), initial_capital=_initial_capital())
 
 
+@lru_cache(maxsize=1)
+def get_user_store():
+    from src.auth.store import UserStore
+
+    return UserStore()
+
+
+@lru_cache(maxsize=1)
+def get_session_store():
+    from src.auth.store import SessionStore
+
+    return SessionStore()
+
+
 def reset_singletons() -> None:
     """Clear cached singletons (used by tests to inject fresh state)."""
     for fn in (
         get_ledger, get_alert_store, get_alert_bus, get_hitl_store,
         get_order_store, get_agent_registry, get_exchange_client,
+        get_user_store, get_session_store,
     ):
         fn.cache_clear()
 

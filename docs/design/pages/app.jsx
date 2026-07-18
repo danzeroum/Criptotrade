@@ -150,7 +150,41 @@ function App() {
   const [showTweaks,   setShowTweaks]   = useState(false);
   const [alertCount,   setAlertCount]   = useState(CT.alerts?.length ?? 0);
   const [toasts,       setToasts]       = useState([]);
+  // A1 auth gate: 'loading' → probe /v1/auth/me; 'login' → auth screens instead
+  // of the shell; 'ready' → shell (kind 'off'/'user'/'demo'). Locked = overlay.
+  const [auth,   setAuth]   = useState(() => CT_AUTH.state());
+  const [booted, setBooted] = useState(false);
+  const [locked, setLocked] = useState(false);
   const toastId = useRef(0);
+
+  useEffect(() => {
+    // Subscribe BEFORE loading: the mock branch of load() emits synchronously,
+    // so a late subscription would miss the initial state.
+    const unsub = CT_AUTH.subscribe(setAuth);
+    CT_AUTH.load().then((s) => { setAuth(s); setBooted(true); });
+    return unsub;
+  }, []);
+
+  // Inactivity lock (A1) — ONLY for real user sessions: the public demo has no
+  // password to unlock with, so it never arms the timer (kiosk-safe).
+  useEffect(() => {
+    if (auth.kind !== 'user') return;
+    let timer;
+    const arm = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => setLocked(true), 15 * 60 * 1000);
+    };
+    const events = ['mousemove', 'keydown', 'click', 'visibilitychange'];
+    events.forEach(e => window.addEventListener(e, arm, { passive: true }));
+    arm();
+    const onExpired = () => setLocked(true);
+    window.addEventListener('ct:auth-expired', onExpired);
+    return () => {
+      clearTimeout(timer);
+      events.forEach(e => window.removeEventListener(e, arm));
+      window.removeEventListener('ct:auth-expired', onExpired);
+    };
+  }, [auth.kind]);
 
   const addToast = useCallback((message, icon = 'bell') => {
     const id = ++toastId.current;
@@ -172,8 +206,13 @@ function App() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
+  // Both live-data effects are gated on the auth boot so nothing hits the API
+  // (and 401s) before the session state is known.
+  const authReady = booted && auth.kind !== 'anonymous';
+
   // Poll pending orders count for sidebar badge
   useEffect(() => {
+    if (!authReady) return;
     const tick = () => {
       CT_API.getOrders(200, 0, '&status=pending')
         .then(d => setPendingCount(Array.isArray(d) ? d.length : 0))
@@ -182,10 +221,11 @@ function App() {
     tick();
     const timer = setInterval(tick, 15000);
     return () => clearInterval(timer);
-  }, []);
+  }, [authReady]);
 
   // SSE for alerts — add toast on critical
   useEffect(() => {
+    if (!authReady) return;
     const es = CT_API.subscribeAlerts((alert) => {
       setAlertCount(n => n + 1);
       if (alert.severity === 'critical' || alert.severity === 'high') {
@@ -193,9 +233,21 @@ function App() {
       }
     }, () => {});
     return () => es?.close?.();
-  }, [addToast]);
+  }, [addToast, authReady]);
 
   const ActiveScreen = SCREENS[screen] ?? ScreenOverview;
+
+  // ---- A1 gate: probe → login → shell ----
+  if (!booted) {
+    return <div style={{ display: 'grid', placeItems: 'center', height: '100vh' }}>
+      <LoadingState label="Carregando…" />
+    </div>;
+  }
+  if (auth.kind === 'anonymous') {
+    const resetMatch = window.location.hash.match(/^#reset\/(.+)$/);
+    return <LoginScreen resetToken={resetMatch?.[1]}
+      onAuthed={() => CT_AUTH.load()} />;
+  }
 
   return (
     <div className="app">
@@ -204,7 +256,11 @@ function App() {
         <Header
           onToggleAlerts={() => setShowAlerts(v => !v)}
           alertCount={alertCount}
+          auth={auth}
+          onLock={() => setLocked(true)}
+          onLogout={() => CT_AUTH.logout()}
         />
+        {auth.kind === 'demo' && <DemoBanner />}
         <div className="content">
           <div className="content-inner screen-enter">
             <ErrorBoundary key={screen}>
@@ -216,6 +272,11 @@ function App() {
 
       {showAlerts && <AlertDrawer onClose={() => { setShowAlerts(false); setAlertCount(0); }} />}
       {showTweaks && <TweaksPanel onClose={() => setShowTweaks(false)} />}
+      {locked && auth.kind === 'user' && (
+        <LockScreen user={auth.user}
+          onUnlocked={() => { setLocked(false); CT_AUTH.load(); }}
+          onLogout={() => { setLocked(false); CT_AUTH.logout(); }} />
+      )}
 
       <ToastContainer toasts={toasts} />
 

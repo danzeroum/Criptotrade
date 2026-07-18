@@ -572,4 +572,54 @@ __all__ = [
     "JournalEntryCreate", "JournalEntryOut", "EmotionBand", "JournalMetricsOut",
     # config
     "ConfigOut", "ConfigPatch", "AlertsConfigPatch",
+    # auth (A1)
+    "LoginIn", "TwoFactorVerifyIn", "ForgotPasswordIn", "ResetPasswordIn",
+    "TwoFactorEnableIn", "TwoFactorDisableIn", "AuthUserOut", "MeOut",
 ]
+
+
+# ---------------------------------------------------------------- auth (A1)
+class LoginIn(BaseModel):
+    email: str
+    password: str
+    remember: bool = False
+
+
+class TwoFactorVerifyIn(BaseModel):
+    challenge: str
+    code: str
+    remember: bool = False
+
+
+class ForgotPasswordIn(BaseModel):
+    email: str
+
+
+class ResetPasswordIn(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8)
+
+
+class TwoFactorEnableIn(BaseModel):
+    code: str
+
+
+class TwoFactorDisableIn(BaseModel):
+    password: str
+
+
+class AuthUserOut(BaseModel):
+    id: str
+    email: str
+    name: Optional[str] = None
+    role: str
+    totp_enabled: bool = False
+
+
+class MeOut(BaseModel):
+    """Console boot probe: auth mode + who (if anyone) is logged in."""
+
+    mode: str                       # off | demo | required
+    authenticated: bool
+    user: Optional[AuthUserOut] = None
+    permissions: List[str] = []

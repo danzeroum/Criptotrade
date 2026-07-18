@@ -39,6 +39,8 @@ window.fmtCompact = fmtCompact;
 
 // ---- Icon (inline SVG paths via name) ----
 const ICONS = {
+  lock:      'M19 11H5a2 2 0 00-2 2v7a2 2 0 002 2h14a2 2 0 002-2v-7a2 2 0 00-2-2zM7 11V7a5 5 0 0110 0v4',
+  logout:    'M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4m7 14l5-5-5-5m5 5H9',
   alert:     'M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z',
   check:     'M20 6L9 17l-5-5',
   x:         'M18 6L6 18M6 6l12 12',

@@ -48,12 +48,13 @@ window.Sidebar = Sidebar;
 
 // fmtPrice now lives in components.jsx (window.fmtPrice) — single source of truth (M7).
 
-function Header({ onToggleAlerts, alertCount }) {
+function Header({ onToggleAlerts, alertCount, auth, onLock, onLogout }) {
   const mock = !!window.USE_MOCK_DATA;
   const [health, setHealth] = useState(null);
   const [hitl, setHitl] = useState(null);
   const [pair, setPair] = useState(CT_PAIR.get());
   const [ticker, setTicker] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     CT_API.getHealth()
@@ -118,6 +119,41 @@ function Header({ onToggleAlerts, alertCount }) {
             }} />
           )}
         </Btn>
+
+        {/* A1: user menu. Hidden when auth is disabled; "Entrar" in demo mode
+            (lets the owner elevate to a real session on the public instance). */}
+        {auth && auth.kind === 'user' && (
+          <div style={{ position: 'relative' }}>
+            <button className="user-chip" onClick={() => setMenuOpen(v => !v)}
+              aria-haspopup="menu" aria-expanded={menuOpen} data-testid="user-menu">
+              {(auth.user?.name ?? auth.user?.email ?? '?').slice(0, 2).toUpperCase()}
+            </button>
+            {menuOpen && (
+              <div className="user-menu" role="menu">
+                <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{auth.user?.name ?? auth.user?.email}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>
+                    {auth.user?.email} · {auth.user?.role}
+                  </div>
+                </div>
+                <button className="user-menu-item" role="menuitem"
+                  onClick={() => { setMenuOpen(false); onLock?.(); }}>
+                  <Icon name="lock" size={13} /> Bloquear tela
+                </button>
+                <button className="user-menu-item" role="menuitem"
+                  onClick={() => { setMenuOpen(false); onLogout?.(); }}>
+                  <Icon name="logout" size={13} /> Sair
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {auth && auth.kind === 'demo' && (
+          <Btn variant="ghost" size="sm" onClick={() => { CT_AUTH.apply({ mode: 'required', authenticated: false }); }}
+            data-tip="Entrar com uma conta real (o modo demonstração continua público)">
+            Entrar
+          </Btn>
+        )}
       </div>
     </header>
   );
