@@ -2481,6 +2481,11 @@
       },
       "LevelsOut": {
         "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
           "fib": {
             "items": {
               "type": "number"
@@ -3604,6 +3609,11 @@
       "TickerOut": {
         "description": "Current price + 24h stats, derived from OHLCV (dry-run = synthetic).",
         "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
           "change_24h_pct": {
             "title": "Change 24H Pct",
             "type": "number"
@@ -3688,6 +3698,11 @@
       },
       "VolumeProfileOut": {
         "properties": {
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
           "bins": {
             "items": {
               "$ref": "#/components/schemas/VolumeProfileBin"

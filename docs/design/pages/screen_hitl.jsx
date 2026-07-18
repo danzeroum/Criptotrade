@@ -23,7 +23,7 @@ function ConfidenceBreakdown({ breakdown }) {
   );
 }
 
-function PendingOrderCard({ order, onDecide }) {
+function PendingOrderCard({ order, onDecide, highlight = false }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   // Two-step confirmation on financial actions (mirrors the paper-order confirm
@@ -38,7 +38,10 @@ function PendingOrderCard({ order, onDecide }) {
   };
 
   return (
-    <div className="card" style={{ marginBottom: 12 }}>
+    <div className="card" style={{
+      marginBottom: 12,
+      ...(highlight ? { outline: '2px solid var(--warn)', outlineOffset: -1 } : {}),
+    }}>
       <div className="card-head">
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
           <Badge variant={order.side === 'buy' ? 'ok' : 'down'}>
@@ -47,6 +50,7 @@ function PendingOrderCard({ order, onDecide }) {
           <span style={{ fontFamily: 'var(--mono)', fontWeight: 600, fontSize: 14 }}>{order.pair}</span>
           <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>{order.strategy}</span>
           {order.critical && <Badge variant="down">CRÍTICO</Badge>}
+          {highlight && <Badge variant="warn">vindo do Mercado</Badge>}
         </div>
         <Badge variant="neutral" dot={false}>
           {Math.round((order.confidence ?? 0) * 100)}% confiança
@@ -144,6 +148,14 @@ function ScreenHITL({ addToast }) {
   const [orders, setOrders] = useState(mock ? mockOrders : []);
   const [loading, setLoading] = useState(!mock);
   const [error, setError] = useState(null);
+  // M2: pair handed over by Mercado's "Ver no HITL" — highlight its orders once.
+  const [focusPair] = useState(() => {
+    try {
+      const p = sessionStorage.getItem('ct.hitl.focus');
+      if (p) sessionStorage.removeItem('ct.hitl.focus');
+      return p || null;
+    } catch (_) { return null; }
+  });
 
   const load = useCallback(() => {
     if (mock) return;
@@ -258,7 +270,8 @@ function ScreenHITL({ addToast }) {
             <EmptyState label="Nenhuma ordem pendente" sub="Todas as ordens foram processadas" />
           ) : (
             pending.map(order => (
-              <PendingOrderCard key={order.id} order={order} onDecide={decide} />
+              <PendingOrderCard key={order.id} order={order} onDecide={decide}
+                highlight={focusPair != null && order.pair === focusPair} />
             ))
           )}
         </div>

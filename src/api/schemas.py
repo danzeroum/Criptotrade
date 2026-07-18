@@ -229,6 +229,8 @@ class TickerOut(BaseModel):
     change_24h_pct: float
     high_24h: float
     low_24h: float
+    # Freshness anchor (last candle time, UTC) so the UI can show "atualizado há Xs".
+    as_of: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class MacdOut(BaseModel):
@@ -290,6 +292,7 @@ class LevelsOut(BaseModel):
     support: List[SRLevelOut]
     resistance: List[SRLevelOut]
     fib: List[float]
+    as_of: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class VolumeProfileBin(BaseModel):
@@ -304,6 +307,7 @@ class VolumeProfileOut(BaseModel):
     val: float
     lvn: List[float]
     bins: List[VolumeProfileBin]
+    as_of: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class PatternOut(BaseModel):

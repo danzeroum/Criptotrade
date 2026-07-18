@@ -1273,6 +1273,11 @@ export interface components {
         };
         /** LevelsOut */
         LevelsOut: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of?: string;
             /** Fib */
             fib: number[];
             /** Resistance */
@@ -1675,6 +1680,11 @@ export interface components {
          * @description Current price + 24h stats, derived from OHLCV (dry-run = synthetic).
          */
         TickerOut: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of?: string;
             /** Change 24H Pct */
             change_24h_pct: number;
             /** High 24H */
@@ -1704,6 +1714,11 @@ export interface components {
         };
         /** VolumeProfileOut */
         VolumeProfileOut: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of?: string;
             /** Bins */
             bins: components["schemas"]["VolumeProfileBin"][];
             /** Lvn */

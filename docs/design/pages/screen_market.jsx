@@ -315,7 +315,7 @@ function ScreenMarket({ navigate, addToast } = {}) {
           <div className="card-head">
             <span className="card-title"><Icon name="candle" />{effPair} · {tf}</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <FreshnessBadge asOf={signal?.as_of ?? indicators?.as_of ?? regime?.as_of} />
+              <FreshnessBadge asOf={ticker?.as_of ?? signal?.as_of ?? indicators?.as_of ?? regime?.as_of} />
               <Btn variant={showBB ? '' : 'ghost'} size="sm" onClick={() => setShowBB(v => !v)}
                 aria-pressed={showBB} aria-label="Alternar Bandas de Bollinger">
                 BB
@@ -418,7 +418,11 @@ function ScreenMarket({ navigate, addToast } = {}) {
                 </div>
               )}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
-                <Btn variant="primary" size="sm" onClick={() => navigate?.('hitl')}>Ver no HITL</Btn>
+                <Btn variant="primary" size="sm" onClick={() => {
+                  // M2: carry the signal context so HITL highlights this pair's orders.
+                  try { sessionStorage.setItem('ct.hitl.focus', effPair); } catch (_) { /* private mode */ }
+                  navigate?.('hitl');
+                }}>Ver no HITL</Btn>
                 {signal.action !== 'hold' && signal.stop != null && (
                   ordering ? (
                     <>
