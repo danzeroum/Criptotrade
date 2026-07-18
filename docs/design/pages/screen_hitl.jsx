@@ -65,9 +65,9 @@ function PendingOrderCard({ order, onDecide, highlight = false }) {
         <div className="grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)', marginBottom: 12, gap: 0 }}>
           {[
             { label: 'Quantidade', value: String(order.quantity) },
-            { label: 'Preço', value: `$${(order.price ?? 0).toLocaleString('en', { minimumFractionDigits: 2 })}` },
-            { label: 'Nocional', value: `$${(order.notional ?? 0).toLocaleString('en', { minimumFractionDigits: 2 })}` },
-            { label: 'Stop Loss', value: order.stop_loss ? `$${order.stop_loss.toLocaleString('en', { minimumFractionDigits: 2 })}` : '—', color: 'var(--down)' },
+            { label: 'Preço', value: fmtUsd(order.price ?? 0) },
+            { label: 'Nocional', value: fmtUsd(order.notional ?? 0) },
+            { label: 'Stop Loss', value: order.stop_loss ? fmtUsd(order.stop_loss) : '—', color: 'var(--down)' },
             { label: 'R/R', value: order.rr ? `${order.rr}×` : '—', color: order.rr >= 2.5 ? 'var(--up)' : 'var(--warn)' },
           ].map(cell => (
             <div key={cell.label}>
@@ -342,7 +342,7 @@ function ScreenHITL({ addToast }) {
                         {lv.description}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>
-                        ${(lv.threshold_usdt ?? 0).toLocaleString('en')} limite
+                        {fmtUsd(lv.threshold_usdt ?? 0, 0)} limite
                       </div>
                     </div>
                   </button>

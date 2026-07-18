@@ -299,10 +299,10 @@ function ScreenMarket({ navigate, addToast } = {}) {
           <KPI label="Variação 24h" value={mock ? sym?.change24h : ticker?.change_24h_pct} format="pct_direct" delta={mock ? sym?.change24h : ticker?.change_24h_pct} icon="trending" />
         </div>
         <div className="card">
-          <KPI label="RSI" value={ind?.rsi?.toFixed(1)} sub={ind?.rsi < 30 ? 'Sobrevendido' : ind?.rsi > 70 ? 'Sobrecomprado' : 'Neutro'} />
+          <KPI label="RSI" value={ind?.rsi != null ? fmtNum(ind.rsi, 1) : null} sub={ind?.rsi < 30 ? 'Sobrevendido' : ind?.rsi > 70 ? 'Sobrecomprado' : 'Neutro'} />
         </div>
         <div className="card">
-          <KPI label="ATR" value={ind?.atr?.toFixed(0)} sub={`${ind?.atr_pct?.toFixed(2)}% do preço`} icon="activity" />
+          <KPI label="ATR" value={ind?.atr != null ? fmtNum(ind.atr, 0) : null} sub={`${fmtNum(ind?.atr_pct)}% do preço`} icon="activity" />
         </div>
         <div className="card">
           <KPI label="Estratégia ativa" value={regime?.active_strategy ?? '—'} />
@@ -426,7 +426,7 @@ function ScreenMarket({ navigate, addToast } = {}) {
                       ))}
                       {signal.valid_until && (
                         <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>
-                          válido até {new Date(signal.valid_until).toLocaleTimeString('pt-BR')}
+                          válido até {fmtTime(signal.valid_until)}
                         </div>
                       )}
                     </div>
@@ -478,7 +478,7 @@ function ScreenMarket({ navigate, addToast } = {}) {
                         {s.trend === 'unknown' ? '—' : s.trend === 'bullish' ? '▲ alta' : '▼ baixa'}
                       </Badge>
                     </div>
-                    <div className="stat-row"><span className="stat-k">RSI</span><span className="stat-v">{s.rsi != null ? s.rsi.toFixed(1) : '—'}</span></div>
+                    <div className="stat-row"><span className="stat-k">RSI</span><span className="stat-v">{s.rsi != null ? fmtNum(s.rsi, 1) : '—'}</span></div>
                     <div className="stat-row"><span className="stat-k">Regime</span><span className="stat-v">{REGIME_LABEL[s.regime] ?? s.regime}</span></div>
                     {div && (
                       <div style={{ marginTop: 6 }}>
@@ -503,15 +503,15 @@ function ScreenMarket({ navigate, addToast } = {}) {
           <div className="card-pad">
             <DataState empty={!ind} emptyLabel="Sem dados">{ind && (
               <>
-                <IndicatorRow label="RSI 14" value={`${ind.rsi < 30 ? '▲ ' : ind.rsi > 70 ? '▼ ' : ''}${ind.rsi?.toFixed(1)}`} variant={ind.rsi < 30 ? 'up' : ind.rsi > 70 ? 'down' : ''} />
-                <IndicatorRow label="MACD" value={`${(ind.macd?.hist ?? 0) >= 0 ? '▲' : '▼'} ${ind.macd?.macd?.toFixed(1)}`} variant={(ind.macd?.hist ?? 0) >= 0 ? 'up' : 'down'} />
-                <IndicatorRow label="MACD Signal" value={ind.macd?.signal?.toFixed(1)} />
-                <IndicatorRow label="Stoch %K" value={ind.stoch?.k?.toFixed(1)} />
-                <IndicatorRow label="BB %B" value={ind.bb?.pct_b?.toFixed(2)} />
+                <IndicatorRow label="RSI 14" value={`${ind.rsi < 30 ? '▲ ' : ind.rsi > 70 ? '▼ ' : ''}${fmtNum(ind.rsi, 1)}`} variant={ind.rsi < 30 ? 'up' : ind.rsi > 70 ? 'down' : ''} />
+                <IndicatorRow label="MACD" value={`${(ind.macd?.hist ?? 0) >= 0 ? '▲' : '▼'} ${fmtNum(ind.macd?.macd, 1)}`} variant={(ind.macd?.hist ?? 0) >= 0 ? 'up' : 'down'} />
+                <IndicatorRow label="MACD Signal" value={fmtNum(ind.macd?.signal, 1)} />
+                <IndicatorRow label="Stoch %K" value={fmtNum(ind.stoch?.k, 1)} />
+                <IndicatorRow label="BB %B" value={fmtNum(ind.bb?.pct_b)} />
                 <IndicatorRow label="EMA 9" value={fmtUsd(ind.ema9, 0)} />
                 <IndicatorRow label="EMA 21" value={fmtUsd(ind.ema21, 0)} />
                 <IndicatorRow label="SMA 200" value={fmtUsd(ind.sma200, 0)} />
-                <IndicatorRow label="Vol ratio" value={ind.volume_ratio?.toFixed(2)} />
+                <IndicatorRow label="Vol ratio" value={fmtNum(ind.volume_ratio)} />
                 <IndicatorRow label="OBV trend" value={ind.obv_trend === 1 ? 'Acumulação' : 'Distribuição'} variant={ind.obv_trend === 1 ? 'up' : 'down'} />
               </>
             )}</DataState>
@@ -634,7 +634,7 @@ function ScreenMarket({ navigate, addToast } = {}) {
                   <span>No regime há <b style={{ color: 'var(--ink)' }}>{regime.bars_in_regime}</b> candles</span>
                 )}
                 {regime.since && (
-                  <span>desde <b style={{ color: 'var(--ink)' }}>{new Date(regime.since).toLocaleString('pt-BR')}</b></span>
+                  <span>desde <b style={{ color: 'var(--ink)' }}>{fmtDateTime(regime.since)}</b></span>
                 )}
                 {regime.last_transition && (
                   <span>última transição <b style={{ color: 'var(--ink)', fontFamily: 'var(--mono)' }}>{regime.last_transition}</b></span>

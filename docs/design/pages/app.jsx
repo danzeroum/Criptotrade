@@ -18,6 +18,7 @@ const SCREENS = {
   users:         ScreenUsers,
   audit:         ScreenAudit,
   security:      ScreenSecurity,
+  account:       ScreenAccount,
 };
 
 // ---- Error boundaries (A9) ----
@@ -194,6 +195,11 @@ function App() {
     return unsub;
   }, []);
 
+  // A2: preference changes re-render the whole tree — the central formatting
+  // helpers read CT_PREFS at call time, so a render pass is all it takes.
+  const [, setPrefsRev] = useState(0);
+  useEffect(() => CT_PREFS.subscribe(() => setPrefsRev(n => n + 1)), []);
+
   // Inactivity lock (A1) — ONLY for real user sessions: the public demo has no
   // password to unlock with, so it never arms the timer (kiosk-safe).
   useEffect(() => {
@@ -270,7 +276,7 @@ function App() {
   const ROUTE_PERMS = { users: 'manage_users', audit: 'view_audit' };
   // A7: self-service screens need a real authenticated session (kind 'user'),
   // which is a different gate than a role permission.
-  const USER_ONLY_ROUTES = ['security'];
+  const USER_ONLY_ROUTES = ['security', 'account'];
   const deniedPerm = ROUTE_PERMS[screen] && !CT_AUTH.can(ROUTE_PERMS[screen])
     ? ROUTE_PERMS[screen] : null;
   const denied = deniedPerm
@@ -304,6 +310,7 @@ function App() {
           auth={auth}
           onLock={() => setLocked(true)}
           onLogout={() => CT_AUTH.logout()}
+          onNavigate={navigate}
         />
         {auth.kind === 'demo' && <DemoBanner />}
         <div className="content">

@@ -110,6 +110,38 @@ class UserStore:
                 "UPDATE users SET last_login_at = ? WHERE id = ?", (_iso(_now()), user_id)
             )
 
+    # ------------------------------------------------------------ account (A2)
+    def update_profile(self, user_id: str, **fields: Any) -> None:
+        """Update the self-editable profile columns (name/job_title/avatar_color).
+        Only keys present in ``fields`` are touched; e-mail is deliberately NOT
+        editable here (login identity — change flow deferred)."""
+        allowed = {k: v for k, v in fields.items()
+                   if k in ("name", "job_title", "avatar_color")}
+        if not allowed:
+            return
+        sets = ", ".join(f"{k} = ?" for k in allowed)
+        with connection(self._path()) as conn:
+            conn.execute(
+                f"UPDATE users SET {sets} WHERE id = ?", (*allowed.values(), user_id)
+            )
+
+    def get_prefs(self, user_id: str) -> Dict[str, Any]:
+        with connection(self._path()) as conn:
+            r = conn.execute("SELECT prefs FROM users WHERE id = ?", (user_id,)).fetchone()
+        if r is None or not r["prefs"]:
+            return {}
+        try:
+            return json.loads(r["prefs"])
+        except (ValueError, TypeError):
+            return {}
+
+    def set_prefs(self, user_id: str, prefs: Dict[str, Any]) -> None:
+        with connection(self._path()) as conn:
+            conn.execute(
+                "UPDATE users SET prefs = ? WHERE id = ?",
+                (json.dumps(prefs, ensure_ascii=False), user_id),
+            )
+
     # ------------------------------------------------------------------- 2FA
     def set_totp(self, user_id: str, secret_enc: Optional[str], enabled: bool,
                  backup_hashes: Optional[list] = None) -> None:

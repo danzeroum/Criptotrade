@@ -43,7 +43,7 @@ function JournalEntryRow({ entry }) {
         {followed ? <Badge variant="ok" dot={false}>Sim</Badge> : <Badge variant="warn" dot={false}>Não</Badge>}
       </td>
       <td className="num" style={{ color: pnlColor, fontWeight: 500 }}>
-        {pnl > 0 ? '+' : ''}{pnl?.toFixed(2)}%
+        {pnl > 0 ? '+' : ''}{fmtNum(pnl)}%
       </td>
       <td style={{ fontSize: 11.5, color: 'var(--ink-3)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {entry.note}
@@ -286,7 +286,7 @@ function ScreenJournal({ addToast }) {
                   </div>
                   <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 6 }}>Emoção {b.band}</div>
                   <div style={{ fontFamily: 'var(--mono)', fontSize: 22, fontWeight: 600, marginTop: 4 }}>
-                    {((b.win_rate ?? b.winRate ?? 0) * 100).toFixed(0)}%
+                    {fmtNum((b.win_rate ?? b.winRate ?? 0) * 100, 0)}%
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{b.trades} trades</div>
                   <div style={{ marginTop: 8 }}>

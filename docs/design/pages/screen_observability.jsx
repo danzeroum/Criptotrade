@@ -76,7 +76,7 @@ function ScreenObservability() {
         <div className="grid kpi-row" style={{ marginBottom: 20 }}>
           <div className="card"><KPI label="Ciclos registrados" value={cycles.length} format="int" icon="refresh" /></div>
           <div className="card"><KPI label="Falhas" value={cycles.filter(r => r.status === 'failed').length} format="int" icon="alert" /></div>
-          <div className="card"><KPI label="Duração média" value={avgMs == null ? 'Sem dados' : `${(avgMs / 1000).toFixed(2)}s`} icon="clock" /></div>
+          <div className="card"><KPI label="Duração média" value={avgMs == null ? 'Sem dados' : `${fmtNum(avgMs / 1000)}s`} icon="clock" /></div>
           <div className="card">
             <KPI label="Último ciclo" value={_ago(lastTs)} sub={isActive ? 'loop ativo' : 'sem atividade recente'} icon="activity" />
           </div>
@@ -106,7 +106,7 @@ function ScreenObservability() {
                     <td style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: 'var(--ink-3)' }}>{r.caseId}</td>
                     <td><Badge variant={r.isCycle ? 'violet' : 'info'} dot={false}>{r.isCycle ? 'Ciclo' : 'Ordem'}</Badge></td>
                     <td style={{ fontFamily: 'var(--mono)', fontSize: 11.5, whiteSpace: 'nowrap' }}>{(r.start ?? '').substring(11, 19)}</td>
-                    <td className="num">{r.durationMs == null ? '—' : `${(r.durationMs / 1000).toFixed(2)}s`}</td>
+                    <td className="num">{r.durationMs == null ? '—' : `${fmtNum(r.durationMs / 1000)}s`}</td>
                     <td style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>
                       {r.isCycle && r.ran.length ? r.ran.join(' · ') : r.activities.join(' → ')}
                     </td>

@@ -56,8 +56,8 @@ function ScreenOverview() {
   useEffect(() => { load(); }, [scope, period, mock]);
 
   // Honest formatting: null ≠ 0 → "Sem dados".
-  const ratio = (v) => (v == null ? 'Sem dados' : (+v).toFixed(2));
-  const pct = (v) => (v == null ? 'Sem dados' : `${(+v * 100).toFixed(1)}%`);
+  const ratio = (v) => (v == null ? 'Sem dados' : fmtNum(v));
+  const pct = (v) => (v == null ? 'Sem dados' : `${fmtNum(+v * 100, 1)}%`);
 
   let body;
   if (mock) {
@@ -107,7 +107,7 @@ function ScreenOverview() {
                     <span style={{ fontFamily: 'var(--mono)', fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.pair}</span>
                   </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span className="stat-v" style={{ fontSize: 12 }}>${(o.notional ?? 0).toLocaleString('en', { maximumFractionDigits: 0 })}</span>
+                    <span className="stat-v" style={{ fontSize: 12 }}>{fmtUsd(o.notional ?? 0, 0)}</span>
                     <Badge variant={O_STATUS[o.status] ?? 'neutral'} dot={false}>{o.status}</Badge>
                   </span>
                 </div>

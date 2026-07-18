@@ -144,13 +144,13 @@ function ScreenOrders() {
                     </Badge>
                   </td>
                   <td className="num">{o.quantity}</td>
-                  <td className="num">${(o.price ?? 0).toLocaleString('en', { minimumFractionDigits: 2 })}</td>
-                  <td className="num">${(o.notional ?? 0).toLocaleString('en', { minimumFractionDigits: 2 })}</td>
+                  <td className="num">{fmtUsd(o.price ?? 0)}</td>
+                  <td className="num">{fmtUsd(o.notional ?? 0)}</td>
                   <td className="num" style={{ color: 'var(--down)' }}>
-                    {o.stop_loss ? `$${o.stop_loss.toLocaleString('en', { minimumFractionDigits: 2 })}` : '—'}
+                    {o.stop_loss ? fmtUsd(o.stop_loss) : '—'}
                   </td>
                   <td className="num" style={{ color: 'var(--up)' }}>
-                    {o.take_profit ? `$${o.take_profit.toLocaleString('en', { minimumFractionDigits: 2 })}` : '—'}
+                    {o.take_profit ? fmtUsd(o.take_profit) : '—'}
                   </td>
                   <td className="num" style={{ fontWeight: 500 }}>
                     {o.rr ? `${o.rr}×` : '—'}

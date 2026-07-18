@@ -12,9 +12,9 @@ function DrawdownRow({ label, value, limit, status, action }) {
         <span style={{ fontSize: 13, fontWeight: 500 }}>{label}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 13 }}>
-            <span className={value < 0 ? 'down' : 'up'}>{value > 0 ? '+' : ''}{value?.toFixed(1)}%</span>
+            <span className={value < 0 ? 'down' : 'up'}>{value > 0 ? '+' : ''}{fmtNum(value, 1)}%</span>
             <span style={{ color: 'var(--ink-4)' }}> / </span>
-            <span style={{ color: 'var(--ink-3)' }}>{limit?.toFixed(0)}%</span>
+            <span style={{ color: 'var(--ink-3)' }}>{fmtNum(limit, 0)}%</span>
           </span>
           <Badge variant={variant}>{status}</Badge>
         </div>
@@ -152,19 +152,19 @@ function ScreenRisk() {
                 <div style={{ marginBottom: 14 }}>
                   <div className="stat-row">
                     <span className="stat-k">Win rate</span>
-                    <span className="stat-v">{(kelly.win_rate * 100).toFixed(1)}%</span>
+                    <span className="stat-v">{fmtNum(kelly.win_rate * 100, 1)}%</span>
                   </div>
                   <div className="stat-row">
                     <span className="stat-k">Ganho médio</span>
-                    <span className="stat-v up">+{kelly.avg_win_pct?.toFixed(2)}%</span>
+                    <span className="stat-v up">+{fmtNum(kelly.avg_win_pct)}%</span>
                   </div>
                   <div className="stat-row">
                     <span className="stat-k">Perda média</span>
-                    <span className="stat-v down">-{kelly.avg_loss_pct?.toFixed(2)}%</span>
+                    <span className="stat-v down">-{fmtNum(kelly.avg_loss_pct)}%</span>
                   </div>
                   <div className="stat-row">
                     <span className="stat-k">Full Kelly f*</span>
-                    <span className="stat-v">{(kelly.full_kelly * 100).toFixed(1)}%</span>
+                    <span className="stat-v">{fmtNum(kelly.full_kelly * 100, 1)}%</span>
                   </div>
                   <div className="stat-row">
                     <span className="stat-k">Trades amostrados</span>
@@ -176,16 +176,16 @@ function ScreenRisk() {
                   borderRadius: 'var(--r)', marginBottom: 12,
                 }}>
                   <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginBottom: 4 }}>
-                    Kelly Fracionado ({(kelly.fraction * 100).toFixed(0)}× redução)
+                    Kelly Fracionado ({fmtNum(kelly.fraction * 100, 0)}× redução)
                   </div>
                   <div style={{ fontFamily: 'var(--mono)', fontSize: 26, fontWeight: 600, lineHeight: 1 }}>
-                    {(kelly.fractional_kelly * 100).toFixed(1)}%
+                    {fmtNum(kelly.fractional_kelly * 100, 1)}%
                   </div>
                   <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 4 }}>por trade</div>
                 </div>
                 {riskOfRuinHigh && (
                   <Badge variant="down">
-                    <Icon name="alert" size={11} /> Risco de ruína {kelly.risk_of_ruin?.toFixed(1)}% ≥ 5%
+                    <Icon name="alert" size={11} /> Risco de ruína {fmtNum(kelly.risk_of_ruin, 1)}% ≥ 5%
                   </Badge>
                 )}
               </>

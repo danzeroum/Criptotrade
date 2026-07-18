@@ -6,12 +6,16 @@
 
 const { useState, useEffect, useRef } = React;
 
-// ---- Number formatting (M7) — single source of truth, en-US convention ----
+// ---- Formatting (M7 + A2) — single source of truth, preference-aware ----
 // Charts used bare toLocaleString() (locale-dependent); screens forced 'en'.
-// These helpers canonicalise on 'en' so every price/number matches.
+// A2: the locale now comes from CT_PREFS ('auto' preserves the M7 en-US
+// canon for numbers and pt-BR for dates), and dates honor the chosen
+// timezone. NEVER format per-screen — always through these helpers (C7).
+const numLocale = () => window.CT_PREFS?.numberLocale() ?? 'en';
+
 function fmtNum(v, dp = 2) {
   if (v === null || v === undefined || Number.isNaN(+v)) return '—';
-  return (+v).toLocaleString('en', { minimumFractionDigits: dp, maximumFractionDigits: dp });
+  return (+v).toLocaleString(numLocale(), { minimumFractionDigits: dp, maximumFractionDigits: dp });
 }
 function fmtUsd(v, dp = 2) {
   if (v === null || v === undefined || Number.isNaN(+v)) return '—';
@@ -21,21 +25,49 @@ function fmtPrice(v) {
   // Majors render as integers; sub-$10 coins (e.g. XRP) keep precision.
   if (v === null || v === undefined || Number.isNaN(+v)) return '—';
   return +v >= 10
-    ? Math.round(+v).toLocaleString('en')
-    : (+v).toLocaleString('en', { maximumFractionDigits: 4 });
+    ? Math.round(+v).toLocaleString(numLocale())
+    : (+v).toLocaleString(numLocale(), { maximumFractionDigits: 4 });
 }
 function fmtCompact(v) {
   // Dense axis labels: 3.4M / 67,667 / 12.34.
   if (v === null || v === undefined || Number.isNaN(+v)) return '–';
   const n = +v;
-  if (Math.abs(n) >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
-  if (Math.abs(n) >= 1e3) return Math.round(n).toLocaleString('en');
-  return n.toFixed(2);
+  if (Math.abs(n) >= 1e6) return `${fmtNum(n / 1e6, 1)}M`;
+  if (Math.abs(n) >= 1e3) return Math.round(n).toLocaleString(numLocale());
+  return fmtNum(n, 2);
+}
+
+// Date/time helpers (A2): locale + timezone come from CT_PREFS; extra Intl
+// options may be passed for presets (e.g. chart axes).
+function _dateOpts(options) {
+  const tz = window.CT_PREFS?.timezone();
+  return tz ? { timeZone: tz, ...options } : { ...options };
+}
+function fmtDateTime(ts, options = {}) {
+  if (!ts) return '—';
+  try {
+    return new Date(ts).toLocaleString(window.CT_PREFS?.dateLocale() ?? 'pt-BR', _dateOpts(options));
+  } catch (_) { return String(ts); }
+}
+function fmtDate(ts, options = {}) {
+  if (!ts) return '—';
+  try {
+    return new Date(ts).toLocaleDateString(window.CT_PREFS?.dateLocale() ?? 'pt-BR', _dateOpts(options));
+  } catch (_) { return String(ts); }
+}
+function fmtTime(ts, options = {}) {
+  if (!ts) return '—';
+  try {
+    return new Date(ts).toLocaleTimeString(window.CT_PREFS?.dateLocale() ?? 'pt-BR', _dateOpts(options));
+  } catch (_) { return String(ts); }
 }
 window.fmtNum = fmtNum;
 window.fmtUsd = fmtUsd;
 window.fmtPrice = fmtPrice;
 window.fmtCompact = fmtCompact;
+window.fmtDateTime = fmtDateTime;
+window.fmtDate = fmtDate;
+window.fmtTime = fmtTime;
 
 // ---- Icon (inline SVG paths via name) ----
 const ICONS = {
@@ -129,12 +161,14 @@ window.Btn = Btn;
 
 // ---- KPI tile ----
 function KPI({ label, value, sub, icon, delta, format = 'plain' }) {
+  // A2: every branch goes through the central preference-aware helpers —
+  // toFixed/toLocaleString('en') here would leak en-US past the user's format.
   const fmtVal = (v) => {
     if (v === null || v === undefined) return '—';
-    if (format === 'pct') return `${(+v * 100).toFixed(2)}%`;
-    if (format === 'pct_direct') return `${(+v).toFixed(2)}%`;
-    if (format === 'usd') return `$${(+v).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    if (format === 'int') return String(Math.round(+v));
+    if (format === 'pct') return `${fmtNum(+v * 100, 2)}%`;
+    if (format === 'pct_direct') return `${fmtNum(+v, 2)}%`;
+    if (format === 'usd') return fmtUsd(v);
+    if (format === 'int') return fmtNum(v, 0);
     return String(v);
   };
   const deltaVariant = delta == null ? '' : delta > 0 ? 'ok' : delta < 0 ? 'down' : 'neutral';
@@ -150,7 +184,7 @@ function KPI({ label, value, sub, icon, delta, format = 'plain' }) {
         <div className="kpi-sub">
           {delta != null && (
             <span className={`badge badge-${deltaVariant}`} style={{ marginRight: 6 }}>
-              {delta > 0 ? '+' : ''}{typeof delta === 'number' ? delta.toFixed(2) : delta}%
+              {delta > 0 ? '+' : ''}{typeof delta === 'number' ? fmtNum(delta, 2) : delta}%
             </span>
           )}
           {sub}
@@ -303,7 +337,7 @@ function FreshnessBadge({ asOf, staleSec = 120 }) {
     : `${Math.floor(ageSec / 3600)}h`;
   return (
     <span className={`badge badge-${stale ? 'warn' : 'neutral'}`}
-      title={`Dados de ${new Date(asOf).toLocaleString('pt-BR')}`}>
+      title={`Dados de ${fmtDateTime(asOf)}`}>
       <Icon name="clock" size={11} />
       {stale ? 'desatualizado há ' : 'atualizado há '}{rel}
     </span>

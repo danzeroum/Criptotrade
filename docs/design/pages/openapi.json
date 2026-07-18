@@ -1117,6 +1117,70 @@
         "title": "APIResponse[PortfolioMetricsOut]",
         "type": "object"
       },
+      "APIResponse_PreferencesOut_": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/PreferencesOut"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[PreferencesOut]",
+        "type": "object"
+      },
+      "APIResponse_ProfileOut_": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/ProfileOut"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[ProfileOut]",
+        "type": "object"
+      },
       "APIResponse_RegimeOut_": {
         "properties": {
           "_links": {
@@ -1852,6 +1916,17 @@
       },
       "AuthUserOut": {
         "properties": {
+          "avatar_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Color"
+          },
           "email": {
             "title": "Email",
             "type": "string"
@@ -3267,6 +3342,17 @@
             "title": "Permissions",
             "type": "array"
           },
+          "prefs": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prefs"
+          },
           "user": {
             "anyOf": [
               {
@@ -3674,6 +3760,25 @@
         "title": "OrderStatus",
         "type": "string"
       },
+      "PasswordChangeIn": {
+        "properties": {
+          "current_password": {
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "minLength": 8,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChangeIn",
+        "type": "object"
+      },
       "PatternOut": {
         "properties": {
           "confidence": {
@@ -3813,6 +3918,98 @@
         "title": "PortfolioMetricsOut",
         "type": "object"
       },
+      "PreferencesOut": {
+        "properties": {
+          "date_locale": {
+            "default": "auto",
+            "title": "Date Locale",
+            "type": "string"
+          },
+          "locale": {
+            "default": "pt-BR",
+            "title": "Locale",
+            "type": "string"
+          },
+          "number_locale": {
+            "default": "auto",
+            "title": "Number Locale",
+            "type": "string"
+          },
+          "timezone": {
+            "default": "auto",
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "title": "PreferencesOut",
+        "type": "object"
+      },
+      "PreferencesPatch": {
+        "additionalProperties": false,
+        "properties": {
+          "date_locale": {
+            "anyOf": [
+              {
+                "enum": [
+                  "auto",
+                  "en-US",
+                  "pt-BR"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Locale"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pt-BR",
+                  "en"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          },
+          "number_locale": {
+            "anyOf": [
+              {
+                "enum": [
+                  "auto",
+                  "en-US",
+                  "pt-BR"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number Locale"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          }
+        },
+        "title": "PreferencesPatch",
+        "type": "object"
+      },
       "ProcessEventOut": {
         "properties": {
           "activity": {
@@ -3843,6 +4040,122 @@
           "timestamp"
         ],
         "title": "ProcessEventOut",
+        "type": "object"
+      },
+      "ProfileOut": {
+        "properties": {
+          "avatar_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Color"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "job_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Title"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "totp_enabled": {
+            "default": false,
+            "title": "Totp Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role"
+        ],
+        "title": "ProfileOut",
+        "type": "object"
+      },
+      "ProfilePatch": {
+        "additionalProperties": false,
+        "description": "Self-editable fields only. ``extra='forbid'`` makes an attempted e-mail\nchange an explicit 422 instead of a silent no-op (deliberate \u2014 A2).",
+        "properties": {
+          "avatar_color": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Color"
+          },
+          "job_title": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Title"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "ProfilePatch",
         "type": "object"
       },
       "ProtectionOut": {
@@ -4828,6 +5141,167 @@
         "summary": "Health",
         "tags": [
           "infra"
+        ]
+      }
+    },
+    "/v1/account/password": {
+      "patch": {
+        "operationId": "change_password_v1_account_password_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_dict_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Troca a senha (exige a atual; desconecta as outras sess\u00f5es)",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/v1/account/preferences": {
+      "get": {
+        "operationId": "get_preferences_v1_account_preferences_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PreferencesOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Minhas prefer\u00eancias de idioma/fuso/formato",
+        "tags": [
+          "account"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_preferences_v1_account_preferences_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreferencesPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PreferencesOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Atualiza prefer\u00eancias (refletem em todo o console)",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/v1/account/profile": {
+      "get": {
+        "operationId": "get_profile_v1_account_profile_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_ProfileOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Meu perfil (e-mail \u00e9 somente leitura)",
+        "tags": [
+          "account"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_profile_v1_account_profile_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfilePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_ProfileOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Atualiza nome/cargo/cor do avatar (e-mail n\u00e3o muda aqui)",
+        "tags": [
+          "account"
         ]
       }
     },
