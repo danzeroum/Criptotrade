@@ -30,6 +30,37 @@ def test_is_llm_enabled_requires_flag_and_key(monkeypatch):
     assert llm_client.is_llm_enabled() is True
 
 
+def test_deepseek_provider_gating_and_defaults(monkeypatch):
+    monkeypatch.setenv("LLM_ENABLED", "true")
+    monkeypatch.setenv("LLM_PROVIDER", "deepseek")
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    monkeypatch.delenv("LLM_MODEL", raising=False)
+    llm_client.reset_llm_client()
+    assert llm_client.is_llm_enabled() is False  # flag on but no DeepSeek key
+
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k-deepseek")
+    llm_client.reset_llm_client()
+    assert llm_client.is_llm_enabled() is True
+    client = llm_client.get_llm_client()
+    assert client is not None
+    assert client.provider == "deepseek"
+    assert client.model == "deepseek-chat"  # -chat, never -reasoner (latency)
+
+
+def test_deepseek_builds_openai_client_against_deepseek_base(monkeypatch):
+    pytest.importorskip("langchain_openai")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k-deepseek")
+    monkeypatch.delenv("DEEPSEEK_BASE_URL", raising=False)
+    chat = llm_client.LLMClient(provider="deepseek")._build_chat()
+    assert chat.model_name == "deepseek-chat"
+    assert chat.openai_api_base == "https://api.deepseek.com"
+
+    # The base URL stays overridable (proxies / compatible gateways).
+    monkeypatch.setenv("DEEPSEEK_BASE_URL", "https://proxy.example/v1")
+    chat = llm_client.LLMClient(provider="deepseek")._build_chat()
+    assert chat.openai_api_base == "https://proxy.example/v1"
+
+
 def test_extract_json_handles_fenced_and_bare():
     assert llm_client._extract_json('{"a": 1}') == {"a": 1}
     fenced = "```json\n{\"confidence\": 0.8, \"thesis\": \"x\"}\n```"

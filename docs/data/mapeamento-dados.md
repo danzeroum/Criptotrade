@@ -48,7 +48,8 @@ Cada dado é marcado por seu papel no fluxo:
 | `APP_ENV` | `"development"` | str, compara `"production"` | `config.py:16`, `api/main.py:67,195`, `routes/config.py:62` |
 | `LOG_LEVEL` | `"INFO"` | str | `config.py:17` |
 | `LOG_FORMAT` | `"text"` | text\|json | `config.py:18` |
-| `GOOGLE_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | `None` | str | `config.py:21-22`, `llm_client.py:51-54` |
+| `GOOGLE_API_KEY` / `DEEPSEEK_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | `None` | str | `config.py:21-22`, `llm_client.py` (`_api_key_for`) |
+| `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | str | `llm_client.py` (`_build_chat`) |
 | `LLM_ENABLED` | `false` | truthy (`1/true/yes/on`) | `llm_client.py:61` |
 | `LLM_PROVIDER` | `"google"` | str | `llm_client.py:47` |
 | `LLM_MODEL` | (default por provider) | str | `llm_client.py:76` |

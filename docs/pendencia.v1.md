@@ -10,16 +10,17 @@
 - [ ] **Ativar a camada de IA (LLM).** O código está pronto e **desligado por
   padrão**. Para ligar em runtime:
   - `LLM_ENABLED=true`
-  - `LLM_PROVIDER=google` (padrão) · `openai` · `anthropic`
-  - chave correspondente: `GOOGLE_API_KEY` (Gemini), `OPENAI_API_KEY`, ou `ANTHROPIC_API_KEY`
+  - `LLM_PROVIDER=google` (padrão) · `deepseek` · `openai` · `anthropic`
+  - chave correspondente: `GOOGLE_API_KEY` (Gemini), `DEEPSEEK_API_KEY`,
+    `OPENAI_API_KEY`, ou `ANTHROPIC_API_KEY`
   - opcional: `LLM_MODEL` (default por provider).
   - Sem chave/flag, o pipeline roda determinístico (sem rede), como hoje.
-  - **Deps opcionais**: `openai`/`anthropic` exigem `langchain-openai` /
-    `langchain-anthropic` instalados (não pinados). Gemini já está pinado.
+  - **Deps**: Gemini e DeepSeek/OpenAI já estão pinados (`langchain-google-genai`,
+    `langchain-openai`); só `anthropic` exige `langchain-anthropic` (não pinado).
 
 - [ ] **Escolha do provider de LLM.** Default = **Gemini** (deps já presentes).
-  Se preferir Claude (Anthropic) ou OpenAI, instalar a lib correspondente e setar
-  `LLM_PROVIDER`. Decisão de custo/qualidade do dono.
+  DeepSeek e OpenAI também prontos (`langchain-openai` pinado); Claude exige a
+  lib correspondente. Setar `LLM_PROVIDER`. Decisão de custo/qualidade do dono.
 
 ## 🟠 Decisões de produto
 

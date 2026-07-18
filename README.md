@@ -157,7 +157,7 @@ print(result["ran"])                     # ex.: ['strategy', 'risk', 'execution'
 |---|---|---|
 | `EXCHANGE_DRY_RUN` | **(obrigatória)** | Fonte de dados: `true` = sintético/offline · `false` = dados reais da exchange |
 | `ORDER_ROUTING` | `paper` | Roteamento de ordens (independente do dado): `paper` = fills simulados · `live` = ordens reais (exige `EXCHANGE_DRY_RUN=false`). "preço real + paper" = `false` + `paper` |
-| `LLM_ENABLED` / `LLM_PROVIDER` / `LLM_MODEL` | `false` / `google` / — | Camada de IA (CoT/Reflection). OFF por padrão → pipeline determinístico/offline; liga com `LLM_ENABLED=true` + chave do provider (`google`/`openai`/`anthropic`) |
+| `LLM_ENABLED` / `LLM_PROVIDER` / `LLM_MODEL` | `false` / `google` / — | Camada de IA (CoT/Reflection). OFF por padrão → pipeline determinístico/offline; liga com `LLM_ENABLED=true` + chave do provider (`google`/`deepseek`/`openai`/`anthropic`). DeepSeek: `DEEPSEEK_API_KEY` (+ `DEEPSEEK_BASE_URL` opcional), modelo default `deepseek-chat` |
 | `DATABASE_URL` | — (SQLite) | `postgresql://user:pass@host/db` ativa o backend **Postgres** do estado compartilhado (escala horizontal). Vazio/`sqlite://` = SQLite local |
 | `DRY_RUN_BASE_PRICE` | `50000` | Preço-base sintético do BTC/USDT (âncora determinística) |
 | `DRY_RUN_BASE_PRICES` | — | Overrides por par (`BTC/USDT=50000,ETH/USDT=3000`); pares não mapeados ganham preço determinístico próprio |

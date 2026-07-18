@@ -16,6 +16,8 @@ streamlit-autorefresh==1.0.1  # dashboard auto-refresh (optional fallback in app
 langchain==0.1.6
 langchain-core==0.1.23
 langchain-google-genai==0.0.6
+# DeepSeek/OpenAI providers (OpenAI-compatible client; DeepSeek usa base_url própria)
+langchain-openai==0.0.6
 
 # Vector Store (OPCIONAL - comentado por padrão)
 # chromadb==0.4.22  # Descomente apenas se precisar de RAG
