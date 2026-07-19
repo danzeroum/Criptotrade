@@ -395,6 +395,7 @@ function loadPairsRich(force) {
       ? Promise.resolve({
           operados: (mockOperated || ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT'])
             .map((s, i) => ({ symbol: s, status: i === 4 ? 'aguardando' : 'operando',
+                              paused: s === 'BNB/USDT',  // N9: one paused pair for the demo/screenshots
                               last_cycle_at: i === 4 ? null : new Date().toISOString() })),
           observaveis: ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT',
                         'ADA/USDT', 'DOGE/USDT', 'AVAX/USDT'],

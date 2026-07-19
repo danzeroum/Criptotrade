@@ -25,9 +25,11 @@ class _StubOrch:
         self.result = result if result is not None else {"success": True, "order_id": "PAPER_1"}
         self.exc = exc
         self.calls = 0
+        self.paused_calls = []  # (symbol, paused) — N9 lets tests assert the flag
 
-    async def analyze_and_trade(self, symbol, timeframe="1h"):
+    async def analyze_and_trade(self, symbol, timeframe="1h", *, paused=False):
         self.calls += 1
+        self.paused_calls.append((symbol, paused))
         if self.exc:
             raise self.exc
         return self.result
@@ -248,3 +250,18 @@ def test_from_env_explicit_symbols_override_env(tmp_path, monkeypatch):
     monkeypatch.setenv("SYMBOLS", "ETH/USDT,SOL/USDT")  # must be ignored
     loop = OrchestratorLoop.from_env(symbols=["BTC/USDT"])
     assert loop.symbols == ["BTC/USDT"]
+
+
+# ------------------------------------------------------------------- N9 paused
+@pytest.mark.asyncio
+async def test_run_cycle_passes_paused_flag_per_symbol(ledger, monkeypatch):
+    # The loop reads the paused set fresh each cycle (one query) and passes a
+    # per-symbol paused flag into analyze_and_trade — pausing without a restart.
+    import src.orchestration.orchestrator_loop as loop_mod
+
+    monkeypatch.setattr(loop_mod, "_paused_symbols", lambda: {"ETH/USDT"})
+    orch = _StubOrch()
+    loop = OrchestratorLoop(orch, AgentRegistry(), ledger,
+                            symbols=["BTC/USDT", "ETH/USDT"], interval_seconds=60)
+    await loop.run_cycle()
+    assert dict(orch.paused_calls) == {"BTC/USDT": False, "ETH/USDT": True}

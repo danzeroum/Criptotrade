@@ -444,6 +444,14 @@ class OperatedPairIn(BaseModel):
     symbol: str = Field(..., max_length=20)
 
 
+class OperatedPairPatch(BaseModel):
+    """Pause/resume an operated pair (N9). Read per cycle by the loop — no restart."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    paused: bool
+
+
 class PairsOut(BaseModel):
     """Dynamic pair source for the selector (N1) — supersedes the flat list.
 
@@ -476,6 +484,9 @@ class DeskRow(BaseModel):
     # Freshness: candle age (market data) and last signal time (bot activity).
     as_of: Optional[datetime] = None
     last_cycle_at: Optional[datetime] = None
+    # N9: paused pairs stay on the Mesa (positions still managed) but open no new
+    # orders. Additive — read per cycle by the loop, surfaced here for the badge.
+    paused: bool = False
 
 
 class DeskSummaryOut(BaseModel):

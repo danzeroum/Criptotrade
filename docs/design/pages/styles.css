@@ -340,7 +340,12 @@ input, select, textarea { font-family: inherit; }
 .desk-row:focus-visible { outline: 2px solid var(--info); outline-offset: -2px; }
 .desk-head { cursor: default; font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); }
 .desk-head:hover { background: transparent; }
-.desk-sym { font-weight: 600; font-family: var(--mono); font-size: 13px; }
+.desk-sym { font-weight: 600; font-family: var(--mono); font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+/* N9: paused pair on the Mesa — muted row + amber accent; positions still managed. */
+.desk-row.paused { background: var(--warn-bg); }
+.desk-row.paused:not(.desk-head):hover { background: var(--warn-bg); }
+.desk-pause-btn { border: none; background: none; cursor: pointer; font-size: 10px; line-height: 1; color: var(--ink-3); opacity: .55; padding: 0 2px; }
+.desk-pause-btn:hover { opacity: 1; color: var(--warn); }
 .desk-chg { margin-left: 8px; font-family: var(--mono); font-size: 12px; }
 .desk-chg.up, .desk-pnl.up { color: var(--up); }
 .desk-chg.down, .desk-pnl.down { color: var(--down); }
@@ -385,6 +390,11 @@ input, select, textarea { font-family: inherit; }
 .pair-tag.on { background: var(--up-bg); color: var(--up); border-color: var(--up-line); }
 .pair-tag-x { border: none; background: none; cursor: pointer; font-size: 15px; line-height: 1; color: inherit; opacity: .6; padding: 0 2px; }
 .pair-tag-x:hover { opacity: 1; }
+/* N9: paused pair — muted warn state; new orders skipped, positions still managed. */
+.pair-tag.paused { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-line); }
+.pair-paused-badge { font-family: var(--sans, inherit); font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 1px 5px; border-radius: 999px; background: var(--warn); color: #fff; cursor: help; }
+.pair-tag-btn { border: none; background: none; cursor: pointer; font-size: 10px; line-height: 1; color: inherit; opacity: .6; padding: 0 2px; }
+.pair-tag-btn:hover { opacity: 1; }
 
 /* screen switch — no entrance animation (kept as a hook; instant + always visible) */
 .screen-enter { }

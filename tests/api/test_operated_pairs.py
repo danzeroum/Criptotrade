@@ -71,3 +71,47 @@ def test_mutations_are_audited_as_config_changed(env):
     r = c.get("/v1/audit?action=config_changed")
     assert r.status_code == 200
     assert any(row["entity"] == "pairs" for row in r.json()["data"])
+
+
+# --------------------------------------------------------------------- N9 pause
+
+
+def test_patch_pauses_and_resumes(env):
+    OperatedPairStore().add("ETH/USDT")
+    c = TestClient(create_app())
+    # Pause — flag persists and is surfaced by GET /v1/pairs (AUTH_MODE=off).
+    r = c.patch("/v1/pairs/operated/ETH-USDT", json={"paused": True})
+    assert r.status_code == 200, r.text
+    assert next(o["paused"] for o in r.json()["data"]["operados"] if o["symbol"] == "ETH/USDT") is True
+    assert OperatedPairStore().list_all()[0]["paused"] is True
+    # Resume.
+    r = c.patch("/v1/pairs/operated/ETH-USDT", json={"paused": False})
+    assert r.status_code == 200, r.text
+    assert OperatedPairStore().list_all()[0]["paused"] is False
+
+
+def test_patch_404_on_non_operated(env):
+    c = TestClient(create_app())
+    assert c.patch("/v1/pairs/operated/SOL-USDT", json={"paused": True}).status_code == 404
+
+
+def test_patch_rejects_unknown_fields(env):
+    OperatedPairStore().add("ETH/USDT")
+    c = TestClient(create_app())
+    # extra="forbid" on OperatedPairPatch — a stray field is a 422, not a silent no-op.
+    assert c.patch("/v1/pairs/operated/ETH-USDT", json={"symbol": "X"}).status_code == 422
+
+
+def test_pause_is_audited_as_config_changed_with_paused_state(env):
+    ledger = env
+    OperatedPairStore().add("ETH/USDT")
+    c = TestClient(create_app())
+    c.patch("/v1/pairs/operated/ETH-USDT", json={"paused": True})
+    events = ledger.get_events("config_changed")
+    paused_evt = [e for e in events if e["data"].get("scope") == "pairs"
+                  and "ETH/USDT" in e["data"].get("after", {}).get("paused", [])]
+    assert paused_evt, "pause must emit config_changed with the paused symbol in `after`"
+    # And it reaches the A4 audit feed as a pairs config change.
+    r = c.get("/v1/audit?action=config_changed")
+    assert r.status_code == 200
+    assert any(row["entity"] == "pairs" for row in r.json()["data"])

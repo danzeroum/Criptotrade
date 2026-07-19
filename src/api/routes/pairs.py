@@ -4,9 +4,11 @@ DB-managed operated set (N8²).
 GET is a thin read-only view over ``src.core.pairs`` (allowlist / operated set)
 plus a per-symbol freshness stamp from the ledger — read-only, no secrets,
 reachable by the demo principal. The write endpoints (``/operated``) manage the
-``operated_pairs`` table (DB > env, padrão A5): adding/removing a pair applies at
-the next orchestrator restart (declared), gated behind ``edit_settings`` and
-audited as ``config_changed`` scope ``pairs``.
+``operated_pairs`` table (DB > env, padrão A5), gated behind ``edit_settings`` and
+audited as ``config_changed`` scope ``pairs``. Semântica de aplicação honesta:
+adding/removing a pair (POST/DELETE) applies at the next orchestrator restart
+(the loop resolves its symbol list at boot); pausing/resuming (PATCH) is read per
+cycle by the loop — it applies without a restart.
 """
 from __future__ import annotations
 
@@ -16,7 +18,13 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Path
 
 from src.api.authn import Principal, require_perm
 from src.api.deps import get_exchange_client, get_ledger
-from src.api.schemas import APIResponse, OperatedPair, OperatedPairIn, PairsOut
+from src.api.schemas import (
+    APIResponse,
+    OperatedPair,
+    OperatedPairIn,
+    OperatedPairPatch,
+    PairsOut,
+)
 from src.core.db import connection
 from src.core.pairs import allowed_pairs, is_allowed, operated_pairs
 from src.core.pairs_store import OperatedPairStore
@@ -70,6 +78,16 @@ def _norm(symbol: str) -> str:
     return s.replace("-", "/") if "/" not in s else s
 
 
+def _paused_state(store: OperatedPairStore) -> Dict[str, Any]:
+    """Snapshot for the ``config_changed`` diff: the operated set + which are paused
+    (N9). Paused per symbol — not just the membership list — so the A4 diff is legible."""
+    rows = store.list_all()
+    return {
+        "operated": [r["symbol"] for r in rows],
+        "paused": [r["symbol"] for r in rows if r["paused"]],
+    }
+
+
 async def _validate_addable(symbol: str, client: Any) -> str:
     """Gate an add: quote USDT + allowlist (required) + ccxt existence (best-effort,
     skipped when the client is offline/dry-run — the allowlist is the real gate)."""
@@ -114,6 +132,31 @@ async def add_operated(
     ledger.log_decision("config_changed", {
         "actor": principal.actor, "scope": "pairs",
         "before": {"operated": before}, "after": {"operated": after},
+    })
+    return await get_pairs(ledger)
+
+
+@router.patch(
+    "/operated/{symbol}",
+    response_model=APIResponse[PairsOut],
+    summary="Pausa/retoma um par operado (N9 — flag paused, lida por ciclo, sem restart)",
+)
+async def patch_operated(
+    symbol: str = Path(...),
+    body: OperatedPairPatch = Body(...),
+    ledger: Any = Depends(get_ledger),
+    principal: Principal = Depends(require_perm("edit_settings")),
+) -> APIResponse[PairsOut]:
+    store = OperatedPairStore()
+    sym = _norm(symbol)
+    before = _paused_state(store)
+    if not store.set_paused(sym, body.paused):
+        raise HTTPException(status_code=404, detail={
+            "error": "not_operated", "message": f"'{sym}' não está no conjunto operado."})
+    after = _paused_state(store)
+    ledger.log_decision("config_changed", {
+        "actor": principal.actor, "scope": "pairs",
+        "before": before, "after": after,
     })
     return await get_pairs(ledger)
 

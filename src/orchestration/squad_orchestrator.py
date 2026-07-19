@@ -209,15 +209,27 @@ class SquadOrchestrator:
     # symbol stuck on "confidence_low" produces ~1 event / 10 min, not 1 / cycle.
     _SKIP_THROTTLE_S = 600.0
 
-    def _record_skip(self, symbol: str, reason: str, extra: dict[str, Any] | None = None) -> None:
+    def _record_skip(
+        self,
+        symbol: str,
+        reason: str,
+        extra: dict[str, Any] | None = None,
+        heartbeat: bool = True,
+    ) -> None:
         """Book a ``signal_skipped`` event — on a reason CHANGE (or first time), or a
-        throttled heartbeat while the reason persists. Feeds the N3 feed + A4."""
+        throttled heartbeat while the reason persists. Feeds the N3 feed + A4.
+
+        ``heartbeat=False`` (N9 pause): emit ONLY on the transition, never re-emit
+        while the reason persists. Pause is a deliberate config state, not a
+        transient contest like ``no_slot``/``circuit_breaker`` — a pair paused for a
+        month must not spam the ledger; its steady state is visible via
+        ``config_changed`` and the ``paused`` badge instead."""
         now = time.time()
         prev = self._last_skip.get(symbol)
         if prev and prev["reason"] == reason:
             prev["count"] += 1
-            if now - prev["last_emit"] < self._SKIP_THROTTLE_S:
-                return  # same reason, within the window — stay quiet
+            if not heartbeat or now - prev["last_emit"] < self._SKIP_THROTTLE_S:
+                return  # same reason, within the window (or no heartbeat) — stay quiet
             prev["last_emit"] = now
             count, since = prev["count"], prev["since"]
         else:
@@ -246,8 +258,15 @@ class SquadOrchestrator:
             return "insufficient_capital"
         return "risk_rejected"
 
-    async def analyze_and_trade(self, symbol: str, timeframe: str = "1h") -> dict[str, Any]:
-        """Full trading pipeline with agent collaboration."""
+    async def analyze_and_trade(
+        self, symbol: str, timeframe: str = "1h", *, paused: bool = False
+    ) -> dict[str, Any]:
+        """Full trading pipeline with agent collaboration.
+
+        ``paused`` (N9) is resolved by the loop each cycle from the ``operated_pairs``
+        table. A paused pair still has its open positions managed (stop/TP), but the
+        loop skips opening NEW orders for it — the gate sits after the position check
+        and before the new-order pipeline."""
         if self.circuit_breaker.is_open:
             logger.warning("Circuit breaker is OPEN — skipping trade cycle for %s", symbol)
             self._record_skip(symbol, "circuit_breaker")
@@ -281,6 +300,14 @@ class SquadOrchestrator:
                 self._check_open_positions(current_price, symbol)
             except Exception:
                 logger.warning("Position check failed for %s", symbol, exc_info=True)
+
+        # N9: a paused pair keeps its positions managed above, but opens no new
+        # order. Gate here — after the stop/TP check, before the new-order pipeline.
+        # Transition-only skip (no heartbeat): pause is a persistent config state.
+        if paused:
+            logger.info("Pair %s is paused — skipping new orders (positions still managed)", symbol)
+            self._record_skip(symbol, "paused", heartbeat=False)
+            return {"success": False, "reason": "paused"}
 
         self.ledger.log_signal(
             agent="strategy", signal=strategy_result["signal"],
