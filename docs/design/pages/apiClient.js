@@ -59,6 +59,11 @@ const CT_API = (() => {
     return unwrap ? (j.data ?? j) : j;
   }
 
+  // Proxy-safe path segment for a pair symbol: "BTC/USDT" -> "BTC-USDT". A raw
+  // "%2F" gets decoded to "/" by some reverse proxies and breaks path matching;
+  // the backend _norm() accepts the dash form and maps it back to a slash.
+  const pathSymbol = (symbol) => encodeURIComponent(String(symbol).replace('/', '-'));
+
   // Query-string builder that drops empty values (audit filters are optional).
   const qs = (params) => {
     const pairs = Object.entries(params).filter(([, v]) => v !== '' && v != null);
@@ -98,10 +103,14 @@ const CT_API = (() => {
     // N2: Mesa Multi-Ativo batch — every operated pair in one request
     getDeskSummary:   ()           => req('/v1/desk/summary'),
     // N8²: DB-managed operated pairs (add/remove apply at next orchestrator restart)
+    // The symbol rides in the PATH with a HYPHEN, not "%2F": some reverse proxies
+    // decode "%2F" back to "/", which splits "/operated/{symbol}" into two path
+    // segments and 404s. The backend _norm() maps "BTC-USDT" -> "BTC/USDT", so the
+    // dash form is the intended, proxy-safe contract for the path param.
     addOperatedPair:    (symbol)   => req('/v1/pairs/operated', { method: 'POST', body: JSON.stringify({ symbol }) }),
-    removeOperatedPair: (symbol)   => req(`/v1/pairs/operated/${encodeURIComponent(symbol)}`, { method: 'DELETE' }),
+    removeOperatedPair: (symbol)   => req(`/v1/pairs/operated/${pathSymbol(symbol)}`, { method: 'DELETE' }),
     // N9: pause/resume an operated pair — applies per cycle, no restart.
-    setPairPaused:      (symbol, paused) => req(`/v1/pairs/operated/${encodeURIComponent(symbol)}`, { method: 'PATCH', body: JSON.stringify({ paused }) }),
+    setPairPaused:      (symbol, paused) => req(`/v1/pairs/operated/${pathSymbol(symbol)}`, { method: 'PATCH', body: JSON.stringify({ paused }) }),
     // N3: slot occupancy + per-pair exposure; skip feed (why signals didn't fire)
     getSlots:         ()           => req('/v1/risk/slots'),
     getSkips:         (symbol)     => req('/v1/process/skips' + (symbol ? `?symbol=${encodeURIComponent(symbol)}` : '')),
