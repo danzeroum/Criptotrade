@@ -11,6 +11,86 @@ function SectionHead({ title, icon }) {
   );
 }
 
+// 11c — Watchlists/grupos: organização da visão (localStorage, NÃO afeta o loop).
+// Um grupo por par operado; grupos vazios persistem; excluir um grupo devolve seus
+// pares a "sem grupo" (nunca exclui pares). Fonte da verdade dos membros = os pares
+// operados atuais (órfãos do localStorage são ignorados na leitura, GC na escrita).
+function PairGroupsManager({ operated, canEdit, addToast }) {
+  const [groups, setGroups] = useState(CT_GROUPS.names());
+  const [, bump] = useState(0);  // re-render on membership changes
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [editing, setEditing] = useState(null);
+  const [editVal, setEditVal] = useState('');
+
+  useEffect(() => CT_GROUPS.subscribe(() => { setGroups(CT_GROUPS.names()); bump(n => n + 1); }), []);
+  useEffect(() => { CT_GROUPS.gc(operated); }, [operated.join(',')]);
+
+  const create = () => {
+    const n = newName.trim();
+    if (!n) return;
+    if (!CT_GROUPS.create(n)) { addToast?.('Grupo já existe.', 'alert'); return; }
+    setNewName(''); setCreating(false);
+  };
+  const commitRename = () => {
+    if (editing && editVal.trim() && editVal.trim() !== editing && !CT_GROUPS.rename(editing, editVal.trim())) {
+      addToast?.('Nome de grupo inválido ou já existe.', 'alert');
+    }
+    setEditing(null); setEditVal('');
+  };
+
+  return (
+    <div className="pg" style={{ marginBottom: 14 }}>
+      <div className="stat-k" style={{ marginBottom: 6 }}>
+        Grupos <span className="desk-muted" style={{ fontWeight: 400 }}>— organização da visão (não afeta o loop)</span>
+      </div>
+      <div className="desk-group-filter" style={{ marginBottom: 10 }}>
+        {groups.map(g => (
+          editing === g
+            ? <input key={g} className="input pg-rename" autoFocus value={editVal}
+                aria-label={`Renomear ${g}`}
+                onChange={e => setEditVal(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') { setEditing(null); setEditVal(''); } }}
+                onBlur={commitRename} />
+            : <span key={g} className="group-chip">
+                {g}
+                {canEdit && (
+                  <button className="pg-chip-btn" aria-label={`Renomear ${g}`}
+                    onClick={() => { setEditing(g); setEditVal(g); }}>✎</button>
+                )}
+                {canEdit && (
+                  <button className="pg-chip-btn" aria-label={`Excluir grupo ${g}`}
+                    onClick={() => CT_GROUPS.remove(g)}>×</button>
+                )}
+              </span>
+        ))}
+        {canEdit && (creating
+          ? <input className="input pg-rename" autoFocus placeholder="Nome do grupo" value={newName}
+              aria-label="Nome do novo grupo"
+              onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') create(); if (e.key === 'Escape') { setCreating(false); setNewName(''); } }}
+              onBlur={create} />
+          : <button className="group-chip pg-add" onClick={() => setCreating(true)}>+ Novo grupo</button>)}
+      </div>
+      {groups.length > 0 && (
+        <div className="pg-assign">
+          {operated.map(sym => (
+            <div key={sym} className="pg-assign-row">
+              <span className="pg-assign-sym">{sym}</span>
+              <select className="input pg-select" value={CT_GROUPS.groupOf(sym) || ''}
+                disabled={!canEdit} aria-label={`Grupo de ${sym}`}
+                onChange={e => CT_GROUPS.assign(sym, e.target.value || null)}>
+                <option value="">sem grupo</option>
+                {groups.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ScreenSettings({ addToast }) {
   const mock = !!window.USE_MOCK_DATA;
 
@@ -415,6 +495,9 @@ function ScreenSettings({ addToast }) {
                   {(pairsRich.observaveis || []).map(s => <span key={s} className="chip">{s}</span>)}
                 </div>
               </div>
+              <PairGroupsManager
+                operated={(pairsRich.operados || []).map(o => o.symbol)}
+                canEdit={canEdit} addToast={addToast} />
               <div style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6,
                             background: 'var(--surface-3)', borderRadius: 'var(--r-sm)', padding: '10px 12px' }}>
                 Só pares da allowlist (<code>MARKET_PAIRS</code>) podem ser operados.

@@ -433,6 +433,7 @@ function PairSelect({ allowAll = false }) {
   const [rich, setRich] = useState(null);
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
+  const [, bumpGroups] = useState(0);  // 11c: re-render when watchlists change
   const ref = useRef(null);
 
   useEffect(() => {
@@ -440,6 +441,7 @@ function PairSelect({ allowAll = false }) {
     loadPairsRich().then(r => { if (alive) setRich(r); });
     return () => { alive = false; };
   }, []);
+  useEffect(() => CT_GROUPS.subscribe(() => bumpGroups(n => n + 1)), []);
 
   useEffect(() => {
     if (!open) return;
@@ -488,13 +490,36 @@ function PairSelect({ allowAll = false }) {
                  className={'pair-opt' + (scope === 'ALL' ? ' sel' : '')}
                  onClick={() => pick('ALL')}>Portfólio (∑)</div>
           )}
-          {opShown.length > 0 && <div className="pair-group">Operados</div>}
-          {opShown.map(o => optRow(
-            o.symbol,
-            <span className={'badge ' + (o.status === 'operando' ? 'badge-ok' : 'badge-neutral')}>
-              <span className="dot"></span>{o.status}
-            </span>
-          ))}
+          {(() => {
+            // 11c: agrupa operados por watchlist quando há grupos; senão, o
+            // cabeçalho fixo "Operados". Observáveis nunca entram em grupos.
+            const opBadge = (o) => (
+              <span className={'badge ' + (o.status === 'operando' ? 'badge-ok' : 'badge-neutral')}>
+                <span className="dot"></span>{o.status}
+              </span>
+            );
+            const groupNames = CT_GROUPS.names();
+            if (groupNames.length === 0) {
+              return [
+                opShown.length > 0 && <div key="g-op" className="pair-group">Operados</div>,
+                ...opShown.map(o => optRow(o.symbol, opBadge(o))),
+              ];
+            }
+            const out = [];
+            groupNames.forEach(g => {
+              const members = opShown.filter(o => CT_GROUPS.groupOf(o.symbol) === g);
+              if (members.length) {
+                out.push(<div key={'g-' + g} className="pair-group">{g}</div>);
+                members.forEach(o => out.push(optRow(o.symbol, opBadge(o))));
+              }
+            });
+            const ungrouped = opShown.filter(o => !CT_GROUPS.groupOf(o.symbol));
+            if (ungrouped.length) {
+              out.push(<div key="g-none" className="pair-group">Operados · sem grupo</div>);
+              ungrouped.forEach(o => out.push(optRow(o.symbol, opBadge(o))));
+            }
+            return out;
+          })()}
           {obShown.length > 0 && <div className="pair-group">Observáveis</div>}
           {obShown.map(s => optRow(s, <span className="chip">análise</span>))}
           {opShown.length + obShown.length === 0 && (

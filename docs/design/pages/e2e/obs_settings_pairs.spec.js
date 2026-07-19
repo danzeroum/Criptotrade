@@ -54,3 +54,39 @@ test("N9 — Config: pausar um par aplica sem restart (sem banner)", async ({ pa
   await expect(page.locator(".pair-tag", { hasText: "BTC/USDT" }).getByText("PAUSADO")).toBeVisible();
   await expect(page.getByText(/Alterações pendentes/)).toHaveCount(0);
 });
+
+// ------------------------------------------------------------- 11c watchlists
+
+test("11c — Config: criar grupo, atribuir par e excluir devolve a 'sem grupo'", async ({ page }) => {
+  await page.goto("/#settings");
+  // Criar grupo "majors".
+  await page.getByRole("button", { name: "+ Novo grupo" }).click();
+  await page.getByLabel("Nome do novo grupo").fill("majors");
+  await page.getByLabel("Nome do novo grupo").press("Enter");
+  await expect(page.locator(".group-chip", { hasText: "majors" })).toBeVisible();
+  // Atribuir BTC/USDT ao grupo.
+  await page.getByLabel("Grupo de BTC/USDT").selectOption("majors");
+  await expect(page.getByLabel("Grupo de BTC/USDT")).toHaveValue("majors");
+  // Um segundo grupo mantém o bloco de atribuição visível após excluir "majors".
+  await page.getByRole("button", { name: "+ Novo grupo" }).click();
+  await page.getByLabel("Nome do novo grupo").fill("alts");
+  await page.getByLabel("Nome do novo grupo").press("Enter");
+  // Excluir "majors" → BTC volta a "sem grupo" (nunca exclui o par).
+  await page.getByRole("button", { name: "Excluir grupo majors" }).click();
+  await expect(page.locator(".group-chip", { hasText: "majors" })).toHaveCount(0);
+  await expect(page.getByLabel("Grupo de BTC/USDT")).toHaveValue("");
+  await expect(page.locator(".pair-tag", { hasText: "BTC/USDT" })).toBeVisible();
+});
+
+test("11c — seletor agrupa os operados pela watchlist", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("ct.groups", JSON.stringify({
+      names: ["majors"], members: { "BTC/USDT": "majors" },
+    }));
+  });
+  await page.goto("/#market");
+  await page.getByRole("button", { name: "Par" }).click();
+  // Cabeçalho do grupo + o "sem grupo" para os demais operados.
+  await expect(page.locator(".pair-group", { hasText: "majors" })).toBeVisible();
+  await expect(page.locator(".pair-group", { hasText: "sem grupo" })).toBeVisible();
+});

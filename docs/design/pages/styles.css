@@ -354,6 +354,48 @@ input, select, textarea { font-family: inherit; }
 .desk-muted { color: var(--ink-3); font-size: 12.5px; }
 @media (max-width: 1024px) { .desk-summary { grid-template-columns: 1fr 1fr; } .desk-row { grid-template-columns: 1fr 1fr 1fr; } .desk-head { display: none; } }
 
+/* 11c — Mesa: controles (view+sort), filtro de grupo, hint, estado vazio, heatmap */
+.desk-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.desk-group-filter { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.group-chip { font-size: 12px; font-family: var(--mono); padding: 4px 11px; border-radius: 999px; border: 1px solid var(--border-2); background: var(--surface); color: var(--ink-2); cursor: pointer; }
+.group-chip:hover { background: var(--surface-2); }
+.group-chip.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+.desk-hint { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--info); background: var(--info-bg); border: 1px solid #C9D8FA; border-radius: var(--r-sm); padding: 8px 11px; margin-bottom: 12px; }
+.desk-hint span { flex: 1; }
+.desk-hint-x { border: none; background: none; cursor: pointer; font-size: 16px; line-height: 1; color: inherit; opacity: .7; padding: 0 2px; }
+.desk-hint-x:hover { opacity: 1; }
+.desk-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 32px 16px; text-align: center; }
+.desk-empty-msg { color: var(--ink-3); font-size: 13px; }
+/* Heatmap: grid denso; célula colorida por regime (tokens de dado existentes) */
+.desk-heat-wrap { padding: 12px; overflow-x: auto; }
+.desk-heat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.heat-cell { display: flex; flex-direction: column; gap: 5px; padding: 10px; border-radius: var(--r-sm); border: 1px solid var(--border-2); background: var(--surface-3); color: var(--ink); cursor: pointer; }
+.heat-cell:hover { filter: brightness(0.98); }
+.heat-cell:focus-visible { outline: 2px solid var(--info); outline-offset: -2px; }
+.heat-cell.regime-up { background: var(--up-bg); border-color: var(--up-line); }
+.heat-cell.regime-down { background: var(--down-bg); border-color: var(--down-line); }
+.heat-cell.regime-warn { background: var(--warn-bg); border-color: var(--warn-line); }
+.heat-cell.regime-neutral { background: var(--surface-3); border-color: var(--border-2); }
+.heat-cell.paused { outline: 2px dashed var(--warn); outline-offset: -2px; }
+.heat-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.heat-sym { font-family: var(--mono); font-weight: 600; font-size: 12.5px; }
+.heat-regime { font-size: 11px; color: var(--ink-2); display: flex; align-items: center; gap: 5px; }
+.heat-reg-ini { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 4px; background: var(--surface); border: 1px solid var(--border-2); font-weight: 700; font-size: 9.5px; }
+.heat-metrics { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; font-family: var(--mono); font-size: 12px; }
+.heat-chg.up { color: var(--up); }
+.heat-chg.down { color: var(--down); }
+.heat-sig { font-size: 10.5px; font-weight: 600; color: var(--ink-2); }
+
+/* 11c — editor de grupos (watchlists) na Config */
+.pg-chip-btn { border: none; background: none; cursor: pointer; font-size: 11px; line-height: 1; color: inherit; opacity: .6; padding: 0 1px; }
+.pg-chip-btn:hover { opacity: 1; }
+.pg-add { border-style: dashed; }
+.pg-rename { width: auto; min-width: 120px; max-width: 160px; padding: 3px 8px; font-size: 12px; }
+.pg-assign { display: flex; flex-direction: column; gap: 6px; max-width: 340px; }
+.pg-assign-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pg-assign-sym { font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); }
+.pg-select { width: auto; min-width: 130px; padding: 4px 8px; font-size: 12.5px; }
+
 /* N3 — slots, exposição e feed de skips (Risco) */
 .slot-list { display: flex; flex-direction: column; gap: 10px; }
 .slot-row { display: grid; grid-template-columns: 92px 1fr auto; gap: 10px; align-items: center; }

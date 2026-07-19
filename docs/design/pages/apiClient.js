@@ -258,6 +258,124 @@ const CT_PAIR = (() => {
 window.CT_PAIR = CT_PAIR;
 
 /* ============================================================
+   N9/11c — Mesa view mode (list⇄heatmap) + one-time heatmap hint.
+   A view preference, so it follows CT_PAIR's idiom: a window store,
+   localStorage-backed, notifies via a CustomEvent. Default 'list'
+   (manual toggle only — never auto-switch). The hint is a dismissible
+   one-shot, so it's a separate boolean flag.
+   ============================================================ */
+const CT_DESK_VIEW = (() => {
+  const KEY = 'ct.deskHeatmap';        // 'list' | 'heatmap'
+  const HINT = 'ct.deskHeatmapHintSeen';
+  let current = (() => {
+    try { return localStorage.getItem(KEY) === 'heatmap' ? 'heatmap' : 'list'; } catch (_) { return 'list'; }
+  })();
+  return {
+    get: () => current,
+    set: (mode) => {
+      const m = mode === 'heatmap' ? 'heatmap' : 'list';
+      if (m === current) return;
+      current = m;
+      try { localStorage.setItem(KEY, m); } catch (_) { /* private mode: ignore */ }
+      window.dispatchEvent(new CustomEvent('ct:deskview', { detail: m }));
+    },
+    hintSeen: () => { try { return localStorage.getItem(HINT) === '1'; } catch (_) { return false; } },
+    markHintSeen: () => { try { localStorage.setItem(HINT, '1'); } catch (_) { /* private mode: ignore */ } },
+    subscribe: (fn) => {
+      const handler = (e) => fn(e.detail);
+      window.addEventListener('ct:deskview', handler);
+      return () => window.removeEventListener('ct:deskview', handler);
+    },
+  };
+})();
+window.CT_DESK_VIEW = CT_DESK_VIEW;
+
+/* ============================================================
+   11c — Watchlists/grupos de pares (organização, NÃO comportamento —
+   nunca toca loop/risco). Persistido em localStorage (JSON), no padrão
+   dos alertas (ct.alerts). Um grupo por par; grupos vazios persistem
+   até serem excluídos; um par sem associação vive em "Todos".
+   Shape: { names: [grupo...], members: { símbolo: grupo } }.
+   GC de órfãos: símbolos que saíram da operação (11a) são ignorados na
+   leitura e limpos na escrita seguinte — o localStorage não sabe da
+   remoção, então o conjunto operado atual é a fonte da verdade.
+   ============================================================ */
+const CT_GROUPS = (() => {
+  const KEY = 'ct.groups';
+  const read = () => {
+    try {
+      const raw = JSON.parse(localStorage.getItem(KEY) || '{}');
+      const names = Array.isArray(raw.names) ? raw.names.filter(n => typeof n === 'string') : [];
+      const members = (raw.members && typeof raw.members === 'object') ? raw.members : {};
+      // A member pointing at a deleted group is treated as ungrouped.
+      const cleanMembers = {};
+      for (const [sym, g] of Object.entries(members)) if (names.includes(g)) cleanMembers[sym] = g;
+      return { names, members: cleanMembers };
+    } catch (_) { return { names: [], members: {} }; }
+  };
+  let state = read();
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (_) { /* private mode: ignore */ } };
+  const emit = () => window.dispatchEvent(new CustomEvent('ct:groups', { detail: state }));
+  const commit = () => { persist(); emit(); };
+  return {
+    /** Group names (creation order). */
+    names: () => [...state.names],
+    /** The group a symbol belongs to, or null. */
+    groupOf: (sym) => state.members[sym] || null,
+    /** Members of a group ∩ the current operated set (orphans dropped on read). */
+    membersOf: (group, operated) => {
+      const set = new Set(operated || []);
+      return Object.keys(state.members).filter(s => state.members[s] === group && set.has(s));
+    },
+    /** Create a named group (idempotent). */
+    create: (name) => {
+      const n = String(name || '').trim();
+      if (!n || state.names.includes(n)) return false;
+      state = { names: [...state.names, n], members: { ...state.members } };
+      commit(); return true;
+    },
+    /** Assign a symbol to a group (null / '' clears it). */
+    assign: (sym, group) => {
+      const members = { ...state.members };
+      if (!group) delete members[sym];
+      else { if (!state.names.includes(group)) return false; members[sym] = group; }
+      state = { names: [...state.names], members };
+      commit(); return true;
+    },
+    rename: (oldName, newName) => {
+      const n = String(newName || '').trim();
+      if (!n || !state.names.includes(oldName) || state.names.includes(n)) return false;
+      const members = {};
+      for (const [s, g] of Object.entries(state.members)) members[s] = g === oldName ? n : g;
+      state = { names: state.names.map(x => x === oldName ? n : x), members };
+      commit(); return true;
+    },
+    /** Delete a group — its members return to "sem grupo" (nunca exclui pares). */
+    remove: (name) => {
+      if (!state.names.includes(name)) return false;
+      const members = {};
+      for (const [s, g] of Object.entries(state.members)) if (g !== name) members[s] = g;
+      state = { names: state.names.filter(x => x !== name), members };
+      commit(); return true;
+    },
+    /** Silent GC: drop member entries whose symbol left the operated set. */
+    gc: (operated) => {
+      const set = new Set(operated || []);
+      const members = {};
+      let changed = false;
+      for (const [s, g] of Object.entries(state.members)) { if (set.has(s)) members[s] = g; else changed = true; }
+      if (changed) { state = { names: [...state.names], members }; persist(); }
+    },
+    subscribe: (fn) => {
+      const handler = (e) => fn(e.detail);
+      window.addEventListener('ct:groups', handler);
+      return () => window.removeEventListener('ct:groups', handler);
+    },
+  };
+})();
+window.CT_GROUPS = CT_GROUPS;
+
+/* ============================================================
    Global preferences store (A2). Mirrors CT_PAIR's pattern.
    Feeds the CENTRAL formatting helpers (fmtNum/fmtUsd/fmtDateTime…)
    so changing locale/timezone/format reflects across the whole
