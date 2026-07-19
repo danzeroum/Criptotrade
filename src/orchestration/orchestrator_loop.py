@@ -59,6 +59,22 @@ def _symbols_from_env() -> List[str]:
     return operated_pairs()
 
 
+def _paused_symbols() -> set:
+    """N9: the set of currently-paused operated pairs, read fresh each cycle.
+
+    A DB read per cycle (not per pair) — pausing is honoured without a restart,
+    unlike adding/removing a pair (which the loop resolves only at boot). Best-effort:
+    an absent table / read error yields an empty set (nothing paused), never a crash.
+    """
+    try:
+        from src.core.pairs_store import OperatedPairStore
+
+        return {p["symbol"] for p in OperatedPairStore().list_all() if p["paused"]}
+    except Exception:  # pragma: no cover - a paused read must never kill the loop
+        logger.warning("Failed to read paused pairs; treating none as paused", exc_info=True)
+        return set()
+
+
 class AgentExecutionError(Exception):
     """Raised by an agent step so the loop can attribute the failure to it."""
 
@@ -122,11 +138,17 @@ class OrchestratorLoop:
         # N6: per-symbol time within the cycle (ms). ADDITIVE — existing consumers
         # read duration_ms/ran/failures unchanged; this is an extra key.
         per_symbol: Dict[str, float] = {}
+        # N9: which pairs are paused is read fresh EACH cycle (one query, not a
+        # fan-out) so pausing applies without a restart. A paused pair still runs
+        # analyze_and_trade — its open positions stay managed; only new orders skip.
+        paused_symbols = _paused_symbols()
         try:
             for symbol in self.symbols:
                 sym_start = time.monotonic()
                 try:
-                    result = await self.orchestrator.analyze_and_trade(symbol)
+                    result = await self.orchestrator.analyze_and_trade(
+                        symbol, paused=symbol in paused_symbols
+                    )
                     agents = ["strategy", "risk"]
                     if isinstance(result, dict) and result.get("order_id"):
                         agents.append("execution")

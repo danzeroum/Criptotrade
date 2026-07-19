@@ -23,6 +23,7 @@ from src.api.schemas import APIResponse, DeskRow, DeskSummaryOut
 from src.core.config import settings
 from src.core.db import connection
 from src.core.pairs import operated_pairs
+from src.core.pairs_store import OperatedPairStore
 
 router = APIRouter(prefix="/desk", tags=["desk"])
 
@@ -114,6 +115,8 @@ async def desk_summary(
     symbols = operated_pairs()
     signals = _latest_signals(ledger)
     lots = _open_positions(ledger)
+    # N9: which pairs are paused — one query, surfaced per row for the Mesa badge.
+    paused_map = {p["symbol"]: p["paused"] for p in OperatedPairStore().list_all()}
 
     # Aggregate open lots per symbol (side, qty, notional-weighted entry).
     by_symbol: Dict[str, dict] = {}
@@ -129,7 +132,7 @@ async def desk_summary(
     signals_active = 0
     allocated = 0.0
     for sym, ohlcv in zip(symbols, ohlcvs):
-        row = DeskRow(symbol=sym)
+        row = DeskRow(symbol=sym, paused=bool(paused_map.get(sym, False)))
         if ohlcv:
             last = float(ohlcv[-1][4])
             ref = float(ohlcv[-25][4]) if len(ohlcv) >= 25 else float(ohlcv[0][4])

@@ -1162,7 +1162,8 @@ export interface paths {
         delete: operations["remove_operated_v1_pairs_operated__symbol__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** Pausa/retoma um par operado (N9 — flag paused, lida por ciclo, sem restart) */
+        patch: operations["patch_operated_v1_pairs_operated__symbol__patch"];
         trace?: never;
     };
     "/v1/process/events": {
@@ -2399,6 +2400,11 @@ export interface components {
             last?: number | null;
             /** Last Cycle At */
             last_cycle_at?: string | null;
+            /**
+             * Paused
+             * @default false
+             */
+            paused: boolean;
             /** Position Entry */
             position_entry?: number | null;
             /** Position Qty */
@@ -2846,6 +2852,14 @@ export interface components {
         OperatedPairIn: {
             /** Symbol */
             symbol: string;
+        };
+        /**
+         * OperatedPairPatch
+         * @description Pause/resume an operated pair (N9). Read per cycle by the loop — no restart.
+         */
+        OperatedPairPatch: {
+            /** Paused */
+            paused: boolean;
         };
         /**
          * OrderCreate
@@ -6022,6 +6036,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_PairsOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_operated_v1_pairs_operated__symbol__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                symbol: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OperatedPairPatch"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

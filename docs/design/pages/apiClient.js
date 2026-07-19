@@ -100,6 +100,8 @@ const CT_API = (() => {
     // N8²: DB-managed operated pairs (add/remove apply at next orchestrator restart)
     addOperatedPair:    (symbol)   => req('/v1/pairs/operated', { method: 'POST', body: JSON.stringify({ symbol }) }),
     removeOperatedPair: (symbol)   => req(`/v1/pairs/operated/${encodeURIComponent(symbol)}`, { method: 'DELETE' }),
+    // N9: pause/resume an operated pair — applies per cycle, no restart.
+    setPairPaused:      (symbol, paused) => req(`/v1/pairs/operated/${encodeURIComponent(symbol)}`, { method: 'PATCH', body: JSON.stringify({ paused }) }),
     // N3: slot occupancy + per-pair exposure; skip feed (why signals didn't fire)
     getSlots:         ()           => req('/v1/risk/slots'),
     getSkips:         (symbol)     => req('/v1/process/skips' + (symbol ? `?symbol=${encodeURIComponent(symbol)}` : '')),

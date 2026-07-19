@@ -3373,6 +3373,11 @@
             ],
             "title": "Last Cycle At"
           },
+          "paused": {
+            "default": false,
+            "title": "Paused",
+            "type": "boolean"
+          },
           "position_entry": {
             "anyOf": [
               {
@@ -4726,6 +4731,21 @@
           "symbol"
         ],
         "title": "OperatedPairIn",
+        "type": "object"
+      },
+      "OperatedPairPatch": {
+        "additionalProperties": false,
+        "description": "Pause/resume an operated pair (N9). Read per cycle by the loop \u2014 no restart.",
+        "properties": {
+          "paused": {
+            "title": "Paused",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "paused"
+        ],
+        "title": "OperatedPairPatch",
         "type": "object"
       },
       "OrderCreate": {
@@ -10394,6 +10414,56 @@
           }
         },
         "summary": "Remove um par operado (N8\u00b2 \u2014 aplica no pr\u00f3ximo restart do orchestrator)",
+        "tags": [
+          "pairs"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_operated_v1_pairs_operated__symbol__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "symbol",
+            "required": true,
+            "schema": {
+              "title": "Symbol",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperatedPairPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PairsOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pausa/retoma um par operado (N9 \u2014 flag paused, lida por ciclo, sem restart)",
         "tags": [
           "pairs"
         ]

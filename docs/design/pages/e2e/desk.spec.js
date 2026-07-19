@@ -49,3 +49,19 @@ test("sort toggle reorders the grid without a new request", async ({ page }) => 
   await expect(page.locator(".desk-row:not(.desk-head)").first().locator(".desk-sym"))
     .toContainText("SOL/USDT");
 });
+
+test("N9 — a paused pair carries the PAUSADO badge on the Mesa", async ({ page }) => {
+  await page.goto("/#desk");
+  const bnb = page.locator(".desk-row:not(.desk-head)", { hasText: "BNB/USDT" });
+  await expect(bnb).toHaveClass(/paused/);
+  await expect(bnb.getByText("PAUSADO")).toBeVisible();
+});
+
+test("N9 — resuming from the Mesa clears paused without navigating away", async ({ page }) => {
+  await page.goto("/#desk");
+  // The toggle stops propagation → clicking it must not open the Mercado.
+  await page.getByRole("button", { name: "Retomar BNB/USDT" }).click();
+  await expect(page).toHaveURL(/#desk$/);
+  await expect(page.locator(".desk-row:not(.desk-head)", { hasText: "BNB/USDT" })
+    .getByText("PAUSADO")).toHaveCount(0);
+});

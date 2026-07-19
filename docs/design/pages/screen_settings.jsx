@@ -72,6 +72,16 @@ function ScreenSettings({ addToast }) {
     try { await CT_API.removeOperatedPair(symbol); setPairsDirty(true); await reloadPairs(); addToast?.('Par removido — reinicie o orchestrator para aplicar.', 'check'); }
     catch (e) { addToast?.(e?.message ?? 'Falha ao remover par.', 'alert'); }
   };
+  // N9: pausar/retomar — aplica SEM restart (lido por ciclo). NÃO seta pairsDirty.
+  const pausePair = async (symbol, paused) => {
+    if (mock) {
+      setPairsRich(p => ({ ...p, operados: (p.operados || []).map(o => o.symbol === symbol ? { ...o, paused } : o) }));
+      addToast?.(paused ? 'Par pausado.' : 'Par retomado.', 'check'); return;
+    }
+    try { await CT_API.setPairPaused(symbol, paused); await reloadPairs();
+          addToast?.(paused ? 'Par pausado — sem novas ordens; posições seguem geridas.' : 'Par retomado.', 'check'); }
+    catch (e) { addToast?.(e?.message ?? 'Falha ao pausar par.', 'alert'); }
+  };
 
   useEffect(() => {
     if (mock) {
@@ -368,8 +378,18 @@ function ScreenSettings({ addToast }) {
                 <div className="stat-k" style={{ marginBottom: 6 }}>Operados pelo loop</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {(pairsRich.operados || []).map(o => (
-                    <span key={o.symbol} className={'pair-tag' + (o.status === 'operando' ? ' on' : '')}>
+                    <span key={o.symbol} className={'pair-tag' + (o.status === 'operando' && !o.paused ? ' on' : '') + (o.paused ? ' paused' : '')}>
                       {o.symbol}
+                      {o.paused && (
+                        <span className="pair-paused-badge"
+                          title="Pausado — sem novas ordens; posições abertas seguem geridas (stop/TP ativos)">PAUSADO</span>
+                      )}
+                      {canEdit && (
+                        <button className="pair-tag-btn"
+                          title={o.paused ? 'Retomar par (aplica no próximo ciclo)' : 'Pausar par — sem novas ordens, sem restart'}
+                          aria-label={`${o.paused ? 'Retomar' : 'Pausar'} ${o.symbol}`}
+                          onClick={() => pausePair(o.symbol, !o.paused)}>{o.paused ? '▶' : '❙❙'}</button>
+                      )}
                       {canEdit && (
                         <button className="pair-tag-x" aria-label={`Remover ${o.symbol}`}
                           onClick={() => removePair(o.symbol)}>×</button>
@@ -399,7 +419,8 @@ function ScreenSettings({ addToast }) {
                             background: 'var(--surface-3)', borderRadius: 'var(--r-sm)', padding: '10px 12px' }}>
                 Só pares da allowlist (<code>MARKET_PAIRS</code>) podem ser operados.
                 Adicionar/remover aplica no <b>próximo restart</b> do orchestrator.
-                Pausar um par (sem restart) chega no N9.
+                Pausar um par aplica <b>sem restart</b> (lido por ciclo): interrompe novas
+                ordens; posições abertas seguem geridas (stop/TP ativos).
               </div>
             </div>
           </div>

@@ -39,3 +39,18 @@ test("N8² — Config: adicionar um par mostra o banner 'pendente de restart'", 
   await expect(page.getByText(/Alterações pendentes/)).toBeVisible();
   await expect(page.locator(".pair-tag", { hasText: "ADA/USDT" })).toBeVisible();
 });
+
+test("N9 — Config: par pausado mostra o badge PAUSADO (sem banner de restart)", async ({ page }) => {
+  await page.goto("/#settings");
+  const bnb = page.locator(".pair-tag", { hasText: "BNB/USDT" });
+  await expect(bnb.getByText("PAUSADO")).toBeVisible();
+  // Pausar é por-ciclo — nunca dispara o banner de restart.
+  await expect(page.getByText(/Alterações pendentes/)).toHaveCount(0);
+});
+
+test("N9 — Config: pausar um par aplica sem restart (sem banner)", async ({ page }) => {
+  await page.goto("/#settings");
+  await page.getByRole("button", { name: "Pausar BTC/USDT" }).click();
+  await expect(page.locator(".pair-tag", { hasText: "BTC/USDT" }).getByText("PAUSADO")).toBeVisible();
+  await expect(page.getByText(/Alterações pendentes/)).toHaveCount(0);
+});

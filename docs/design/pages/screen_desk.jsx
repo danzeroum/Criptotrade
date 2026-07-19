@@ -28,7 +28,7 @@ function _mockDesk() {
       signal_action: 'buy', signal_confidence: 0.82, position_side: 'buy', position_qty: 0.03, position_entry: 61200.0, unrealized_pnl: 108.30, as_of: iso(1), last_cycle_at: iso(1) },
     { symbol: 'ETH/USDT', last: 3208.5, change_24h_pct: -1.12, regime: 'sideways', regime_label: 'Lateral',
       signal_action: 'sell', signal_confidence: 0.71, position_side: null, position_qty: null, position_entry: null, unrealized_pnl: null, as_of: iso(2), last_cycle_at: iso(2) },
-    { symbol: 'BNB/USDT', last: 592.3, change_24h_pct: 0.42, regime: 'chaotic', regime_label: 'Caótico',
+    { symbol: 'BNB/USDT', last: 592.3, change_24h_pct: 0.42, regime: 'chaotic', regime_label: 'Caótico', paused: true,
       signal_action: 'hold', signal_confidence: 0.34, position_side: null, position_qty: null, position_entry: null, unrealized_pnl: null, as_of: iso(2), last_cycle_at: iso(2) },
     { symbol: 'XRP/USDT', last: 0.61, change_24h_pct: 1.05, regime: 'unknown', regime_label: 'Desconhecido',
       signal_action: null, signal_confidence: null, position_side: null, position_qty: null, position_entry: null, unrealized_pnl: null, as_of: null, last_cycle_at: null },
@@ -52,15 +52,30 @@ function _sortRows(rows, by) {
   return r;  // 'default' = server order (actionable first)
 }
 
-function ScreenDesk({ navigate } = {}) {
+function ScreenDesk({ navigate, addToast } = {}) {
   const mock = window.USE_MOCK_DATA;
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [sortBy, setSortBy] = useState('default');
+  const canEdit = CT_AUTH.can('edit_settings');
 
   const load = () => {
     if (mock) { setData(_mockDesk()); return; }
     CT_API.getDeskSummary().then((d) => { setData(d); setError(null); }).catch(setError);
+  };
+
+  // N9: pausar/retoma um par direto da Mesa — aplica por ciclo, sem restart.
+  const pausePair = async (sym, paused) => {
+    if (mock) {
+      setData((d) => ({ ...d, rows: d.rows.map((r) => r.symbol === sym ? { ...r, paused } : r) }));
+      addToast?.(paused ? 'Par pausado.' : 'Par retomado.', 'check');
+      return;
+    }
+    try {
+      await CT_API.setPairPaused(sym, paused);
+      addToast?.(paused ? 'Par pausado — sem novas ordens; posições seguem geridas.' : 'Par retomado.', 'check');
+      load();
+    } catch (e) { addToast?.(e?.message ?? 'Falha ao pausar par.', 'alert'); }
   };
   useEffect(() => { load(); }, []);
   useEffect(() => {
@@ -117,10 +132,22 @@ function ScreenDesk({ navigate } = {}) {
           const rm = _REGIME_META[r.regime] || _REGIME_META.unknown;
           const chg = r.change_24h_pct;
           return (
-            <div key={r.symbol} className="desk-row" role="row" tabIndex={0}
+            <div key={r.symbol} className={'desk-row' + (r.paused ? ' paused' : '')} role="row" tabIndex={0}
                  onClick={() => open(r.symbol)}
                  onKeyDown={(e) => { if (e.key === 'Enter') open(r.symbol); }}>
-              <span className="desk-sym">{r.symbol}</span>
+              <span className="desk-sym">
+                {r.symbol}
+                {r.paused && (
+                  <span className="pair-paused-badge"
+                    title="Pausado — sem novas ordens; posições abertas seguem geridas (stop/TP ativos)">PAUSADO</span>
+                )}
+                {canEdit && (
+                  <button className="desk-pause-btn"
+                    title={r.paused ? 'Retomar par (aplica no próximo ciclo)' : 'Pausar par — sem novas ordens, sem restart'}
+                    aria-label={`${r.paused ? 'Retomar' : 'Pausar'} ${r.symbol}`}
+                    onClick={(e) => { e.stopPropagation(); pausePair(r.symbol, !r.paused); }}>{r.paused ? '▶' : '❙❙'}</button>
+                )}
+              </span>
               <span>
                 <b>{r.last != null ? fmtPrice(r.last) : '—'}</b>
                 {chg != null && (
