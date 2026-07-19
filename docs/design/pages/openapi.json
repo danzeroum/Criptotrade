@@ -4687,6 +4687,11 @@
             ],
             "title": "Last Cycle At"
           },
+          "paused": {
+            "default": false,
+            "title": "Paused",
+            "type": "boolean"
+          },
           "status": {
             "default": "aguardando",
             "enum": [
@@ -4705,6 +4710,22 @@
           "symbol"
         ],
         "title": "OperatedPair",
+        "type": "object"
+      },
+      "OperatedPairIn": {
+        "additionalProperties": false,
+        "description": "Add a pair to the DB-managed operated set (N8\u00b2).",
+        "properties": {
+          "symbol": {
+            "maxLength": 20,
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol"
+        ],
+        "title": "OperatedPairIn",
         "type": "object"
       },
       "OrderCreate": {
@@ -10289,7 +10310,90 @@
             "description": "Successful Response"
           }
         },
-        "summary": "Pares operados (SYMBOLS) + observ\u00e1veis (allowlist) \u2014 fonte do seletor",
+        "summary": "Pares operados (DB > env) + observ\u00e1veis (allowlist) \u2014 fonte do seletor",
+        "tags": [
+          "pairs"
+        ]
+      }
+    },
+    "/v1/pairs/operated": {
+      "post": {
+        "operationId": "add_operated_v1_pairs_operated_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperatedPairIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PairsOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Adiciona um par operado (N8\u00b2 \u2014 aplica no pr\u00f3ximo restart do orchestrator)",
+        "tags": [
+          "pairs"
+        ]
+      }
+    },
+    "/v1/pairs/operated/{symbol}": {
+      "delete": {
+        "operationId": "remove_operated_v1_pairs_operated__symbol__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "symbol",
+            "required": true,
+            "schema": {
+              "title": "Symbol",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PairsOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove um par operado (N8\u00b2 \u2014 aplica no pr\u00f3ximo restart do orchestrator)",
         "tags": [
           "pairs"
         ]

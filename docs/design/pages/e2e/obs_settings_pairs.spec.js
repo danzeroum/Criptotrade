@@ -23,10 +23,19 @@ test("N6 — Observabilidade: filtro de símbolo restringe os traços", async ({
   await expect(page.locator(".tbl tbody tr")).not.toHaveCount(0);
 });
 
-test("N8¹ — Config: seção 'Pares operados' somente-leitura com instrução de env", async ({ page }) => {
+test("N8¹/N8² — Config: seção 'Pares operados' (operados + observáveis + semântica)", async ({ page }) => {
   await page.goto("/#settings");
   await expect(page.getByText("Pares operados", { exact: true })).toBeVisible();
   await expect(page.getByText(/Operados pelo loop/)).toBeVisible();
   await expect(page.getByText(/Observáveis \(allowlist/)).toBeVisible();
-  await expect(page.getByText(/reinicie o orchestrator/)).toBeVisible();
+  await expect(page.getByText(/próximo restart/)).toBeVisible();
+});
+
+test("N8² — Config: adicionar um par mostra o banner 'pendente de restart'", async ({ page }) => {
+  await page.goto("/#settings");
+  // Escolhe um par observável ainda não operado e adiciona.
+  await page.getByLabel("Adicionar par").selectOption("ADA/USDT");
+  await page.getByRole("button", { name: "Adicionar" }).click();
+  await expect(page.getByText(/Alterações pendentes/)).toBeVisible();
+  await expect(page.locator(".pair-tag", { hasText: "ADA/USDT" })).toBeVisible();
 });

@@ -385,7 +385,8 @@ window.loadPairs = loadPairs;
 // (which want a flat list) are untouched. Mock shows both groups + enough items
 // to trigger search, so the demo mirrors the multi-asset reality.
 let _pairsRichPromise = null;
-function loadPairsRich() {
+function loadPairsRich(force) {
+  if (force) _pairsRichPromise = null;  // N8²: re-fetch after add/remove
   if (!_pairsRichPromise) {
     // e2e hook: window.MOCK_OPERATED (array of symbols) overrides the operated
     // set, so a spec can force single-pair (landing stays Visão Geral) vs multi.

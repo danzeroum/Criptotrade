@@ -1121,11 +1121,45 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Pares operados (SYMBOLS) + observáveis (allowlist) — fonte do seletor */
+        /** Pares operados (DB > env) + observáveis (allowlist) — fonte do seletor */
         get: operations["get_pairs_v1_pairs_get"];
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pairs/operated": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adiciona um par operado (N8² — aplica no próximo restart do orchestrator) */
+        post: operations["add_operated_v1_pairs_operated_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pairs/operated/{symbol}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove um par operado (N8² — aplica no próximo restart do orchestrator) */
+        delete: operations["remove_operated_v1_pairs_operated__symbol__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2792,11 +2826,24 @@ export interface components {
             /** Last Cycle At */
             last_cycle_at?: string | null;
             /**
+             * Paused
+             * @default false
+             */
+            paused: boolean;
+            /**
              * Status
              * @default aguardando
              * @enum {string}
              */
             status: "operando" | "aguardando";
+            /** Symbol */
+            symbol: string;
+        };
+        /**
+         * OperatedPairIn
+         * @description Add a pair to the DB-managed operated set (N8²).
+         */
+        OperatedPairIn: {
             /** Symbol */
             symbol: string;
         };
@@ -5928,6 +5975,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["APIResponse_PairsOut_"];
+                };
+            };
+        };
+    };
+    add_operated_v1_pairs_operated_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OperatedPairIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_PairsOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_operated_v1_pairs_operated__symbol__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                symbol: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_PairsOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
