@@ -79,14 +79,14 @@ Layouts, componentes por tela, estados e critérios de aceite estão detalhados 
 ## Assets
 Nenhum binário — ícones são SVG inline (`ICON_PATHS` em components.jsx, stroke 24×24), gráficos são SVG gerados. Fontes via Google Fonts (IBM Plex).
 
-## Estado do handoff (jul/2026) e próxima frente
-Já ENTREGUES no produto (Fases 1–8, PRs #74–#86): Grid FIFO, P0 do console (as_of, HITL), layout responsivo C4–C6, e TODA a camada administrativa A1–A10 (A8 descartado — uso pessoal, não SaaS). Os docs correspondentes permanecem como especificação de referência.
+## Estado do handoff (jul/2026)
+TODAS as frentes ENTREGUES no produto:
+- **Fases 1–8** (PRs #74–#86): Grid FIFO, P0 do console (as_of, HITL), layout responsivo C4–C6, camada administrativa A1–A10 completa (A8 descartado — uso pessoal, não SaaS), DeepSeek.
+- **Fases 9–11** (PRs #90–#98): Console Multi-Ativo N1–N9 completo — `GET /v1/pairs` + seletor dinâmico, Mesa Multi-Ativo (landing com SYMBOLS>1, `/v1/desk/summary` batch), slots/exposição/`signal_skipped`, dimensão de par em todas as telas, regras de notificação por par, gestão de pares por UI (DB > env, migration 012), pausa por par sem restart, heatmap toggle manual, watchlists localStorage.
 
-**Frente ATIVA: `docs/Handoff Dev - Console Multi-Ativo.html`** — o loop agora opera 5 pares (`SYMBOLS`) disputando capital compartilhado e 3 slots; o console é par-a-par. 9 itens N1–N9 em 3 fases:
-1. **Fase 9 (P0):** N1 seletor dinâmico (`GET /v1/pairs`), N2 Mesa Multi-Ativo (tela nova + `/v1/desk/summary` batch), N3 slots/exposição/`signal_skipped`.
-2. **Fase 10 (P1):** dimensão de par nas telas existentes (HITL, Ordens/Diário, Observabilidade, regras de notificação, Config somente-leitura).
-3. **Fase 11 (P2):** gestão de pares no DB, pausa por par sem restart, heatmap, watchlists.
-Seguir os 6 princípios de arquitetura para N do doc (par nunca hardcoded, batch por padrão, dimensão-não-duplicação, etc.).
+**Backlog registrado (não construído):** correlação de exposição · watchlists server-side · staleness do teste de conexão · hot-reload de conexão · dedup de fills · tuning SELL · i18n de strings · digest de notificações.
+
+Os docs em `docs/` permanecem como especificação de referência. Para novas frentes: seguir as convenções estabelecidas (plano antes de código, 1 PR por item, CI verde → squash, `AUTH_MODE=off` bit-compatível, princípios de arquitetura para N).
 
 ## Files
 Todos listados na árvore acima. Entry point do protótipo: `prototype/Criptotrade Console.html`. Especificações: `docs/*.html`.
