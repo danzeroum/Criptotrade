@@ -232,7 +232,10 @@ class SquadOrchestrator:
             except Exception:
                 logger.warning("Position check failed for %s", symbol, exc_info=True)
 
-        self.ledger.log_signal(agent="strategy", signal=strategy_result["signal"])
+        self.ledger.log_signal(
+            agent="strategy", signal=strategy_result["signal"],
+            confidence=strategy_result.get("confidence"),
+        )
 
         if strategy_result["confidence"] < 0.6:
             logger.info("Signal confidence too low, skipping")

@@ -4,6 +4,8 @@
 const { useState, useEffect } = React;
 
 const NAV = [
+  // N2: multi-asset hub — landing when the loop trades >1 pair (see app.jsx).
+  { id: 'desk',     icon: 'grid',     label: 'Mesa' },
   { id: 'overview', icon: 'dollar',   label: 'Visão Geral' },
   { id: 'hitl',     icon: 'activity', label: 'HITL Controls' },
   { id: 'orders',   icon: 'list',     label: 'Ordens' },

@@ -71,9 +71,15 @@ class TradingLedger:
             )
         logger.info("Ledger entry recorded", extra={"event_type": event_type})
 
-    def log_signal(self, agent: str, signal: Dict[str, Any]) -> None:
-        """Log a trading signal."""
-        self.log_decision("signal_generated", {"agent": agent, "signal": signal})
+    def log_signal(
+        self, agent: str, signal: Dict[str, Any], confidence: float | None = None
+    ) -> None:
+        """Log a trading signal. ``confidence`` is stored as a sibling of the
+        signal (N2 Mesa reads it per pair) without mutating the signal payload
+        that flows into the order."""
+        self.log_decision(
+            "signal_generated", {"agent": agent, "signal": signal, "confidence": confidence}
+        )
 
     def log_validation(self, agent: str, validation: Dict[str, Any]) -> None:
         """Log a risk validation."""

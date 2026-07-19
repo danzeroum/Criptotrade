@@ -92,6 +92,8 @@ const CT_API = (() => {
     getPairs:         ()           => req('/v1/market/pairs'),
     // N1: dynamic pair source — { operados:[{symbol,last_cycle_at,status}], observaveis:[] }
     getPairsRich:     ()           => req('/v1/pairs'),
+    // N2: Mesa Multi-Ativo batch — every operated pair in one request
+    getDeskSummary:   ()           => req('/v1/desk/summary'),
     getTicker:        (pair)       => req(`/v1/market/${pair.replace('/', '-')}/ticker`),
     getCandles:       (pair, tf = '1h', limit = 100) =>
       req(`/v1/market/${pair.replace('/', '-')}/candles?tf=${tf}&limit=${limit}`),

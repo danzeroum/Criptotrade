@@ -25,6 +25,7 @@ from src.api.routes import (
     exchanges,
     backtest,
     config,
+    desk,
     hitl,
     journal,
     market,
@@ -310,6 +311,7 @@ def create_app() -> FastAPI:
     app.include_router(alerts.router, prefix=PREFIX, dependencies=guarded)
     app.include_router(market.router, prefix=PREFIX, dependencies=guarded)
     app.include_router(pairs.router, prefix=PREFIX, dependencies=guarded)
+    app.include_router(desk.router, prefix=PREFIX, dependencies=guarded)
     app.include_router(risk.router, prefix=PREFIX, dependencies=guarded)
     app.include_router(backtest.router, prefix=PREFIX, dependencies=guarded)
     app.include_router(journal.router, prefix=PREFIX, dependencies=guarded)
