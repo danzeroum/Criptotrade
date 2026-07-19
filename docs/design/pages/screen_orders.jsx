@@ -29,8 +29,16 @@ function ScreenOrders() {
     operator_note:     o.operatorNote,
   }));
 
+  // N5: mock closed trades (realized P&L) for the per-pair footer.
+  const mockTrades = [
+    { symbol: 'BTC/USDT', pnl: 108.30 }, { symbol: 'BTC/USDT', pnl: -42.10 },
+    { symbol: 'ETH/USDT', pnl: 61.50 }, { symbol: 'SOL/USDT', pnl: 12.38 },
+    { symbol: 'SOL/USDT', pnl: 24.90 }, { symbol: 'XRP/USDT', pnl: -8.20 },
+  ];
+
   const [scope] = useCurrentPair();
   const [orders,  setOrders]  = useState(mock ? mockOrders : null);
+  const [trades,  setTrades]  = useState(mock ? mockTrades : null);
   const [loading, setLoading] = useState(!mock);
   const [error,   setError]   = useState(null);
   const [statusF, setStatusF] = useState('all');
@@ -40,8 +48,12 @@ function ScreenOrders() {
     if (mock) return;
     setLoading(true);
     const pairQ = scope && scope !== 'ALL' ? `&pair=${encodeURIComponent(scope)}` : '';
-    CT_API.getOrders(100, 0, pairQ)
-      .then(d => { setOrders(Array.isArray(d) ? d : []); setLoading(false); })
+    Promise.all([CT_API.getOrders(100, 0, pairQ), CT_API.getTrades(200, 0, pairQ).catch(() => [])])
+      .then(([ords, trds]) => {
+        setOrders(Array.isArray(ords) ? ords : []);
+        setTrades(Array.isArray(trds) ? trds : []);
+        setLoading(false);
+      })
       .catch(e => { setError(e); setLoading(false); });
   }, [mock, scope]);
 
@@ -61,6 +73,15 @@ function ScreenOrders() {
   const winRate = filled > 0
     ? orders.filter(o => o.status === 'filled' && o.side === 'buy').length / filled
     : null;
+
+  // N5: realized P&L per pair (closed trades). REALIZED ONLY — never mixed with
+  // unrealized (that lives on the Mesa). Surfaced in ∑ mode, where the list spans
+  // multiple pairs and a single number would be illegible.
+  const pnlByPair = (trades || []).reduce((m, t) => {
+    m[t.symbol] = (m[t.symbol] || 0) + (t.pnl || 0);
+    return m;
+  }, {});
+  const showPnlByPair = (!scope || scope === 'ALL') && Object.keys(pnlByPair).length > 1;
 
   return (
     <div>
@@ -173,6 +194,19 @@ function ScreenOrders() {
             </tbody>
           </table>
         </div>
+        {showPnlByPair && (
+          <div className="pnl-by-pair">
+            <span className="pnl-by-pair-l">P&L realizado por par <span className="desk-muted">(trades fechados)</span></span>
+            <div className="pnl-by-pair-cells">
+              {Object.entries(pnlByPair).sort((a, b) => b[1] - a[1]).map(([sym, v]) => (
+                <span key={sym} className="pnl-by-pair-cell">
+                  <b>{sym}</b>
+                  <span className={v >= 0 ? 'up' : 'down'}>{v >= 0 ? '+' : ''}{fmtUsd(v)}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
