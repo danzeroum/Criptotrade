@@ -36,6 +36,7 @@ AUDIT_EXACT_TYPES: Tuple[str, ...] = (
     "order_executed",
     "notification_sent",
     "notification_failed",
+    "signal_skipped",
 )
 
 _USER_MGMT_TYPES: Tuple[str, ...] = (
@@ -61,7 +62,7 @@ ACTIONS: Tuple[str, ...] = (
     "login", "logout", "security", "user_management",
     "order_approved", "order_rejected", "autonomy_changed", "config_changed",
     "position_closed", "circuit_breaker", "order_executed", "notification",
-    "connection", "platform_key",
+    "connection", "platform_key", "signal_skipped",
 )
 
 # ------------------------------------------------- actor/entity (SQL ↔ Python)
@@ -126,7 +127,7 @@ def action_of(event_type: str, data: Dict[str, Any]) -> str:
         return "connection"
     if event_type.startswith("apikey_"):
         return "platform_key"
-    if event_type in ("config_changed", "position_closed", "order_executed"):
+    if event_type in ("config_changed", "position_closed", "order_executed", "signal_skipped"):
         return event_type
     return "other"
 
@@ -199,7 +200,7 @@ def _action_predicate(action: str) -> Tuple[str, List[Any]]:
         return "event_type LIKE 'connection\\_%' ESCAPE '\\'", []
     if action == "platform_key":
         return "event_type LIKE 'apikey\\_%' ESCAPE '\\'", []
-    if action in ("config_changed", "position_closed", "order_executed"):
+    if action in ("config_changed", "position_closed", "order_executed", "signal_skipped"):
         return "event_type = ?", [action]
     raise ValueError(f"unknown audit action: {action}")
 

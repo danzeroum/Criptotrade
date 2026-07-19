@@ -16,11 +16,16 @@ from src.api.deps import get_ledger, get_metrics_calculator
 from src.api.schemas import (
     APIResponse,
     CircuitBreakerOut,
+    ExposureOut,
     KellyOut,
     ProtectionOut,
     RiskConfigOut,
     RiskConfigPatch,
+    RiskSlotsOut,
+    SlotOut,
 )
+from src.core.config import settings
+from src.core.db import connection
 from src.core.ledger import TradingLedger
 from src.core.metrics import PortfolioMetricsCalculator
 from src.risk.position_sizing import full_kelly_fraction
@@ -29,6 +34,54 @@ router = APIRouter(prefix="/risk", tags=["risk"])
 
 _RISK_PARAMS_PATH = Path(__file__).resolve().parents[4] / "config" / "strategies" / "risk_params.yaml"
 _MIN_KELLY_TRADES = 10
+
+
+def _open_lots(ledger: TradingLedger) -> List[Dict[str, Any]]:
+    """Open paper positions (one row per lot). Empty if the table is absent."""
+    try:
+        with connection(ledger.db_path) as conn:
+            rows = conn.execute(
+                "SELECT symbol, side, entry_price, quantity, opened_at FROM open_positions"
+            ).fetchall()
+        return [dict(r) for r in rows]
+    except Exception:
+        return []
+
+
+@router.get(
+    "/slots",
+    response_model=APIResponse[RiskSlotsOut],
+    summary="Ocupação de slots + exposição por par (competição por capital — N3)",
+)
+async def get_slots(ledger: TradingLedger = Depends(get_ledger)) -> APIResponse[RiskSlotsOut]:
+    lots = _open_lots(ledger)
+    capital = float(settings.initial_capital) or 1.0
+    slots = [
+        SlotOut(
+            symbol=lot["symbol"], side=lot["side"],
+            notional=round((lot["entry_price"] or 0.0) * (lot["quantity"] or 0.0), 2),
+            opened_at=lot.get("opened_at"),
+        )
+        for lot in lots
+    ]
+    by_symbol: Dict[str, float] = {}
+    for lot in lots:
+        by_symbol[lot["symbol"]] = by_symbol.get(lot["symbol"], 0.0) + (
+            (lot["entry_price"] or 0.0) * (lot["quantity"] or 0.0)
+        )
+    exposure = [
+        ExposureOut(symbol=s, notional=round(n, 2), pct_of_capital=round(n / capital * 100, 2))
+        for s, n in sorted(by_symbol.items(), key=lambda kv: -kv[1])
+    ]
+    allocated = round(sum(by_symbol.values()), 2)
+    return APIResponse(data=RiskSlotsOut(
+        slots_used=len(lots),
+        slots_max=int(settings.max_concurrent_positions),
+        slots=slots,
+        exposure=exposure,
+        capital=round(capital, 2),
+        capital_free=round(max(0.0, capital - allocated), 2),
+    ))
 
 
 def _load_yaml() -> Dict[str, Any]:

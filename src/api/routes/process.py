@@ -11,7 +11,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
 
 from src.api.deps import get_ledger
-from src.api.schemas import APIResponse, Meta, ProcessEventOut
+from src.api.schemas import APIResponse, Meta, ProcessEventOut, SkipOut
 from src.core.ledger import TradingLedger
 
 router = APIRouter(prefix="/process", tags=["process"])
@@ -37,5 +37,34 @@ async def list_process_events(
             attributes=e["data"].get("attributes", {}),
         )
         for e in events[-limit:]
+    ]
+    return APIResponse(data=rows, meta=Meta(total=len(events), per_page=limit))
+
+
+@router.get(
+    "/skips",
+    response_model=APIResponse[List[SkipOut]],
+    summary="Decisões do ciclo: por que cada sinal não virou ordem (signal_skipped — N3)",
+)
+async def list_skips(
+    symbol: Optional[str] = Query(None, description="Filtra por par (ex.: BTC/USDT)"),
+    limit: int = Query(50, ge=1, le=500),
+    ledger: TradingLedger = Depends(get_ledger),
+) -> APIResponse[List[SkipOut]]:
+    events = ledger.get_events("signal_skipped")
+    if symbol:
+        sym = symbol.upper()
+        events = [e for e in events if str(e["data"].get("symbol", "")).upper() == sym]
+    # Newest first — the feed shows current state + a compact history.
+    rows = [
+        SkipOut(
+            symbol=e["data"].get("symbol", ""),
+            reason=e["data"].get("reason", "unknown"),
+            count=int(e["data"].get("count", 1) or 1),
+            since=e["data"].get("since"),
+            ts=e["timestamp"],
+            confidence=e["data"].get("confidence"),
+        )
+        for e in reversed(events[-limit:])
     ]
     return APIResponse(data=rows, meta=Meta(total=len(events), per_page=limit))

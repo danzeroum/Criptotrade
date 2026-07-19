@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -166,6 +167,13 @@ class SquadOrchestrator:
         self._open_positions: dict[str, dict[str, Any]] = {}
         # SQLite mirror so the book survives a loop restart (no zombie positions).
         self._positions = PositionStore(lambda: self.ledger.db_path)
+        # N3: N pairs compete for MAX_CONCURRENT_POSITIONS slots — opening a new
+        # lot when full is skipped (no_slot). Read fresh from env so tests and the
+        # loop pick up the deployment's value.
+        self._max_concurrent = max(1, int(os.getenv("MAX_CONCURRENT_POSITIONS", "3") or 3))
+        # N3: last skip reason per symbol, so we log STATE TRANSITIONS (+ a throttled
+        # heartbeat) instead of one event per cycle — the ledger/A4 don't drown.
+        self._last_skip: dict[str, dict[str, Any]] = {}
         # Wire the RiskAgent's guardrails to publish each violation as an alert.
         if alert_store is not None:
             from src.core.alerts import make_guardrail_sink
@@ -197,10 +205,52 @@ class SquadOrchestrator:
             logger.info("Restored %d open paper position(s) from disk", len(restored))
         self.circuit_breaker.reload()
 
+    # Re-emit a persistent skip at most this often (with a running count), so a
+    # symbol stuck on "confidence_low" produces ~1 event / 10 min, not 1 / cycle.
+    _SKIP_THROTTLE_S = 600.0
+
+    def _record_skip(self, symbol: str, reason: str, extra: dict[str, Any] | None = None) -> None:
+        """Book a ``signal_skipped`` event — on a reason CHANGE (or first time), or a
+        throttled heartbeat while the reason persists. Feeds the N3 feed + A4."""
+        now = time.time()
+        prev = self._last_skip.get(symbol)
+        if prev and prev["reason"] == reason:
+            prev["count"] += 1
+            if now - prev["last_emit"] < self._SKIP_THROTTLE_S:
+                return  # same reason, within the window — stay quiet
+            prev["last_emit"] = now
+            count, since = prev["count"], prev["since"]
+        else:
+            self._last_skip[symbol] = {"reason": reason, "count": 1, "since": now, "last_emit": now}
+            count, since = 1, now
+        data: dict[str, Any] = {
+            "symbol": symbol, "reason": reason, "count": count,
+            "since": datetime.fromtimestamp(since, tz=UTC).isoformat(),
+        }
+        if extra:
+            data.update(extra)
+        try:
+            self.ledger.log_decision("signal_skipped", data)
+        except Exception:  # pragma: no cover - a skip log must never break the loop
+            logger.warning("Failed to log signal_skipped for %s", symbol, exc_info=True)
+
+    def _clear_skip(self, symbol: str) -> None:
+        """A symbol that traded resets its skip state (next skip is a fresh transition)."""
+        self._last_skip.pop(symbol, None)
+
+    @staticmethod
+    def _risk_skip_reason(issues: list[Any]) -> str:
+        """Map a RiskAgent rejection to a skip reason for the feed."""
+        joined = " ".join(str(i) for i in issues).lower()
+        if "insufficient capital" in joined:
+            return "insufficient_capital"
+        return "risk_rejected"
+
     async def analyze_and_trade(self, symbol: str, timeframe: str = "1h") -> dict[str, Any]:
         """Full trading pipeline with agent collaboration."""
         if self.circuit_breaker.is_open:
             logger.warning("Circuit breaker is OPEN — skipping trade cycle for %s", symbol)
+            self._record_skip(symbol, "circuit_breaker")
             return {
                 "success": False,
                 "reason": "Circuit breaker active — trading paused",
@@ -239,6 +289,8 @@ class SquadOrchestrator:
 
         if strategy_result["confidence"] < 0.6:
             logger.info("Signal confidence too low, skipping")
+            self._record_skip(symbol, "confidence_low",
+                              {"confidence": strategy_result["confidence"]})
             return {
                 "success": False,
                 "reason": "Low confidence signal",
@@ -259,10 +311,26 @@ class SquadOrchestrator:
             issues = risk_result["validation"]["issues"]
             logger.warning("Signal rejected by Risk Agent", extra={"issues": issues})
             await self._emit_alert(symbol, issues)
+            self._record_skip(symbol, self._risk_skip_reason(issues), {"issues": issues})
             return {
                 "success": False,
                 "reason": "Risk validation failed",
                 "issues": issues,
+            }
+
+        # N3 slot cap: N pairs compete for a bounded book. Opening a new lot when
+        # full is skipped (no_slot); a closing SELL for an already-open pair is
+        # never blocked (it frees a slot). Makes the "5 pairs / 3 slots" contest real.
+        action = str(strategy_result["signal"].get("action", "buy")).lower()
+        has_open_here = any(p.get("symbol") == symbol for p in self._open_positions.values())
+        if len(self._open_positions) >= self._max_concurrent and not (action == "sell" and has_open_here):
+            logger.info("No free position slot (%d/%d) — skipping %s",
+                        len(self._open_positions), self._max_concurrent, symbol)
+            self._record_skip(symbol, "no_slot", {"slots_open": len(self._open_positions)})
+            return {
+                "success": False,
+                "reason": "No free position slot",
+                "slots_open": len(self._open_positions),
             }
 
         logger.info("⏸️  HITL approval required")
@@ -288,6 +356,7 @@ class SquadOrchestrator:
 
         if execution_result.get("success"):
             self._log_fill(symbol, strategy_result["signal"], execution_result)
+            self._clear_skip(symbol)  # traded → reset skip state (next skip is fresh)
             # Complete the manual HITL path: approved -> filled in the OrderStore.
             # No-op for auto-filled orders (mark_filled guards on status='approved').
             if self.fill_callback is not None and self._last_order_ref is not None:
