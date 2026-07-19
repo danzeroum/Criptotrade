@@ -431,6 +431,17 @@ class OperatedPair(BaseModel):
     last_cycle_at: Optional[datetime] = None
     # "operando" once it has a signal; "aguardando" until the first cycle lands.
     status: Literal["operando", "aguardando"] = "aguardando"
+    # N9: paused pairs stay in the book but the loop skips new orders (read per
+    # cycle — no restart). False for every pair until N9 wires the flag.
+    paused: bool = False
+
+
+class OperatedPairIn(BaseModel):
+    """Add a pair to the DB-managed operated set (N8²)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    symbol: str = Field(..., max_length=20)
 
 
 class PairsOut(BaseModel):

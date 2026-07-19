@@ -43,13 +43,35 @@ function ScreenSettings({ addToast }) {
   const [riskConfig,   setRiskConfig]   = useState(mock ? mockRiskConfig : null);
   const [alertConfig,  setAlertConfig]  = useState(mock ? mockAlerts : null);
   const [agents,       setAgents]       = useState(null);
-  const [pairsRich,    setPairsRich]    = useState(null);  // N8¹: operated/observable
+  const [pairsRich,    setPairsRich]    = useState(null);  // N8¹/N8²: operated/observable
+  const [pairsDirty,   setPairsDirty]   = useState(false); // N8²: pending-restart flag
+  const [addPairSel,   setAddPairSel]   = useState('');
   const [loading,      setLoading]      = useState(!mock);
   const [error,        setError]        = useState(null);
   const [saved,        setSaved]        = useState(null);
 
-  // N8¹: pares operados (somente leitura), da fonte dinâmica /v1/pairs (N1).
+  // N8¹: pares operados, da fonte dinâmica /v1/pairs (N1). N8²: editável abaixo.
+  const reloadPairs = () => loadPairsRich(true).then(setPairsRich).catch(() => {});
   useEffect(() => { loadPairsRich().then(setPairsRich).catch(() => {}); }, []);
+
+  // N8²: add/remove operated pair — aplica no PRÓXIMO restart do orchestrator.
+  const addPair = async (symbol) => {
+    if (!symbol) return;
+    if (mock) {
+      setPairsRich(p => ({ ...p, operados: [...(p.operados || []), { symbol, status: 'aguardando' }] }));
+      setPairsDirty(true); setAddPairSel(''); addToast?.('Par adicionado (pendente de restart).', 'check'); return;
+    }
+    try { await CT_API.addOperatedPair(symbol); setPairsDirty(true); setAddPairSel(''); await reloadPairs(); addToast?.('Par adicionado — reinicie o orchestrator para aplicar.', 'check'); }
+    catch (e) { addToast?.(e?.message ?? 'Falha ao adicionar par.', 'alert'); }
+  };
+  const removePair = async (symbol) => {
+    if (mock) {
+      setPairsRich(p => ({ ...p, operados: (p.operados || []).filter(o => o.symbol !== symbol) }));
+      setPairsDirty(true); addToast?.('Par removido (pendente de restart).', 'check'); return;
+    }
+    try { await CT_API.removeOperatedPair(symbol); setPairsDirty(true); await reloadPairs(); addToast?.('Par removido — reinicie o orchestrator para aplicar.', 'check'); }
+    catch (e) { addToast?.(e?.message ?? 'Falha ao remover par.', 'alert'); }
+  };
 
   useEffect(() => {
     if (mock) {
@@ -326,22 +348,47 @@ function ScreenSettings({ addToast }) {
           </div>
         )}
 
-        {/* N8¹: pares operados — SOMENTE LEITURA (a gestão por UI é fase futura).
-            Fonte: /v1/pairs (nunca hardcoded); mudar exige env + restart. */}
-        {pairsRich && (
+        {/* N8²: gestão de pares operados (DB > env). add/remove aplicam no
+            PRÓXIMO restart do orchestrator (banner honesto); pausar (N9) é
+            por-ciclo. Fonte: /v1/pairs (nunca hardcoded). */}
+        {pairsRich && (() => {
+          const operatedSet = new Set((pairsRich.operados || []).map(o => o.symbol));
+          const addable = (pairsRich.observaveis || []).filter(s => !operatedSet.has(s));
+          return (
           <div className="card">
             <SectionHead title="Pares operados" icon="grid" />
             <div className="card-pad">
+              {pairsDirty && (
+                <div className="pending-restart">
+                  <Icon name="clock" size={13} />
+                  Alterações pendentes — reinicie o orchestrator para aplicá-las.
+                </div>
+              )}
               <div style={{ marginBottom: 14 }}>
-                <div className="stat-k" style={{ marginBottom: 6 }}>Operados pelo loop (<code>SYMBOLS</code>)</div>
+                <div className="stat-k" style={{ marginBottom: 6 }}>Operados pelo loop</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {(pairsRich.operados || []).map(o => (
-                    <Badge key={o.symbol} variant={o.status === 'operando' ? 'ok' : 'neutral'} dot={false}>
+                    <span key={o.symbol} className={'pair-tag' + (o.status === 'operando' ? ' on' : '')}>
                       {o.symbol}
-                    </Badge>
+                      {canEdit && (
+                        <button className="pair-tag-x" aria-label={`Remover ${o.symbol}`}
+                          onClick={() => removePair(o.symbol)}>×</button>
+                      )}
+                    </span>
                   ))}
+                  {(pairsRich.operados || []).length === 0 && <span className="desk-muted">Nenhum</span>}
                 </div>
               </div>
+              {canEdit && addable.length > 0 && (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14 }}>
+                  <select className="input" value={addPairSel} onChange={e => setAddPairSel(e.target.value)}
+                    aria-label="Adicionar par" style={{ width: 'auto', minWidth: 150 }}>
+                    <option value="">Adicionar par…</option>
+                    {addable.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <Btn variant="primary" size="sm" onClick={() => addPair(addPairSel)}>Adicionar</Btn>
+                </div>
+              )}
               <div style={{ marginBottom: 14 }}>
                 <div className="stat-k" style={{ marginBottom: 6 }}>Observáveis (allowlist <code>MARKET_PAIRS</code>)</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -350,13 +397,14 @@ function ScreenSettings({ addToast }) {
               </div>
               <div style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6,
                             background: 'var(--surface-3)', borderRadius: 'var(--r-sm)', padding: '10px 12px' }}>
-                Para mudar os pares operados, ajuste <code>SYMBOLS</code> (e a allowlist
-                <code>MARKET_PAIRS</code>) no <code>.env</code> do deploy e reinicie o orchestrator.
-                A gestão por UI chega numa fase futura.
+                Só pares da allowlist (<code>MARKET_PAIRS</code>) podem ser operados.
+                Adicionar/remover aplica no <b>próximo restart</b> do orchestrator.
+                Pausar um par (sem restart) chega no N9.
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );
