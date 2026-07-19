@@ -289,6 +289,38 @@
         "title": "APIResponse[ConnectionOut]",
         "type": "object"
       },
+      "APIResponse_DeskSummaryOut_": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/DeskSummaryOut"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[DeskSummaryOut]",
+        "type": "object"
+      },
       "APIResponse_Dict_str__float__": {
         "properties": {
           "_links": {
@@ -3222,6 +3254,184 @@
           "api_secret"
         ],
         "title": "ConnectionRotateIn",
+        "type": "object"
+      },
+      "DeskRow": {
+        "description": "One operated pair's live snapshot for the Mesa Multi-Ativo (N2).",
+        "properties": {
+          "as_of": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "change_24h_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change 24H Pct"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last"
+          },
+          "last_cycle_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Cycle At"
+          },
+          "position_entry": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position Entry"
+          },
+          "position_qty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position Qty"
+          },
+          "position_side": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position Side"
+          },
+          "regime": {
+            "default": "unknown",
+            "title": "Regime",
+            "type": "string"
+          },
+          "regime_label": {
+            "default": "Desconhecido",
+            "title": "Regime Label",
+            "type": "string"
+          },
+          "signal_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signal Action"
+          },
+          "signal_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signal Confidence"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "unrealized_pnl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unrealized Pnl"
+          }
+        },
+        "required": [
+          "symbol"
+        ],
+        "title": "DeskRow",
+        "type": "object"
+      },
+      "DeskSummaryOut": {
+        "description": "Batch snapshot for the Mesa \u2014 every operated pair in ONE request (N2).\n\nThe header aggregates (slots, capital, active signals) feed the fixed summary\nrow; the per-pair grid reads ``rows``. Fan-out over pairs happens in the\nbackend only \u2014 the console never issues one request per pair.",
+        "properties": {
+          "capital_allocated": {
+            "title": "Capital Allocated",
+            "type": "number"
+          },
+          "capital_free": {
+            "title": "Capital Free",
+            "type": "number"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/DeskRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "signals_active": {
+            "title": "Signals Active",
+            "type": "integer"
+          },
+          "slots_max": {
+            "title": "Slots Max",
+            "type": "integer"
+          },
+          "slots_used": {
+            "title": "Slots Used",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "slots_used",
+          "slots_max",
+          "capital_allocated",
+          "capital_free",
+          "signals_active"
+        ],
+        "title": "DeskSummaryOut",
         "type": "object"
       },
       "EmotionBand": {
@@ -7999,6 +8209,27 @@
         "summary": "Atualiza configura\u00e7\u00f5es gerais (in-memory para MVP)",
         "tags": [
           "config"
+        ]
+      }
+    },
+    "/v1/desk/summary": {
+      "get": {
+        "operationId": "desk_summary_v1_desk_summary_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_DeskSummaryOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Snapshot de todos os pares operados em 1 request (Mesa Multi-Ativo)",
+        "tags": [
+          "desk"
         ]
       }
     },

@@ -442,6 +442,43 @@ class PairsOut(BaseModel):
     observaveis: List[str]
 
 
+class DeskRow(BaseModel):
+    """One operated pair's live snapshot for the Mesa Multi-Ativo (N2)."""
+
+    symbol: str
+    last: Optional[float] = None
+    change_24h_pct: Optional[float] = None
+    regime: str = "unknown"
+    regime_label: str = "Desconhecido"
+    # Latest signal for this pair (from the ledger), action + confidence.
+    signal_action: Optional[str] = None
+    signal_confidence: Optional[float] = None
+    # Aggregated open position for this pair, or nulls when flat.
+    position_side: Optional[str] = None
+    position_qty: Optional[float] = None
+    position_entry: Optional[float] = None
+    unrealized_pnl: Optional[float] = None
+    # Freshness: candle age (market data) and last signal time (bot activity).
+    as_of: Optional[datetime] = None
+    last_cycle_at: Optional[datetime] = None
+
+
+class DeskSummaryOut(BaseModel):
+    """Batch snapshot for the Mesa — every operated pair in ONE request (N2).
+
+    The header aggregates (slots, capital, active signals) feed the fixed summary
+    row; the per-pair grid reads ``rows``. Fan-out over pairs happens in the
+    backend only — the console never issues one request per pair.
+    """
+
+    rows: List[DeskRow]
+    slots_used: int
+    slots_max: int
+    capital_allocated: float
+    capital_free: float
+    signals_active: int  # pairs with signal confidence >= 0.6
+
+
 class MacdOut(BaseModel):
     macd: float
     signal: float

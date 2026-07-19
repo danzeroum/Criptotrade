@@ -36,10 +36,12 @@ test("completing the remaining steps leads to the dashboard (aceite 2)", async (
   await expect(page).toHaveURL(/#overview$/);
 });
 
-test("default mock (completed) boots straight to the dashboard", async ({ page }) => {
+test("default mock (completed) boots to the dashboard, not the guide", async ({ page }) => {
   await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
   await page.goto("/");
-  await expect(page.locator(".nav-item.active")).toContainText("Visão Geral");
+  // No onboarding hijack; the multi-pair mock lands on the Mesa (N2).
+  await expect(page).toHaveURL(/#desk$/);
+  await expect(page.locator(".nav-item.active")).toContainText("Mesa");
 });
 
 test("an explicit deep link is never hijacked", async ({ page }) => {

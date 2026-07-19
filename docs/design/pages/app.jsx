@@ -5,6 +5,7 @@ const { useState, useEffect, useCallback, useRef } = React;
 
 // ---- Screen registry ----
 const SCREENS = {
+  desk:          ScreenDesk,
   overview:      ScreenOverview,
   hitl:          ScreenHITL,
   orders:        ScreenOrders,
@@ -219,6 +220,28 @@ function App() {
       return;
     }
     CT_API.getOnboarding().then(open).catch(() => {});
+  }, [booted, auth.kind]);
+
+  // N2 (Fase 9): Mesa Multi-Ativo is the landing when the loop trades >1 pair
+  // (par único mantém Visão Geral). Never hijacks an explicit deep link and
+  // defers to the onboarding redirect for a first-run admin. Mirrors the effect
+  // above; runs once per boot.
+  const deskLandingRef = useRef(false);
+  useEffect(() => {
+    if (!booted || deskLandingRef.current) return;
+    // Only a bare boot (empty hash) is a candidate — an explicit #overview (or any
+    // deep link) is respected, never hijacked.
+    if (initialHashRef.current) return;
+    const onboardingWins = window.USE_MOCK_DATA
+      ? (window.MOCK_ONBOARDING === 'pending' && auth.kind === 'user' && auth.user?.role === 'admin')
+      : false;  // real onboarding runs in its own effect; the hash guard below yields
+    if (onboardingWins) return;
+    deskLandingRef.current = true;
+    loadPairsRich().then((r) => {
+      const operados = (r && r.operados) || [];
+      const h = window.location.hash;
+      if (operados.length > 1 && (!h || h === '#overview')) navigate('desk');
+    }).catch(() => {});
   }, [booted, auth.kind]);
 
   // Inactivity lock (A1) — ONLY for real user sessions: the public demo has no

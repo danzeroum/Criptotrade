@@ -561,6 +561,23 @@ export interface paths {
         patch: operations["patch_config_v1_config_patch"];
         trace?: never;
     };
+    "/v1/desk/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Snapshot de todos os pares operados em 1 request (Mesa Multi-Ativo) */
+        get: operations["desk_summary_v1_desk_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/exchanges/connect": {
         parameters: {
             query?: never;
@@ -1479,6 +1496,12 @@ export interface components {
             data: components["schemas"]["ConnectionOut"];
             meta?: components["schemas"]["Meta"] | null;
         };
+        /** APIResponse[DeskSummaryOut] */
+        APIResponse_DeskSummaryOut_: {
+            _links?: components["schemas"]["Links"] | null;
+            data: components["schemas"]["DeskSummaryOut"];
+            meta?: components["schemas"]["Meta"] | null;
+        };
         /** APIResponse[Dict[str, float]] */
         APIResponse_Dict_str__float__: {
             _links?: components["schemas"]["Links"] | null;
@@ -2281,6 +2304,66 @@ export interface components {
             api_key?: string | null;
             /** Api Secret */
             api_secret: string;
+        };
+        /**
+         * DeskRow
+         * @description One operated pair's live snapshot for the Mesa Multi-Ativo (N2).
+         */
+        DeskRow: {
+            /** As Of */
+            as_of?: string | null;
+            /** Change 24H Pct */
+            change_24h_pct?: number | null;
+            /** Last */
+            last?: number | null;
+            /** Last Cycle At */
+            last_cycle_at?: string | null;
+            /** Position Entry */
+            position_entry?: number | null;
+            /** Position Qty */
+            position_qty?: number | null;
+            /** Position Side */
+            position_side?: string | null;
+            /**
+             * Regime
+             * @default unknown
+             */
+            regime: string;
+            /**
+             * Regime Label
+             * @default Desconhecido
+             */
+            regime_label: string;
+            /** Signal Action */
+            signal_action?: string | null;
+            /** Signal Confidence */
+            signal_confidence?: number | null;
+            /** Symbol */
+            symbol: string;
+            /** Unrealized Pnl */
+            unrealized_pnl?: number | null;
+        };
+        /**
+         * DeskSummaryOut
+         * @description Batch snapshot for the Mesa — every operated pair in ONE request (N2).
+         *
+         *     The header aggregates (slots, capital, active signals) feed the fixed summary
+         *     row; the per-pair grid reads ``rows``. Fan-out over pairs happens in the
+         *     backend only — the console never issues one request per pair.
+         */
+        DeskSummaryOut: {
+            /** Capital Allocated */
+            capital_allocated: number;
+            /** Capital Free */
+            capital_free: number;
+            /** Rows */
+            rows: components["schemas"]["DeskRow"][];
+            /** Signals Active */
+            signals_active: number;
+            /** Slots Max */
+            slots_max: number;
+            /** Slots Used */
+            slots_used: number;
         };
         /** EmotionBand */
         EmotionBand: {
@@ -4482,6 +4565,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    desk_summary_v1_desk_summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_DeskSummaryOut_"];
                 };
             };
         };

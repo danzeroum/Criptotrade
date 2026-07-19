@@ -3,7 +3,9 @@
 import { test, expect } from "@playwright/test";
 
 const NAV = [
-  "Visão Geral", "HITL Controls", "Ordens", "Agentes", "Risco",
+  // N2: "Mesa" (multi-asset hub) is the first Operação item and the landing
+  // when the loop trades >1 pair — the mock operates 5, so it lands here.
+  "Mesa", "Visão Geral", "HITL Controls", "Ordens", "Agentes", "Risco",
   "Mercado", "Observabilidade", "Diário", "Backtest", "Config",
 ];
 // A2/A3/A4/A5/A6/A7: the mock user is an admin, so the Administração group adds these items.
@@ -29,7 +31,16 @@ test("loads the app shell with the full navigation", async ({ page }) => {
   expect(errors, `uncaught page errors: ${errors.join("; ")}`).toEqual([]);
 });
 
-test("default screen is Visão Geral and marked active", async ({ page }) => {
+test("default landing is the Mesa when >1 pair is operated (N2)", async ({ page }) => {
+  // Mock operates 5 pairs → Mesa is the landing (par único mantém Visão Geral).
+  await page.goto("/");
+  await expect(page).toHaveURL(/#desk$/);
+  await expect(page.locator(".nav-item.active")).toContainText("Mesa");
+  await expect(page.locator(".page-title")).toContainText("Mesa Multi-Ativo");
+});
+
+test("single operated pair keeps Visão Geral as the landing", async ({ page }) => {
+  await page.addInitScript(() => { window.MOCK_OPERATED = ["BTC/USDT"]; });
   await page.goto("/");
   await expect(page.locator(".nav-item.active")).toContainText("Visão Geral");
 });

@@ -79,6 +79,7 @@ const ICONS = {
   info:      'M12 16v-4m0-4h.01M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z',
   trending:  'M23 6l-9.5 9.5-5-5L1 18',
   bar:       'M18 20V10M12 20V4M6 20v-6',
+  grid:      'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',
   activity:  'M22 12h-4l-3 9L9 3l-3 9H2',
   settings:  'M12 15a3 3 0 100-6 3 3 0 000 6zm7.49-3.63a7.5 7.5 0 01.01.63 7.5 7.5 0 01-.01.63l1.58 1.24a.38.38 0 01.09.48l-1.5 2.59a.38.38 0 01-.46.17l-1.87-.75a7.47 7.47 0 01-1.09.63l-.28 1.99a.38.38 0 01-.37.31h-3a.38.38 0 01-.37-.31l-.28-1.99a7.47 7.47 0 01-1.09-.63l-1.87.75a.38.38 0 01-.46-.17l-1.5-2.59a.38.38 0 01.09-.48l1.58-1.24A7.48 7.48 0 014.5 12a7.48 7.48 0 01.01-.63L2.93 10.13a.38.38 0 01-.09-.48l1.5-2.59a.38.38 0 01.46-.17l1.87.75c.34-.23.71-.43 1.09-.63l.28-1.99A.38.38 0 018.41 4.7h3c.2 0 .36.14.37.31l.28 1.99c.38.2.75.4 1.09.63l1.87-.75a.38.38 0 01.46.17l1.5 2.59a.38.38 0 01-.09.48l-1.58 1.24z',
   shield:    'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
@@ -386,15 +387,14 @@ window.loadPairs = loadPairs;
 let _pairsRichPromise = null;
 function loadPairsRich() {
   if (!_pairsRichPromise) {
+    // e2e hook: window.MOCK_OPERATED (array of symbols) overrides the operated
+    // set, so a spec can force single-pair (landing stays Visão Geral) vs multi.
+    const mockOperated = (typeof window !== 'undefined' && window.MOCK_OPERATED) || null;
     _pairsRichPromise = window.USE_MOCK_DATA
       ? Promise.resolve({
-          operados: [
-            { symbol: 'BTC/USDT', status: 'operando', last_cycle_at: new Date().toISOString() },
-            { symbol: 'ETH/USDT', status: 'operando', last_cycle_at: new Date().toISOString() },
-            { symbol: 'SOL/USDT', status: 'operando', last_cycle_at: new Date().toISOString() },
-            { symbol: 'BNB/USDT', status: 'operando', last_cycle_at: new Date().toISOString() },
-            { symbol: 'XRP/USDT', status: 'aguardando', last_cycle_at: null },
-          ],
+          operados: (mockOperated || ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT'])
+            .map((s, i) => ({ symbol: s, status: i === 4 ? 'aguardando' : 'operando',
+                              last_cycle_at: i === 4 ? null : new Date().toISOString() })),
           observaveis: ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT',
                         'ADA/USDT', 'DOGE/USDT', 'AVAX/USDT'],
         })
