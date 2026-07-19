@@ -21,6 +21,23 @@ def allowed_pairs() -> List[str]:
     return parse_pairs(os.getenv("MARKET_PAIRS", DEFAULT_PAIRS))
 
 
+def operated_pairs() -> List[str]:
+    """Pairs the loop actually trades: env ``SYMBOLS`` ∩ allowlist.
+
+    Single source of truth for "operated" — shared by the trading loop
+    (which symbols to run) and the ``/v1/pairs`` route (what the selector shows
+    as operated), so the two never disagree when ``SYMBOLS`` changes. Entries not
+    in the allowlist are dropped; empty/all-invalid falls back to ``BTC/USDT``
+    (multi-symbol is opt-in, never a surprise on upgrade).
+    """
+    raw = os.getenv("SYMBOLS", "").strip()
+    if not raw:
+        return ["BTC/USDT"]
+    allowed = set(allowed_pairs())
+    valid = [s for s in parse_pairs(raw) if s in allowed]
+    return valid or ["BTC/USDT"]
+
+
 def is_allowed(symbol: str) -> bool:
     """True if ``symbol`` is in the allowlist (case-insensitive)."""
     return symbol.strip().upper() in set(allowed_pairs())

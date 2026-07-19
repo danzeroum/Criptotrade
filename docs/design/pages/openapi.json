@@ -1357,6 +1357,38 @@
         "title": "APIResponse[OrderOut]",
         "type": "object"
       },
+      "APIResponse_PairsOut_": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/PairsOut"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[PairsOut]",
+        "type": "object"
+      },
       "APIResponse_PlatformKeyCreatedOut_": {
         "properties": {
           "_links": {
@@ -4338,6 +4370,41 @@
         "title": "OnboardingStepOut",
         "type": "object"
       },
+      "OperatedPair": {
+        "description": "A pair the loop actually trades, with its last-cycle freshness (N1).",
+        "properties": {
+          "last_cycle_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Cycle At"
+          },
+          "status": {
+            "default": "aguardando",
+            "enum": [
+              "operando",
+              "aguardando"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol"
+        ],
+        "title": "OperatedPair",
+        "type": "object"
+      },
       "OrderCreate": {
         "description": "Submit a new order. Validation makes it hard to use incorrectly.",
         "properties": {
@@ -4647,6 +4714,31 @@
         ],
         "title": "OrderStatus",
         "type": "string"
+      },
+      "PairsOut": {
+        "description": "Dynamic pair source for the selector (N1) \u2014 supersedes the flat list.\n\n``operados`` = env ``SYMBOLS`` \u2229 allowlist (the loop trades these);\n``observaveis`` = the full ``MARKET_PAIRS`` allowlist (viewable/analysable).\nOperated \u2286 observable by construction, so the selector can badge the former\nand offer the latter for analysis.",
+        "properties": {
+          "observaveis": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Observaveis",
+            "type": "array"
+          },
+          "operados": {
+            "items": {
+              "$ref": "#/components/schemas/OperatedPair"
+            },
+            "title": "Operados",
+            "type": "array"
+          }
+        },
+        "required": [
+          "operados",
+          "observaveis"
+        ],
+        "title": "PairsOut",
+        "type": "object"
       },
       "PasswordChangeIn": {
         "properties": {
@@ -9691,6 +9783,27 @@
         "summary": "Operador aprova ou rejeita uma ordem pendente (a\u00e7\u00e3o HITL)",
         "tags": [
           "orders"
+        ]
+      }
+    },
+    "/v1/pairs": {
+      "get": {
+        "operationId": "get_pairs_v1_pairs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_PairsOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Pares operados (SYMBOLS) + observ\u00e1veis (allowlist) \u2014 fonte do seletor",
+        "tags": [
+          "pairs"
         ]
       }
     },

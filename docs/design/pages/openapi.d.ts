@@ -1097,6 +1097,23 @@ export interface paths {
         patch: operations["decide_order_v1_orders__order_id__status_patch"];
         trace?: never;
     };
+    "/v1/pairs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pares operados (SYMBOLS) + observáveis (allowlist) — fonte do seletor */
+        get: operations["get_pairs_v1_pairs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/process/events": {
         parameters: {
             query?: never;
@@ -1667,6 +1684,12 @@ export interface components {
         APIResponse_OrderOut_: {
             _links?: components["schemas"]["Links"] | null;
             data: components["schemas"]["OrderOut"];
+            meta?: components["schemas"]["Meta"] | null;
+        };
+        /** APIResponse[PairsOut] */
+        APIResponse_PairsOut_: {
+            _links?: components["schemas"]["Links"] | null;
+            data: components["schemas"]["PairsOut"];
             meta?: components["schemas"]["Meta"] | null;
         };
         /** APIResponse[PlatformKeyCreatedOut] */
@@ -2620,6 +2643,22 @@ export interface components {
             status: "done_auto" | "done_manual" | "skipped" | "pending";
         };
         /**
+         * OperatedPair
+         * @description A pair the loop actually trades, with its last-cycle freshness (N1).
+         */
+        OperatedPair: {
+            /** Last Cycle At */
+            last_cycle_at?: string | null;
+            /**
+             * Status
+             * @default aguardando
+             * @enum {string}
+             */
+            status: "operando" | "aguardando";
+            /** Symbol */
+            symbol: string;
+        };
+        /**
          * OrderCreate
          * @description Submit a new order. Validation makes it hard to use incorrectly.
          */
@@ -2739,6 +2778,21 @@ export interface components {
          * @enum {string}
          */
         OrderStatus: "pending" | "approved" | "filled" | "rejected" | "cancelled";
+        /**
+         * PairsOut
+         * @description Dynamic pair source for the selector (N1) — supersedes the flat list.
+         *
+         *     ``operados`` = env ``SYMBOLS`` ∩ allowlist (the loop trades these);
+         *     ``observaveis`` = the full ``MARKET_PAIRS`` allowlist (viewable/analysable).
+         *     Operated ⊆ observable by construction, so the selector can badge the former
+         *     and offer the latter for analysis.
+         */
+        PairsOut: {
+            /** Observaveis */
+            observaveis: string[];
+            /** Operados */
+            operados: components["schemas"]["OperatedPair"][];
+        };
         /** PasswordChangeIn */
         PasswordChangeIn: {
             /** Current Password */
@@ -5633,6 +5687,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_pairs_v1_pairs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_PairsOut_"];
                 };
             };
         };

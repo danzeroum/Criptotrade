@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from src.agents.registry import AgentRegistry
 from src.core.ledger import TradingLedger
-from src.core.pairs import allowed_pairs, parse_pairs
+from src.core.pairs import allowed_pairs, operated_pairs, parse_pairs
 from src.orchestration.heartbeat import HEARTBEAT_FILENAME, write_heartbeat
 
 logger = logging.getLogger(__name__)
@@ -47,18 +47,16 @@ def _symbols_from_env() -> List[str]:
     ``BTC/USDT`` only — multi-symbol is opt-in, not automatic, to avoid a
     surprise jump in capital exposure on upgrade.
     """
+    # operated_pairs() is the single source of truth (also feeds /v1/pairs); here
+    # we additionally warn about entries dropped for not being in the allowlist.
     raw = os.getenv("SYMBOLS", "").strip()
-    if not raw:
-        return ["BTC/USDT"]
-    requested = parse_pairs(raw)
-    allowed = set(allowed_pairs())
-    valid = [s for s in requested if s in allowed]
-    dropped = [s for s in requested if s not in allowed]
-    if dropped:
-        logger.warning(
-            "Ignoring SYMBOLS not in MARKET_PAIRS allowlist: %s", ", ".join(dropped)
-        )
-    return valid or ["BTC/USDT"]
+    if raw:
+        dropped = [s for s in parse_pairs(raw) if s not in set(allowed_pairs())]
+        if dropped:
+            logger.warning(
+                "Ignoring SYMBOLS not in MARKET_PAIRS allowlist: %s", ", ".join(dropped)
+            )
+    return operated_pairs()
 
 
 class AgentExecutionError(Exception):
