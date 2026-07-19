@@ -6006,6 +6006,13 @@
             ],
             "title": "Min Severity",
             "type": "string"
+          },
+          "pairs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Pairs",
+            "type": "array"
           }
         },
         "title": "RuleIn",
@@ -6035,6 +6042,13 @@
           "min_severity": {
             "title": "Min Severity",
             "type": "string"
+          },
+          "pairs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Pairs",
+            "type": "array"
           }
         },
         "required": [
@@ -6103,6 +6117,20 @@
               }
             ],
             "title": "Min Severity"
+          },
+          "pairs": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pairs"
           }
         },
         "title": "RulePatchIn",

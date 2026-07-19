@@ -488,9 +488,9 @@
   ];
   CT.notificationRules = [
     { id: 'r1', alert_type: 'circuit_breaker', min_severity: 'critical',
-      channel_ids: ['ch1', 'ch2'], enabled: true },
+      channel_ids: ['ch1', 'ch2'], pairs: ['*'], enabled: true },
     { id: 'r2', alert_type: '*', min_severity: 'high',
-      channel_ids: ['ch1'], enabled: true },
+      channel_ids: ['ch1'], pairs: ['BTC/USDT'], enabled: true },
   ];
 
   // A5: mock exchange connections + platform keys (masked, like /v1/exchanges).

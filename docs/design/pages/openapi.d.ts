@@ -3276,6 +3276,8 @@ export interface components {
              * @enum {string}
              */
             min_severity: "low" | "medium" | "high" | "critical";
+            /** Pairs */
+            pairs?: string[];
         };
         /** RuleOut */
         RuleOut: {
@@ -3289,6 +3291,8 @@ export interface components {
             id: string;
             /** Min Severity */
             min_severity: string;
+            /** Pairs */
+            pairs?: string[];
         };
         /** RulePatchIn */
         RulePatchIn: {
@@ -3300,6 +3304,8 @@ export interface components {
             enabled?: boolean | null;
             /** Min Severity */
             min_severity?: ("low" | "medium" | "high" | "critical") | null;
+            /** Pairs */
+            pairs?: string[] | null;
         };
         /** SRLevelOut */
         SRLevelOut: {

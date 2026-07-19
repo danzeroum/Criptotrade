@@ -170,13 +170,16 @@ class NotificationStore:
 
     # ------------------------------------------------------------------- rules
     def create_rule(self, alert_type: str, min_severity: str,
-                    channel_ids: List[str]) -> Dict[str, Any]:
+                    channel_ids: List[str],
+                    pairs: Optional[List[str]] = None) -> Dict[str, Any]:
         rule_id = str(uuid.uuid4())
+        pairs = pairs or ["*"]  # default: all pairs (N7 retrocompatible)
         with connection(self._path()) as conn:
             conn.execute(
                 "INSERT INTO notification_rules (id, alert_type, min_severity,"
-                " channel_ids, enabled, created_at) VALUES (?, ?, ?, ?, 1, ?)",
-                (rule_id, alert_type, min_severity, json.dumps(channel_ids), _now()),
+                " channel_ids, pairs, enabled, created_at) VALUES (?, ?, ?, ?, ?, 1, ?)",
+                (rule_id, alert_type, min_severity,
+                 json.dumps(channel_ids), json.dumps(pairs), _now()),
             )
         return self.get_rule(rule_id)
 
@@ -189,6 +192,7 @@ class NotificationStore:
         for r in rows:
             row = self._row(r)
             row["channel_ids"] = json.loads(row["channel_ids"] or "[]")
+            row["pairs"] = json.loads(row.get("pairs") or '["*"]')
             out.append(row)
         return out
 
@@ -201,11 +205,13 @@ class NotificationStore:
             return None
         row = self._row(r)
         row["channel_ids"] = json.loads(row["channel_ids"] or "[]")
+        row["pairs"] = json.loads(row.get("pairs") or '["*"]')
         return row
 
     def update_rule(self, rule_id: str, *, alert_type: Optional[str] = None,
                     min_severity: Optional[str] = None,
                     channel_ids: Optional[List[str]] = None,
+                    pairs: Optional[List[str]] = None,
                     enabled: Optional[bool] = None) -> Optional[Dict[str, Any]]:
         if self.get_rule(rule_id) is None:
             return None
@@ -219,6 +225,9 @@ class NotificationStore:
         if channel_ids is not None:
             sets.append("channel_ids = ?")
             params.append(json.dumps(channel_ids))
+        if pairs is not None:
+            sets.append("pairs = ?")
+            params.append(json.dumps(pairs or ["*"]))
         if enabled is not None:
             sets.append("enabled = ?")
             params.append(1 if enabled else 0)
