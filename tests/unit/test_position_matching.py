@@ -60,10 +60,18 @@ def test_sell_fill_closes_open_buy_emits_pnl(tmp_path):
 
 
 # --------------------------------------------------------------- E2: short cover
-def test_buy_fill_closes_open_short(tmp_path):
+# PREMISE CHANGED (fix #1, spot semantics): a naked SELL no longer OPENS a short,
+# so we can't create one via _log_fill anymore. The buy-covers-short NETTING is
+# still retained (to unwind LEGACY shorts from before the fix), so we seed a legacy
+# short lot directly and assert a BUY covers it.
+def test_buy_fill_covers_legacy_short(tmp_path):
     orch, ledger = _make_orch(tmp_path)
-    orch._log_fill("BTC/USDT", _signal("SELL", 50_000.0),
-                   {"order_id": "PAPER_s1", "executed_price": 50_000.0})
+    short = {"symbol": "BTC/USDT", "side": "sell", "entry_price": 50_000.0,
+             "quantity": 0.01, "stop_loss": None, "take_profit": None,
+             "entry_fee": 0.0, "opened_at": "2026-01-01T00:00:00+00:00"}
+    orch._open_positions["PAPER_s1"] = short
+    orch._positions.upsert("PAPER_s1", short)
+
     orch._log_fill("BTC/USDT", _signal("BUY", 50_000.0),
                    {"order_id": "PAPER_b1", "executed_price": 49_000.0})
 
@@ -99,8 +107,11 @@ def test_partial_close_reduces_lot(tmp_path):
     assert orch._positions.count() == 1
 
 
-# ------------------------------------------------- E4: over-close nets residual
-def test_over_close_nets_to_residual_short(tmp_path):
+# ---------------------------------------- E4: over-close DROPS residual (spot)
+# PREMISE CHANGED (fix #1, spot semantics): a SELL exceeding the netted long
+# inventory used to open a naked SHORT for the residue. Spot has no shorts — the
+# residual is now DROPPED (audited on the close as `residual_dropped`), never booked.
+def test_over_close_drops_residual_no_short(tmp_path):
     orch, _ledger = _make_orch(tmp_path)
     orch._match_or_open(symbol="BTC/USDT", side="buy", price=100.0,
                         quantity=0.4, fee=0.0, order_id="b1")
@@ -110,15 +121,12 @@ def test_over_close_nets_to_residual_short(tmp_path):
     closed = orch.ledger.get_events("position_closed")
     assert len(closed) == 1
     assert closed[0]["data"]["quantity"] == 0.4  # the buy lot, fully closed
+    # The unsellable residue (1.0 - 0.4) is recorded on the close, not opened.
+    assert abs(closed[0]["data"]["residual_dropped"] - 0.6) < 1e-12
 
-    # Residue opens a short under the sell's order id.
-    assert set(orch._open_positions) == {"s1"}
-    residual = orch._open_positions["s1"]
-    assert residual["side"] == "sell"
-    assert residual["entry_price"] == 110.0
-    assert abs(residual["quantity"] - 0.6) < 1e-12
-    stored = orch._positions.load_all()
-    assert abs(stored["s1"]["quantity"] - 0.6) < 1e-12
+    # No short is opened; the book is flat.
+    assert orch._open_positions == {}
+    assert orch._positions.load_all() == {}
 
 
 # ----------------------------------------------------------- E5: FIFO ordering
