@@ -94,6 +94,9 @@ const CT_API = (() => {
     getPairsRich:     ()           => req('/v1/pairs'),
     // N2: Mesa Multi-Ativo batch — every operated pair in one request
     getDeskSummary:   ()           => req('/v1/desk/summary'),
+    // N3: slot occupancy + per-pair exposure; skip feed (why signals didn't fire)
+    getSlots:         ()           => req('/v1/risk/slots'),
+    getSkips:         (symbol)     => req('/v1/process/skips' + (symbol ? `?symbol=${encodeURIComponent(symbol)}` : '')),
     getTicker:        (pair)       => req(`/v1/market/${pair.replace('/', '-')}/ticker`),
     getCandles:       (pair, tf = '1h', limit = 100) =>
       req(`/v1/market/${pair.replace('/', '-')}/candles?tf=${tf}&limit=${limit}`),

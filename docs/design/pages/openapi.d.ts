@@ -1148,6 +1148,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/process/skips": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Decisões do ciclo: por que cada sinal não virou ordem (signal_skipped — N3) */
+        get: operations["list_skips_v1_process_skips_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/risk/circuit-breaker": {
         parameters: {
             query?: never;
@@ -1209,6 +1226,23 @@ export interface paths {
         };
         /** Proteções de drawdown (diário / semanal / mensal) */
         get: operations["get_protections_v1_risk_protections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/risk/slots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ocupação de slots + exposição por par (competição por capital — N3) */
+        get: operations["get_slots_v1_risk_slots_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1665,6 +1699,13 @@ export interface components {
             data: components["schemas"]["SessionOut"][];
             meta?: components["schemas"]["Meta"] | null;
         };
+        /** APIResponse[List[SkipOut]] */
+        APIResponse_List_SkipOut__: {
+            _links?: components["schemas"]["Links"] | null;
+            /** Data */
+            data: components["schemas"]["SkipOut"][];
+            meta?: components["schemas"]["Meta"] | null;
+        };
         /** APIResponse[List[UserOut]] */
         APIResponse_List_UserOut__: {
             _links?: components["schemas"]["Links"] | null;
@@ -1749,6 +1790,12 @@ export interface components {
         APIResponse_RiskConfigOut_: {
             _links?: components["schemas"]["Links"] | null;
             data: components["schemas"]["RiskConfigOut"];
+            meta?: components["schemas"]["Meta"] | null;
+        };
+        /** APIResponse[RiskSlotsOut] */
+        APIResponse_RiskSlotsOut_: {
+            _links?: components["schemas"]["Links"] | null;
+            data: components["schemas"]["RiskSlotsOut"];
             meta?: components["schemas"]["Meta"] | null;
         };
         /** APIResponse[RuleOut] */
@@ -2382,6 +2429,18 @@ export interface components {
             equity: number;
             /** T */
             t: string;
+        };
+        /**
+         * ExposureOut
+         * @description Capital committed to a single pair (N3).
+         */
+        ExposureOut: {
+            /** Notional */
+            notional: number;
+            /** Pct Of Capital */
+            pct_of_capital: number;
+            /** Symbol */
+            symbol: string;
         };
         /** ForgotPasswordIn */
         ForgotPasswordIn: {
@@ -3170,6 +3229,24 @@ export interface components {
             /** Take Profit Default Pct */
             take_profit_default_pct?: number | null;
         };
+        /**
+         * RiskSlotsOut
+         * @description Slot occupancy + per-pair exposure — the competition for a bounded book (N3).
+         */
+        RiskSlotsOut: {
+            /** Capital */
+            capital: number;
+            /** Capital Free */
+            capital_free: number;
+            /** Exposure */
+            exposure: components["schemas"]["ExposureOut"][];
+            /** Slots */
+            slots: components["schemas"]["SlotOut"][];
+            /** Slots Max */
+            slots_max: number;
+            /** Slots Used */
+            slots_used: number;
+        };
         /** RoleOut */
         RoleOut: {
             /** Id */
@@ -3286,6 +3363,41 @@ export interface components {
             take_profit: number | null;
             /** Valid Until */
             valid_until?: string | null;
+        };
+        /**
+         * SkipOut
+         * @description A ``signal_skipped`` decision — why a pair's signal didn't become an order (N3).
+         */
+        SkipOut: {
+            /** Confidence */
+            confidence?: number | null;
+            /**
+             * Count
+             * @default 1
+             */
+            count: number;
+            /** Reason */
+            reason: string;
+            /** Since */
+            since?: string | null;
+            /** Symbol */
+            symbol: string;
+            /** Ts */
+            ts?: string | null;
+        };
+        /**
+         * SlotOut
+         * @description One occupied position slot (N3).
+         */
+        SlotOut: {
+            /** Notional */
+            notional: number;
+            /** Opened At */
+            opened_at?: string | null;
+            /** Side */
+            side: string;
+            /** Symbol */
+            symbol: string;
         };
         /** StochOut */
         StochOut: {
@@ -5847,6 +5959,39 @@ export interface operations {
             };
         };
     };
+    list_skips_v1_process_skips_get: {
+        parameters: {
+            query?: {
+                /** @description Filtra por par (ex.: BTC/USDT) */
+                symbol?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_List_SkipOut__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_circuit_breaker_v1_risk_circuit_breaker_get: {
         parameters: {
             query?: never;
@@ -5956,6 +6101,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["APIResponse_List_ProtectionOut__"];
+                };
+            };
+        };
+    };
+    get_slots_v1_risk_slots_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["APIResponse_RiskSlotsOut_"];
                 };
             };
         };

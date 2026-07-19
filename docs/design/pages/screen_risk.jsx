@@ -52,11 +52,30 @@ function ScreenRisk() {
     trades:           CT.kelly.trades,
   };
   const mockEquity = CT.equity.map(e => ({ t: String(e.i), equity: e.equity, drawdown: e.dd }));
+  // N3: slot occupancy + per-pair exposure and the "why no order" feed.
+  const mockSlots = {
+    slots_used: 2, slots_max: 3, capital: 10000, capital_free: 7984,
+    slots: [
+      { symbol: 'BTC/USDT', side: 'buy', notional: 1836, opened_at: null },
+      { symbol: 'SOL/USDT', side: 'buy', notional: 180, opened_at: null },
+    ],
+    exposure: [
+      { symbol: 'BTC/USDT', notional: 1836, pct_of_capital: 18.36 },
+      { symbol: 'SOL/USDT', notional: 180, pct_of_capital: 1.8 },
+    ],
+  };
+  const mockSkips = [
+    { symbol: 'ETH/USDT', reason: 'confidence_low', count: 4, confidence: 0.42 },
+    { symbol: 'XRP/USDT', reason: 'no_slot', count: 2 },
+    { symbol: 'BNB/USDT', reason: 'insufficient_capital', count: 1 },
+  ];
 
   const [protections, setProtections] = useState(mock ? mockProtections : null);
   const [cb,          setCb]          = useState(mock ? mockCB : null);
   const [kelly,       setKelly]       = useState(mock ? mockKelly : null);
   const [equity,      setEquity]      = useState(mock ? mockEquity : null);
+  const [slots,       setSlots]       = useState(mock ? mockSlots : null);
+  const [skips,       setSkips]       = useState(mock ? mockSkips : null);
   const [loading,     setLoading]     = useState(!mock);
   const [error,       setError]       = useState(null);
 
@@ -68,16 +87,28 @@ function ScreenRisk() {
       CT_API.getCircuitBreaker(),
       CT_API.getKelly(),
       CT_API.getEquity('90d'),
+      CT_API.getSlots().catch(() => null),
+      CT_API.getSkips().catch(() => []),
     ])
-      .then(([p, c, k, eq]) => {
+      .then(([p, c, k, eq, sl, sk]) => {
         setProtections(Array.isArray(p) ? p : []);
         setCb(c);
         setKelly(k);
         setEquity(Array.isArray(eq) ? eq : []);
+        setSlots(sl);
+        setSkips(Array.isArray(sk) ? sk : []);
         setLoading(false);
       })
       .catch(e => { setError(e); setLoading(false); });
   }, [mock]);
+
+  const SKIP_META = {
+    confidence_low:       { label: 'Confiança baixa',     cls: 'badge-warn' },
+    no_slot:              { label: 'Sem slot livre',      cls: 'badge-info' },
+    insufficient_capital: { label: 'Capital insuficiente', cls: 'badge-warn' },
+    circuit_breaker:      { label: 'Circuit breaker',     cls: 'badge-down' },
+    risk_rejected:        { label: 'Risco reprovou',      cls: 'badge-down' },
+  };
 
   if (loading) return <LoadingState label="Carregando dados de risco…" />;
   if (error)   return <ErrorState message="Erro ao carregar risco" onRetry={() => { setError(null); setLoading(true); }} />;
@@ -121,6 +152,60 @@ function ScreenRisk() {
             icon="alert"
             sub={riskOfRuinHigh ? '⚠ Acima do limite 5%' : kellyOk ? 'Dentro do limite' : 'Dados insuficientes'}
           />
+        </div>
+      </div>
+
+      {/* N3: slots + exposição por par (competição por capital) e feed de skips */}
+      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: 20 }}>
+        <div className="card">
+          <div className="card-head">
+            <span className="card-title"><Icon name="list" />Slots & exposição por par</span>
+            {slots && <Badge variant="neutral">{slots.slots_used} / {slots.slots_max} slots</Badge>}
+          </div>
+          <div className="card-pad">
+            {!slots || slots.slots_used === 0 ? (
+              <EmptyState label="Nenhuma posição aberta — todos os slots livres" />
+            ) : (
+              <div className="slot-list">
+                {slots.exposure.map(e => (
+                  <div key={e.symbol} className="slot-row">
+                    <span className="slot-sym">{e.symbol}</span>
+                    <div className="slot-bar"><div className="slot-fill" style={{ width: Math.min(100, e.pct_of_capital) + '%' }} /></div>
+                    <span className="slot-val">{fmtUsd(e.notional)} <span className="desk-muted">· {fmtNum(e.pct_of_capital, 1)}%</span></span>
+                  </div>
+                ))}
+                <div className="slot-free desk-muted">Capital livre: {fmtUsd(slots.capital_free)} de {fmtUsd(slots.capital)}</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-head">
+            <span className="card-title"><Icon name="activity" />Decisões do ciclo</span>
+            <span className="desk-muted" style={{ fontSize: 11.5 }}>por que o sinal não virou ordem</span>
+          </div>
+          <div className="card-pad">
+            {!skips || skips.length === 0 ? (
+              <EmptyState label="Nenhum sinal recusado recentemente" />
+            ) : (
+              <div className="skip-feed">
+                {skips.map((s, i) => {
+                  const m = SKIP_META[s.reason] || { label: s.reason, cls: 'badge-neutral' };
+                  return (
+                    <div key={i} className="skip-row">
+                      <span className="slot-sym">{s.symbol}</span>
+                      <span className={'badge ' + m.cls}>{m.label}</span>
+                      {s.reason === 'confidence_low' && s.confidence != null && (
+                        <span className="desk-muted">{Math.round(s.confidence * 100)}%</span>
+                      )}
+                      {s.count > 1 && <span className="skip-count desk-muted">×{s.count}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

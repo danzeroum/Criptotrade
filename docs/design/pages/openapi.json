@@ -1157,6 +1157,42 @@
         "title": "APIResponse[List[SessionOut]]",
         "type": "object"
       },
+      "APIResponse_List_SkipOut__": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/SkipOut"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[List[SkipOut]]",
+        "type": "object"
+      },
       "APIResponse_List_UserOut__": {
         "properties": {
           "_links": {
@@ -1611,6 +1647,38 @@
           "data"
         ],
         "title": "APIResponse[RiskConfigOut]",
+        "type": "object"
+      },
+      "APIResponse_RiskSlotsOut_": {
+        "properties": {
+          "_links": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Links"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/RiskSlotsOut"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Meta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "APIResponse[RiskSlotsOut]",
         "type": "object"
       },
       "APIResponse_RuleOut_": {
@@ -3478,6 +3546,30 @@
           "drawdown"
         ],
         "title": "EquityPoint",
+        "type": "object"
+      },
+      "ExposureOut": {
+        "description": "Capital committed to a single pair (N3).",
+        "properties": {
+          "notional": {
+            "title": "Notional",
+            "type": "number"
+          },
+          "pct_of_capital": {
+            "title": "Pct Of Capital",
+            "type": "number"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "notional",
+          "pct_of_capital"
+        ],
+        "title": "ExposureOut",
         "type": "object"
       },
       "ForgotPasswordIn": {
@@ -5812,6 +5904,51 @@
         "title": "RiskConfigPatch",
         "type": "object"
       },
+      "RiskSlotsOut": {
+        "description": "Slot occupancy + per-pair exposure \u2014 the competition for a bounded book (N3).",
+        "properties": {
+          "capital": {
+            "title": "Capital",
+            "type": "number"
+          },
+          "capital_free": {
+            "title": "Capital Free",
+            "type": "number"
+          },
+          "exposure": {
+            "items": {
+              "$ref": "#/components/schemas/ExposureOut"
+            },
+            "title": "Exposure",
+            "type": "array"
+          },
+          "slots": {
+            "items": {
+              "$ref": "#/components/schemas/SlotOut"
+            },
+            "title": "Slots",
+            "type": "array"
+          },
+          "slots_max": {
+            "title": "Slots Max",
+            "type": "integer"
+          },
+          "slots_used": {
+            "title": "Slots Used",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "slots_used",
+          "slots_max",
+          "slots",
+          "exposure",
+          "capital",
+          "capital_free"
+        ],
+        "title": "RiskSlotsOut",
+        "type": "object"
+      },
       "RoleOut": {
         "properties": {
           "id": {
@@ -6141,6 +6278,98 @@
           "reason"
         ],
         "title": "SignalOut",
+        "type": "object"
+      },
+      "SkipOut": {
+        "description": "A ``signal_skipped`` decision \u2014 why a pair's signal didn't become an order (N3).",
+        "properties": {
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "count": {
+            "default": 1,
+            "title": "Count",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "ts": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ts"
+          }
+        },
+        "required": [
+          "symbol",
+          "reason"
+        ],
+        "title": "SkipOut",
+        "type": "object"
+      },
+      "SlotOut": {
+        "description": "One occupied position slot (N3).",
+        "properties": {
+          "notional": {
+            "title": "Notional",
+            "type": "number"
+          },
+          "opened_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opened At"
+          },
+          "side": {
+            "title": "Side",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "side",
+          "notional"
+        ],
+        "title": "SlotOut",
         "type": "object"
       },
       "StochOut": {
@@ -10101,6 +10330,69 @@
         ]
       }
     },
+    "/v1/process/skips": {
+      "get": {
+        "operationId": "list_skips_v1_process_skips_get",
+        "parameters": [
+          {
+            "description": "Filtra por par (ex.: BTC/USDT)",
+            "in": "query",
+            "name": "symbol",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra por par (ex.: BTC/USDT)",
+              "title": "Symbol"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_List_SkipOut__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decis\u00f5es do ciclo: por que cada sinal n\u00e3o virou ordem (signal_skipped \u2014 N3)",
+        "tags": [
+          "process"
+        ]
+      }
+    },
     "/v1/risk/circuit-breaker": {
       "get": {
         "operationId": "get_circuit_breaker_v1_risk_circuit_breaker_get",
@@ -10219,6 +10511,27 @@
           }
         },
         "summary": "Prote\u00e7\u00f5es de drawdown (di\u00e1rio / semanal / mensal)",
+        "tags": [
+          "risk"
+        ]
+      }
+    },
+    "/v1/risk/slots": {
+      "get": {
+        "operationId": "get_slots_v1_risk_slots_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse_RiskSlotsOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ocupa\u00e7\u00e3o de slots + exposi\u00e7\u00e3o por par (competi\u00e7\u00e3o por capital \u2014 N3)",
         "tags": [
           "risk"
         ]

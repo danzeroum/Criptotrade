@@ -479,6 +479,45 @@ class DeskSummaryOut(BaseModel):
     signals_active: int  # pairs with signal confidence >= 0.6
 
 
+class SlotOut(BaseModel):
+    """One occupied position slot (N3)."""
+
+    symbol: str
+    side: str
+    notional: float
+    opened_at: Optional[str] = None
+
+
+class ExposureOut(BaseModel):
+    """Capital committed to a single pair (N3)."""
+
+    symbol: str
+    notional: float
+    pct_of_capital: float
+
+
+class RiskSlotsOut(BaseModel):
+    """Slot occupancy + per-pair exposure — the competition for a bounded book (N3)."""
+
+    slots_used: int
+    slots_max: int
+    slots: List[SlotOut]
+    exposure: List[ExposureOut]
+    capital: float
+    capital_free: float
+
+
+class SkipOut(BaseModel):
+    """A ``signal_skipped`` decision — why a pair's signal didn't become an order (N3)."""
+
+    symbol: str
+    reason: str
+    count: int = 1
+    since: Optional[str] = None
+    ts: Optional[str] = None
+    confidence: Optional[float] = None
+
+
 class MacdOut(BaseModel):
     macd: float
     signal: float
