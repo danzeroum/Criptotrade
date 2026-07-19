@@ -43,9 +43,13 @@ function ScreenSettings({ addToast }) {
   const [riskConfig,   setRiskConfig]   = useState(mock ? mockRiskConfig : null);
   const [alertConfig,  setAlertConfig]  = useState(mock ? mockAlerts : null);
   const [agents,       setAgents]       = useState(null);
+  const [pairsRich,    setPairsRich]    = useState(null);  // N8¹: operated/observable
   const [loading,      setLoading]      = useState(!mock);
   const [error,        setError]        = useState(null);
   const [saved,        setSaved]        = useState(null);
+
+  // N8¹: pares operados (somente leitura), da fonte dinâmica /v1/pairs (N1).
+  useEffect(() => { loadPairsRich().then(setPairsRich).catch(() => {}); }, []);
 
   useEffect(() => {
     if (mock) {
@@ -317,6 +321,38 @@ function ScreenSettings({ addToast }) {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* N8¹: pares operados — SOMENTE LEITURA (a gestão por UI é fase futura).
+            Fonte: /v1/pairs (nunca hardcoded); mudar exige env + restart. */}
+        {pairsRich && (
+          <div className="card">
+            <SectionHead title="Pares operados" icon="grid" />
+            <div className="card-pad">
+              <div style={{ marginBottom: 14 }}>
+                <div className="stat-k" style={{ marginBottom: 6 }}>Operados pelo loop (<code>SYMBOLS</code>)</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {(pairsRich.operados || []).map(o => (
+                    <Badge key={o.symbol} variant={o.status === 'operando' ? 'ok' : 'neutral'} dot={false}>
+                      {o.symbol}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <div className="stat-k" style={{ marginBottom: 6 }}>Observáveis (allowlist <code>MARKET_PAIRS</code>)</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {(pairsRich.observaveis || []).map(s => <span key={s} className="chip">{s}</span>)}
+                </div>
+              </div>
+              <div style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6,
+                            background: 'var(--surface-3)', borderRadius: 'var(--r-sm)', padding: '10px 12px' }}>
+                Para mudar os pares operados, ajuste <code>SYMBOLS</code> (e a allowlist
+                <code>MARKET_PAIRS</code>) no <code>.env</code> do deploy e reinicie o orchestrator.
+                A gestão por UI chega numa fase futura.
               </div>
             </div>
           </div>

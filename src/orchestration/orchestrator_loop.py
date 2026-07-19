@@ -119,8 +119,12 @@ class OrchestratorLoop:
         start = time.monotonic()
         ran_agents: List[str] = []
         failures: List[Dict[str, str]] = []
+        # N6: per-symbol time within the cycle (ms). ADDITIVE — existing consumers
+        # read duration_ms/ran/failures unchanged; this is an extra key.
+        per_symbol: Dict[str, float] = {}
         try:
             for symbol in self.symbols:
+                sym_start = time.monotonic()
                 try:
                     result = await self.orchestrator.analyze_and_trade(symbol)
                     agents = ["strategy", "risk"]
@@ -135,13 +139,16 @@ class OrchestratorLoop:
                         {"error": str(exc), "symbol": symbol},
                     )
                     logger.warning("Agent cycle failure on %s: %s", symbol, exc)
+                finally:
+                    per_symbol[symbol] = round((time.monotonic() - sym_start) * 1000, 1)
             for agent_id in ran_agents:
                 self.registry.record_cycle(agent_id)
         finally:
             duration_ms = (time.monotonic() - start) * 1000
             self.ledger.log_process_event(
                 cycle_id, "agent_cycle_completed", "orchestrator",
-                {"duration_ms": duration_ms, "ran": ran_agents, "failures": len(failures)},
+                {"duration_ms": duration_ms, "ran": ran_agents,
+                 "failures": len(failures), "per_symbol": per_symbol},
             )
             write_heartbeat(self._heartbeat_path, cycle_id)
         return {"cycle_id": cycle_id, "ran": ran_agents, "failures": failures}
