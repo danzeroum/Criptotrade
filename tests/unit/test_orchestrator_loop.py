@@ -70,6 +70,24 @@ async def test_loop_emits_xes_events(ledger):
     assert completed["data"]["attributes"]["duration_ms"] > 0
 
 
+@pytest.mark.asyncio
+async def test_cycle_logs_per_symbol_duration(ledger):
+    """N6: the cycle event carries a per-symbol duration map (additive field)."""
+    loop = OrchestratorLoop(_StubOrch(), AgentRegistry(), ledger,
+                            symbols=["BTC/USDT", "ETH/USDT"], interval_seconds=60)
+    await loop.run_cycle()
+    completed = [
+        e for e in ledger.get_events("process_event")
+        if e["data"]["activity"] == "agent_cycle_completed"
+    ][0]
+    attrs = completed["data"]["attributes"]
+    # Additive: the existing shape is untouched.
+    assert attrs["duration_ms"] > 0 and "ran" in attrs and "failures" in attrs
+    # New: a per-symbol breakdown for every symbol in the cycle.
+    assert set(attrs["per_symbol"]) == {"BTC/USDT", "ETH/USDT"}
+    assert all(v >= 0 for v in attrs["per_symbol"].values())
+
+
 # --------------------------------------------------------------- fail-soft
 @pytest.mark.asyncio
 async def test_loop_survives_agent_failure(ledger):

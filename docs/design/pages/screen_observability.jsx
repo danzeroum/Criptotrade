@@ -2,9 +2,36 @@
    Criptotrade — Screen: Observabilidade / Process
    Event log XES real (GET /v1/process/events) agrupado por case_id.
    Mostra o heartbeat do loop do orquestrador (ciclos: started →
-   completed/failed) e KPIs derivados dos eventos. Sem mock.
+   completed/failed) e KPIs derivados dos eventos. N6: dimensão de
+   símbolo (filtro + duração por símbolo). Mock leve para a demo.
    ============================================================ */
 const { useState, useEffect } = React;
+
+// N6: light mock so the multi-symbol demo shows the per-symbol breakdown.
+function _mockProcessEvents() {
+  const now = Date.now();
+  const iso = (sAgo) => new Date(now - sAgo * 1000).toISOString();
+  const cyc = (id, sAgo, perSymbol, failed) => {
+    const syms = Object.keys(perSymbol);
+    const dur = Object.values(perSymbol).reduce((a, b) => a + b, 0);
+    const evs = [
+      { case_id: id, activity: 'agent_cycle_started', actor: 'orchestrator',
+        timestamp: iso(sAgo + 1), attributes: { symbols: syms } },
+      { case_id: id, activity: 'agent_cycle_completed', actor: 'orchestrator',
+        timestamp: iso(sAgo), attributes: {
+          duration_ms: dur, ran: ['strategy', 'risk'], failures: failed ? 1 : 0,
+          per_symbol: perSymbol } },
+    ];
+    if (failed) evs.push({ case_id: id, activity: 'agent_cycle_failed', actor: 'strategy',
+      timestamp: iso(sAgo + 0.5), attributes: { symbol: 'ETH/USDT', error: 'timeout' } });
+    return evs;
+  };
+  return [
+    ...cyc('cycle_a1b2', 12, { 'BTC/USDT': 812, 'ETH/USDT': 640, 'SOL/USDT': 590 }, false),
+    ...cyc('cycle_c3d4', 74, { 'BTC/USDT': 903, 'ETH/USDT': 1180, 'SOL/USDT': 610 }, true),
+    ...cyc('cycle_e5f6', 135, { 'BTC/USDT': 780, 'ETH/USDT': 655, 'SOL/USDT': 602 }, false),
+  ];
+}
 
 function _ago(iso) {
   if (!iso) return '—';
@@ -20,9 +47,10 @@ const TRACE_LABEL = { completed: 'Concluído', failed: 'Falhou', running: 'Em cu
 
 function ScreenObservability() {
   const mock = !!window.USE_MOCK_DATA;
-  const [events, setEvents] = useState(null);
+  const [events, setEvents] = useState(mock ? _mockProcessEvents() : null);
   const [loading, setLoading] = useState(!mock);
   const [error, setError] = useState(null);
+  const [symbolF, setSymbolF] = useState('all');  // N6: filter cycles by symbol
 
   const load = () => {
     if (mock) return;
@@ -40,9 +68,14 @@ function ScreenObservability() {
   for (const ev of events ?? []) (traces[ev.case_id] ||= []).push(ev);
   const rows = Object.entries(traces).map(([caseId, evs]) => {
     evs.sort((a, b) => (a.timestamp < b.timestamp ? -1 : 1));
+    const started = evs.find(e => e.activity === 'agent_cycle_started');
     const completed = evs.find(e => e.activity === 'agent_cycle_completed');
     const failed = evs.some(e => e.activity === 'agent_cycle_failed');
     const failures = completed?.attributes?.failures ?? (failed ? 1 : 0);
+    // N6: per-symbol durations (additive) + the symbols this cycle covered.
+    const perSymbol = completed?.attributes?.per_symbol ?? {};
+    const symbols = Object.keys(perSymbol).length
+      ? Object.keys(perSymbol) : (started?.attributes?.symbols ?? []);
     return {
       caseId,
       isCycle: caseId.startsWith('cycle'),
@@ -52,8 +85,13 @@ function ScreenObservability() {
       failures,
       status: failures > 0 ? 'failed' : completed ? 'completed' : 'running',
       activities: evs.map(e => e.activity),
+      symbols, perSymbol,
     };
   }).sort((a, b) => (a.start < b.start ? 1 : -1));
+
+  // N6: symbol filter over cycle traces.
+  const allSymbols = [...new Set(rows.flatMap(r => r.symbols))].sort();
+  const rowsF = symbolF === 'all' ? rows : rows.filter(r => r.symbols.includes(symbolF));
 
   const cycles = rows.filter(r => r.isCycle);
   const durations = cycles.map(r => r.durationMs).filter(x => x != null);
@@ -62,9 +100,7 @@ function ScreenObservability() {
   const isActive = lastTs && (Date.now() - new Date(lastTs).getTime()) < 5 * 60 * 1000;
 
   let body;
-  if (mock) {
-    body = <EmptyState label="Observabilidade conecta ao backend" sub="Inicie a API e o loop do orquestrador para ver os ciclos." />;
-  } else if (loading) {
+  if (loading) {
     body = <LoadingState label="Carregando eventos de processo…" />;
   } else if (error) {
     body = <ErrorState message="Erro ao carregar eventos" onRetry={load} />;
@@ -85,7 +121,16 @@ function ScreenObservability() {
         <div className="card">
           <div className="card-head">
             <span className="card-title"><Icon name="activity" />Traços de processo (XES)</span>
-            <Badge variant={isActive ? 'ok' : 'neutral'}>{isActive ? 'Loop ativo' : 'Loop inativo'}</Badge>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {allSymbols.length > 1 && (
+                <select className="input" value={symbolF} onChange={e => setSymbolF(e.target.value)}
+                  aria-label="Filtrar por símbolo" style={{ width: 'auto', minWidth: 130 }}>
+                  <option value="all">Todos os símbolos</option>
+                  {allSymbols.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              )}
+              <Badge variant={isActive ? 'ok' : 'neutral'}>{isActive ? 'Loop ativo' : 'Loop inativo'}</Badge>
+            </span>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table className="tbl">
@@ -95,18 +140,30 @@ function ScreenObservability() {
                   <th>Tipo</th>
                   <th>Início</th>
                   <th className="th-num">Duração</th>
+                  <th>Duração por símbolo</th>
                   <th>Atividades</th>
                   <th className="th-num">Falhas</th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.slice(0, 40).map(r => (
+                {rowsF.slice(0, 40).map(r => (
                   <tr key={r.caseId}>
                     <td style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: 'var(--ink-3)' }}>{r.caseId}</td>
                     <td><Badge variant={r.isCycle ? 'violet' : 'info'} dot={false}>{r.isCycle ? 'Ciclo' : 'Ordem'}</Badge></td>
                     <td style={{ fontFamily: 'var(--mono)', fontSize: 11.5, whiteSpace: 'nowrap' }}>{(r.start ?? '').substring(11, 19)}</td>
                     <td className="num">{r.durationMs == null ? '—' : `${fmtNum(r.durationMs / 1000)}s`}</td>
+                    <td style={{ fontSize: 11, color: 'var(--ink-2)' }}>
+                      {Object.keys(r.perSymbol).length ? (
+                        <span style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 8px' }}>
+                          {Object.entries(r.perSymbol).map(([s, ms]) => (
+                            <span key={s} style={{ fontFamily: 'var(--mono)', whiteSpace: 'nowrap' }}>
+                              {s.replace('/USDT', '')} <b>{Math.round(ms)}ms</b>
+                            </span>
+                          ))}
+                        </span>
+                      ) : '—'}
+                    </td>
                     <td style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>
                       {r.isCycle && r.ran.length ? r.ran.join(' · ') : r.activities.join(' → ')}
                     </td>
