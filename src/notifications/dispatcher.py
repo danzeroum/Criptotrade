@@ -122,12 +122,21 @@ class Dispatcher:
     def _route(self, alert: Dict[str, Any], now: datetime) -> None:
         severity = alert.get("severity", "low")
         alert_type = alert.get("type", "unknown")
+        alert_pair = alert.get("pair")
         rules = [r for r in self.store.list_rules() if r["enabled"]]
         channel_ids: List[str] = []
         for rule in rules:
             if rule["alert_type"] not in ("*", alert_type):
                 continue
             if SEVERITY_ORDER.get(severity, 0) < SEVERITY_ORDER.get(rule["min_severity"], 2):
+                continue
+            # N7 pair scope: a rule with a concrete pair set only matches that pair.
+            # A SYSTEM alert (pair=None: global breaker, symbol-less guardrail) is
+            # about the system, not "another pair" — it matches ANY rule, so a
+            # "critical só de BTC" rule can never silence the global circuit breaker.
+            rule_pairs = rule.get("pairs") or ["*"]
+            scoped = "*" not in rule_pairs
+            if scoped and alert_pair is not None and alert_pair not in rule_pairs:
                 continue
             channel_ids.extend(c for c in rule["channel_ids"] if c not in channel_ids)
         if not channel_ids:

@@ -113,6 +113,14 @@ function ScreenNotifications({ addToast }) {
   const [editing, setEditing] = useNotState(null);   // null | 'new' | channel
   const [testing, setTesting] = useNotState(null);   // channel id being tested
   const [ruleDraft, setRuleDraft] = useNotState(null);
+  // N7: pair options for the rule scope (from /v1/pairs — never hardcoded).
+  const [pairOptions, setPairOptions] = useNotState([]);
+  useNotEffect(() => {
+    loadPairsRich().then(r => setPairOptions([...new Set([
+      ...((r && r.operados) || []).map(o => o.symbol),
+      ...((r && r.observaveis) || []),
+    ])])).catch(() => {});
+  }, []);
 
   const load = useNotCallback(() => {
     if (mock) return;
@@ -232,7 +240,7 @@ function ScreenNotifications({ addToast }) {
         <div className="card-head">
           <span className="card-title"><Icon name="shield" />Regras de entrega</span>
           <Btn variant="ghost" size="sm" onClick={() =>
-            setRuleDraft({ alert_type: '*', min_severity: 'high', channel_ids: [] })}>
+            setRuleDraft({ alert_type: '*', min_severity: 'high', channel_ids: [], pairs: ['*'] })}>
             <Icon name="plus" size={13} /> Nova regra
           </Btn>
         </div>
@@ -249,6 +257,9 @@ function ScreenNotifications({ addToast }) {
                 <span style={{ fontSize: 12.5, color: 'var(--ink-2)' }}>
                   → {r.channel_ids.map(channelName).join(', ') || 'nenhum canal'}
                 </span>
+                {r.pairs && !r.pairs.includes('*') && (
+                  <Badge variant="info" dot={false}>só {r.pairs.join(', ')}</Badge>
+                )}
                 {!r.enabled && <Badge variant="warn" dot={false}>pausada</Badge>}
               </span>
               <span>
@@ -299,6 +310,26 @@ function ScreenNotifications({ addToast }) {
                             : d.channel_ids.filter(x => x !== c.id),
                         }))} />
                       {c.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="auth-field" style={{ margin: 0 }}>
+                <span className="label-xs">Pares</span>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', paddingTop: 6, alignItems: 'center' }}>
+                  <label style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: 12.5 }}>
+                    <input type="checkbox" checked={ruleDraft.pairs.includes('*')}
+                      onChange={e => setRuleDraft(d => ({ ...d, pairs: e.target.checked ? ['*'] : [] }))} />
+                    Todos
+                  </label>
+                  {!ruleDraft.pairs.includes('*') && pairOptions.map(p => (
+                    <label key={p} style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: 12.5 }}>
+                      <input type="checkbox" checked={ruleDraft.pairs.includes(p)}
+                        onChange={e => setRuleDraft(d => ({
+                          ...d,
+                          pairs: e.target.checked ? [...d.pairs, p] : d.pairs.filter(x => x !== p),
+                        }))} />
+                      {p}
                     </label>
                   ))}
                 </div>

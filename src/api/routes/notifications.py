@@ -188,12 +188,13 @@ async def create_rule(
     ledger: TradingLedger = Depends(get_ledger),
     principal: Principal = Depends(require_perm("edit_settings")),
 ) -> APIResponse[RuleOut]:
-    rule = store.create_rule(body.alert_type, body.min_severity, body.channel_ids)
+    rule = store.create_rule(body.alert_type, body.min_severity, body.channel_ids,
+                             pairs=body.pairs)
     if not body.enabled:
         rule = store.update_rule(rule["id"], enabled=False)
     _log_change(ledger, principal, "rule_created", {}, {
         "alert_type": rule["alert_type"], "min_severity": rule["min_severity"],
-        "channel_ids": rule["channel_ids"],
+        "channel_ids": rule["channel_ids"], "pairs": rule["pairs"],
     })
     return APIResponse(data=RuleOut(**{**rule, "enabled": bool(rule["enabled"])}))
 
@@ -212,11 +213,12 @@ async def patch_rule(
         raise _not_found("rule")
     rule = store.update_rule(
         rule_id, alert_type=body.alert_type, min_severity=body.min_severity,
-        channel_ids=body.channel_ids, enabled=body.enabled,
+        channel_ids=body.channel_ids, pairs=body.pairs, enabled=body.enabled,
     )
+    _diff_keys = ("alert_type", "min_severity", "channel_ids", "pairs", "enabled")
     _log_change(ledger, principal, "rule_updated",
-                {k: before[k] for k in ("alert_type", "min_severity", "channel_ids", "enabled")},
-                {k: rule[k] for k in ("alert_type", "min_severity", "channel_ids", "enabled")})
+                {k: before[k] for k in _diff_keys},
+                {k: rule[k] for k in _diff_keys})
     return APIResponse(data=RuleOut(**{**rule, "enabled": bool(rule["enabled"])}))
 
 

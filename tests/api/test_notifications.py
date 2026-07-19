@@ -306,3 +306,61 @@ def test_notifications_require_edit_settings(tmp_path, monkeypatch):
     admin = login("root@x.dev", "password-root")
     assert admin.get("/v1/notifications/channels").status_code == 200
     deps.reset_singletons()
+
+
+# ------------------------------------------------- N7: pair scope on rules
+def test_rule_pair_scope_matches_only_that_pair(notif_env, monkeypatch):
+    store = notif_env
+    ch = store.create_channel("telegram", "TG", {"bot_token": "t", "chat_id": "1"})
+    store.create_rule("*", "critical", [ch["id"]], pairs=["BTC/USDT"])  # BTC-only rule
+    fake = _FakeSender()
+    monkeypatch.setattr("src.notifications.dispatcher.send_via_channel", fake)
+    d = Dispatcher(store=store, ledger=deps.get_ledger())
+
+    _write_alert(severity="critical", a_type="signal", pair="XRP/USDT")
+    d.dispatch_pending()
+    assert fake.sent == []  # XRP alert does not match a BTC-only rule
+
+    _write_alert(severity="critical", a_type="signal", pair="BTC/USDT")
+    d.dispatch_pending()
+    assert len(fake.sent) == 1  # BTC alert matches
+
+
+def test_system_alert_without_pair_matches_a_scoped_rule(notif_env, monkeypatch):
+    """The load-bearing semantic: a global breaker (pair=None) must NOT be
+    silenced by a pair-scoped rule."""
+    store = notif_env
+    ch = store.create_channel("telegram", "TG", {"bot_token": "t", "chat_id": "1"})
+    store.create_rule("circuit_breaker", "critical", [ch["id"]], pairs=["BTC/USDT"])
+    fake = _FakeSender()
+    monkeypatch.setattr("src.notifications.dispatcher.send_via_channel", fake)
+    d = Dispatcher(store=store, ledger=deps.get_ledger())
+
+    _write_alert(severity="critical", a_type="circuit_breaker", pair=None)
+    d.dispatch_pending()
+    assert len(fake.sent) == 1  # system alert reaches the BTC-scoped rule
+
+
+def test_legacy_rule_defaults_to_all_pairs(notif_env, monkeypatch):
+    store = notif_env
+    ch = store.create_channel("telegram", "TG", {"bot_token": "t", "chat_id": "1"})
+    rule = store.create_rule("*", "critical", [ch["id"]])  # no pairs → ["*"]
+    assert rule["pairs"] == ["*"]
+    fake = _FakeSender()
+    monkeypatch.setattr("src.notifications.dispatcher.send_via_channel", fake)
+    d = Dispatcher(store=store, ledger=deps.get_ledger())
+
+    _write_alert(severity="critical", a_type="signal", pair="XRP/USDT")
+    d.dispatch_pending()
+    assert len(fake.sent) == 1  # a default rule still fires for every pair
+
+
+def test_patch_rule_pairs_via_api(notif_env):
+    store = notif_env
+    ch = store.create_channel("telegram", "TG", {"bot_token": "t", "chat_id": "1"})
+    rule = store.create_rule("*", "high", [ch["id"]])
+    client = _client()
+    r = client.patch(f"/v1/notifications/rules/{rule['id']}", json={"pairs": ["BTC/USDT", "ETH/USDT"]})
+    assert r.status_code == 200, r.text
+    assert r.json()["data"]["pairs"] == ["BTC/USDT", "ETH/USDT"]
+    assert store.get_rule(rule["id"])["pairs"] == ["BTC/USDT", "ETH/USDT"]

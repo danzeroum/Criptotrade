@@ -314,6 +314,8 @@ class RuleOut(BaseModel):
     alert_type: str
     min_severity: str
     channel_ids: List[str]
+    # N7: pair scope. ["*"] (default) = all pairs; else the concrete symbols.
+    pairs: List[str] = Field(default_factory=lambda: ["*"])
     enabled: bool
 
 
@@ -323,6 +325,7 @@ class RuleIn(BaseModel):
     alert_type: str = Field("*", max_length=60)
     min_severity: Literal["low", "medium", "high", "critical"] = "high"
     channel_ids: List[str] = Field(default_factory=list)
+    pairs: List[str] = Field(default_factory=lambda: ["*"])
     enabled: bool = True
 
 
@@ -332,6 +335,7 @@ class RulePatchIn(BaseModel):
     alert_type: Optional[str] = Field(None, max_length=60)
     min_severity: Optional[Literal["low", "medium", "high", "critical"]] = None
     channel_ids: Optional[List[str]] = None
+    pairs: Optional[List[str]] = None
     enabled: Optional[bool] = None
 
 
