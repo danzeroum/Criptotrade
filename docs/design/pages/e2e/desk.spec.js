@@ -65,3 +65,65 @@ test("N9 — resuming from the Mesa clears paused without navigating away", asyn
   await expect(page.locator(".desk-row:not(.desk-head)", { hasText: "BNB/USDT" })
     .getByText("PAUSADO")).toHaveCount(0);
 });
+
+// --------------------------------------------------------------- 11c heatmap
+
+test("11c — toggle Lista⇄Heatmap troca a visão e persiste", async ({ page }) => {
+  await page.goto("/#desk");
+  await expect(page.locator(".desk-grid")).toBeVisible();  // default = lista
+  await page.getByRole("button", { name: "Heatmap" }).click();
+  await expect(page.locator(".desk-heat-grid")).toBeVisible();
+  await expect(page.locator(".heat-cell")).toHaveCount(5);
+  // Preferência persistida: recarregar mantém o heatmap.
+  await page.reload();
+  await expect(page.locator(".desk-heat-grid")).toBeVisible();
+});
+
+test("11c — célula do heatmap: regime legível (M8) e clique abre o Mercado", async ({ page }) => {
+  await page.goto("/#desk");
+  await page.getByRole("button", { name: "Heatmap" }).click();
+  const sol = page.locator(".heat-cell", { hasText: "SOL/USDT" });
+  await expect(sol).toContainText("Alta forte");  // regime por rótulo, não só cor
+  await sol.click();
+  await expect(page).toHaveURL(/#market$/);
+});
+
+test("11c — heatmap respeita o badge PAUSADO", async ({ page }) => {
+  await page.goto("/#desk");
+  await page.getByRole("button", { name: "Heatmap" }).click();
+  await expect(page.locator(".heat-cell", { hasText: "BNB/USDT" }).getByText("PAUSADO")).toBeVisible();
+});
+
+test("11c — hint aparece com muitos pares (pós-filtro) e some ao dispensar", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.MOCK_OPERATED = Array.from({ length: 14 }, (_, i) => `PAIR${i}/USDT`);
+  });
+  await page.goto("/#desk");
+  const hint = page.getByText(/experimente o modo heatmap/);
+  await expect(hint).toBeVisible();
+  await page.getByRole("button", { name: "Dispensar dica" }).click();
+  await expect(hint).toHaveCount(0);
+  // Persistido: não reaparece após reload.
+  await page.reload();
+  await expect(page.getByText(/experimente o modo heatmap/)).toHaveCount(0);
+});
+
+// ------------------------------------------------------------- 11c watchlists
+
+test("11c — filtro de grupo filtra a Mesa; grupo vazio mostra o estado vazio", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("ct.groups", JSON.stringify({
+      names: ["majors", "vazio"],
+      members: { "BTC/USDT": "majors", "ETH/USDT": "majors" },
+    }));
+  });
+  await page.goto("/#desk");
+  // Filtrar por "majors" → só BTC e ETH.
+  await page.getByRole("button", { name: "majors" }).click();
+  await expect(page.locator(".desk-row:not(.desk-head)")).toHaveCount(2);
+  // Grupo sem pares → estado vazio + Ver Todos.
+  await page.getByRole("button", { name: "vazio" }).click();
+  await expect(page.getByText("Nenhum par operado neste grupo")).toBeVisible();
+  await page.getByRole("button", { name: "Ver Todos" }).click();
+  await expect(page.locator(".desk-row:not(.desk-head)")).toHaveCount(5);
+});
