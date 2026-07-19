@@ -27,7 +27,7 @@ const EXPLAIN = {
     steps: [
       ['Busca OHLCV na exchange', 'Com <code>EXCHANGE_DRY_RUN=false</code>, o <b>exchange_client</b> (ccxt/Binance) busca candles reais. Em dry-run, usa o motor sintético determinístico (zero rede).'],
       ['Roda a análise técnica', 'Os módulos de <code>src/analysis</code> calculam <b>RSI, MACD, Estocástico, Bollinger, ATR</b>, detectam <b>padrões</b> e <b>regime</b>, e mapeiam <b>suporte/resistência</b> e <b>volume profile</b> — tudo determinístico.'],
-      ['Camada de IA (opcional)', 'Se <code>LLM_ENABLED=true</code>, os indicadores viram contexto estruturado para um <b>LLM (Gemini)</b> que produz uma <b>tese</b> e ajusta a <b>confiança</b> (Chain-of-Thought). Com LLM off, a TA é o piso e o sistema segue 100% offline.'],
+      ['Camada de IA (opcional)', 'Se <code>LLM_ENABLED=true</code>, os indicadores viram contexto estruturado para um <b>LLM consultivo</b> (<code>LLM_PROVIDER</code>: Gemini ou DeepSeek) que produz uma <b>tese</b> (<code>llm_thesis</code>) e ajusta a <b>confiança</b>. Se a API falhar, o sistema segue no modo determinístico — a TA é o piso.'],
       ['Emite o sinal', 'Sai um sinal <code>{ação, entrada, stop, alvo, confiança}</code>. Confiança < 0,6 é descartada antes de chegar ao risco.'],
     ],
   },
@@ -114,7 +114,7 @@ const EXPLAIN = {
     endpoint: 'GET/PATCH /v1/hitl/config · /v1/config',
     src: 'src/hitl/config.py · src/core/config.py · src/api/routes/config.py',
     steps: [
-      ['Variáveis de ambiente', 'Refletem env reais: <code>EXCHANGE_DRY_RUN</code> (fonte de dados), <code>ORDER_ROUTING</code> (paper/live), <code>LLM_ENABLED</code>, <code>AUTONOMY_LEVEL</code>, <code>INITIAL_CAPITAL</code>, <code>ORCHESTRATOR_INTERVAL_SECONDS</code>.'],
+      ['Variáveis de ambiente', 'Refletem env reais: <code>EXCHANGE_DRY_RUN</code> (fonte de dados), <code>ORDER_ROUTING</code> (paper/live), <code>LLM_ENABLED</code> + <code>LLM_PROVIDER</code> (Gemini/DeepSeek), <code>AUTONOMY_LEVEL</code>, <code>INITIAL_CAPITAL</code>, <code>ORCHESTRATOR_INTERVAL_SECONDS</code>.'],
       ['Autonomia 0–3', 'O nível define o threshold de auto-aprovação (R$0 / $500 / $1k / $5k) consumido pelo HITL.'],
       ['Auditável', 'Toda alteração sensível é registrada no <b>ledger</b> — nada muda em silêncio.'],
     ],

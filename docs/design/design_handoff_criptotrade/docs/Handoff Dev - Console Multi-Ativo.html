@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Handoff Dev — Console Multi-Ativo · Criptotrade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#F4F6F8;--surface:#fff;--surface-2:#F6F8FA;--surface-3:#EEF1F4;--border:#E4E8EC;--border-2:#D5DAE0;
+    --ink:#14181C;--ink-2:#5B636C;--ink-3:#8A929B;--ink-4:#AEB5BD;
+    --ok:#0E9D6E;--ok-bg:#E7F6EF;--ok-line:#B7E6D2;
+    --warn:#C77F08;--warn-bg:#FBF1DD;--warn-line:#EEDBAC;
+    --info:#2563EB;--info-bg:#E7EEFD;--info-line:#C9D8FA;
+    --crit:#DC2B2B;--crit-bg:#FCEAEA;--crit-line:#F3C9C9;
+    --violet:#7C5CFC;
+    --sans:'IBM Plex Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace;
+    --sh-sm:0 1px 2px rgba(20,24,28,.05);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;-webkit-font-smoothing:antialiased;line-height:1.5;}
+  code{font-family:var(--mono);font-size:.85em;background:var(--surface-3);padding:1.5px 6px;border-radius:5px;color:var(--ink);}
+  a{color:var(--info);text-decoration:none;}a:hover{text-decoration:underline;}
+  .wrap{display:grid;grid-template-columns:250px 1fr;max-width:1320px;margin:0 auto;}
+  .side{position:sticky;top:0;height:100vh;overflow-y:auto;padding:26px 16px;border-right:1px solid var(--border);background:var(--surface);}
+  .side .mk{width:30px;height:30px;border-radius:8px;background:var(--ink);color:#fff;display:grid;place-items:center;font-family:var(--mono);font-weight:600;}
+  .side-brand{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .side-brand b{font-size:15px;}
+  .side-sub{font-size:11px;color:var(--ink-3);font-family:var(--mono);margin-bottom:20px;}
+  .side a{display:flex;gap:8px;align-items:center;padding:6px 9px;border-radius:6px;color:var(--ink-2);font-size:12.5px;font-weight:500;}
+  .side a:hover{background:var(--surface-2);color:var(--ink);text-decoration:none;}
+  .side a .sn{font-family:var(--mono);font-size:10px;color:var(--ink-4);width:16px;}
+  .side a .sd{margin-left:auto;width:7px;height:7px;border-radius:99px;}
+  .main{padding:40px 46px 110px;min-width:0;}
+  .doc-kicker{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--info);}
+  .doc-title{font-size:30px;font-weight:600;letter-spacing:-.025em;margin-top:8px;}
+  .doc-sub{color:var(--ink-2);font-size:15px;margin-top:9px;max-width:730px;}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;}
+  .meta{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-family:var(--mono);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:5px 10px;color:var(--ink-2);}
+  section{margin-top:46px;scroll-margin-top:20px;}
+  .sec-head{display:flex;align-items:baseline;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:6px;}
+  .sec-num{font-family:var(--mono);font-size:13px;color:var(--ink-3);font-weight:600;}
+  .sec-title{font-size:21px;font-weight:600;letter-spacing:-.02em;}
+  .sec-desc{color:var(--ink-2);font-size:14px;margin:14px 0 18px;max-width:800px;}
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid transparent;white-space:nowrap;}
+  .pill .d{width:6px;height:6px;border-radius:99px;background:currentColor;}
+  .p-p0{background:var(--crit-bg);color:var(--crit);border-color:var(--crit-line);}
+  .p-p1{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-line);}
+  .p-p2{background:var(--info-bg);color:var(--info);border-color:var(--info-line);}
+  .eff{font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:6px;background:var(--surface-3);color:var(--ink-2);border:1px solid var(--border-2);}
+  .tally{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:24px;}
+  .tally .t{border:1px solid var(--border);border-radius:10px;padding:13px 15px;background:var(--surface);}
+  .tally .t .n{font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-.02em;}
+  .tally .t .l{font-size:11.5px;color:var(--ink-2);margin-top:2px;line-height:1.35;}
+  .scr{background:var(--surface);border:1px solid var(--border);border-radius:13px;box-shadow:var(--sh-sm);overflow:hidden;margin-bottom:16px;}
+  .scr.p0{border-left:3px solid var(--crit);}
+  .scr.p1{border-left:3px solid var(--warn);}
+  .scr.p2{border-left:3px solid var(--info);}
+  .scr-h{display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--border);background:var(--surface-2);}
+  .scr-h .id{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink-3);}
+  .scr-h .ti{font-size:15px;font-weight:600;letter-spacing:-.01em;}
+  .scr-h .right{margin-left:auto;display:flex;gap:7px;align-items:center;}
+  .scr-b{padding:16px 18px;}
+  .why{display:flex;gap:9px;font-size:13px;color:var(--ink);background:var(--info-bg);border:1px solid var(--info-line);border-radius:9px;padding:11px 13px;margin-bottom:14px;line-height:1.5;}
+  .why .k{font-weight:700;color:var(--info);flex-shrink:0;}
+  .why.hot{background:var(--crit-bg);border-color:var(--crit-line);}
+  .why.hot .k{color:var(--crit);}
+  .why b{font-weight:600;}
+  .blk{margin-bottom:14px;}
+  .blk:last-child{margin-bottom:0;}
+  .bl{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-4);margin-bottom:7px;}
+  .twocol{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;}
+  @media(max-width:880px){.twocol{grid-template-columns:1fr;}.tally{grid-template-columns:1fr 1fr;}}
+  ul.feat{margin:0;padding-left:0;list-style:none;}
+  ul.feat li{font-size:13px;color:var(--ink);padding:5px 0 5px 18px;position:relative;line-height:1.5;}
+  ul.feat li::before{content:'';position:absolute;left:3px;top:11px;width:5px;height:5px;border-radius:99px;background:var(--ink-4);}
+  ul.feat li b{font-weight:600;}
+  .ep{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--border);}
+  .ep:last-child{border-bottom:none;}
+  .ep .path{font-family:var(--mono);font-size:12px;font-weight:500;}
+  .ep .desc{margin-left:auto;font-size:11.5px;color:var(--ink-3);text-align:right;}
+  .method{font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 6px;border-radius:5px;color:#fff;flex-shrink:0;}
+  .m-get{background:#0E9D6E;}.m-post{background:#2563EB;}.m-patch{background:#C77F08;}
+  .filechip{font-family:var(--mono);font-size:11px;background:var(--surface-3);border:1px solid var(--border-2);padding:3px 8px;border-radius:6px;color:var(--ink);}
+  .accept{background:var(--ok-bg);border:1px solid var(--ok-line);border-radius:9px;padding:11px 13px;}
+  .accept .al{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ok);margin-bottom:6px;}
+  .accept ul{margin:0;padding-left:0;list-style:none;}
+  .accept li{font-size:12.5px;color:#0a6b4c;padding:4px 0 4px 17px;position:relative;line-height:1.5;}
+  .accept li::before{content:'';position:absolute;left:2px;top:8px;width:5px;height:5px;border-radius:2px;background:var(--ok);}
+  .note{display:flex;gap:9px;border-radius:9px;padding:12px 14px;font-size:12.5px;margin-top:16px;}
+  .note.blue{background:var(--info-bg);border:1px solid var(--info-line);color:#1d4ed8;}
+  .note.amber{background:var(--warn-bg);border:1px solid var(--warn-line);color:#7a5304;}
+  .note.green{background:var(--ok-bg);border:1px solid var(--ok-line);color:#0a6b4c;}
+  .note b{font-weight:600;}
+  .road{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .sprint{border:1px solid var(--border);border-radius:11px;background:var(--surface);overflow:hidden;}
+  .sprint .sh{padding:12px 15px;border-bottom:1px solid var(--border);background:var(--surface-2);}
+  .sprint .sh .n{font-family:var(--mono);font-size:11px;color:var(--ink-3);font-weight:600;}
+  .sprint .sh .t{font-size:14px;font-weight:600;margin-top:2px;}
+  .sprint .sh .g{font-size:11.5px;color:var(--ink-2);margin-top:3px;}
+  .sprint ul{margin:0;padding:11px 15px 13px;list-style:none;}
+  .sprint li{font-size:12.5px;color:var(--ink-2);padding:5px 0 5px 26px;position:relative;border-bottom:1px solid var(--border);}
+  .sprint li:last-child{border-bottom:none;}
+  .sprint li .tag{position:absolute;left:0;top:5px;font-family:var(--mono);font-size:10px;font-weight:700;color:var(--ink-4);}
+  table.tb{width:100%;border-collapse:collapse;font-size:12.5px;border:1px solid var(--border);border-radius:11px;overflow:hidden;}
+  table.tb th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);padding:10px 13px;background:var(--surface-2);border-bottom:1px solid var(--border);}
+  table.tb td{padding:10px 13px;border-bottom:1px solid var(--border);vertical-align:top;background:var(--surface);}
+  table.tb tr:last-child td{border-bottom:none;}
+  @media print{.side{display:none;}.wrap{display:block;}.main{padding:0 8px;}section,.scr{break-inside:avoid;}.twocol,.road,.tally{grid-template-columns:1fr;}}
+  @media (max-width:920px){.wrap{grid-template-columns:1fr;}.side{display:none;}.road{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="side">
+    <div class="side-brand"><div class="mk">C</div><b>Criptotrade</b></div>
+    <div class="side-sub">Handoff · Multi-Ativo</div>
+    <div id="nav"></div>
+  </nav>
+  <main class="main">
+    <div class="doc-kicker">Análise de impacto · Novas UIs</div>
+    <div class="doc-title">Console Multi-Ativo — do par único a N criptos</div>
+    <div class="doc-sub">O loop passou a operar <b>5 pares por ciclo</b> (<code>SYMBOLS</code>) disputando <b>um capital compartilhado</b> e <b>3 slots de posição</b> (<code>MAX_CONCURRENT_POSITIONS</code>). O console foi desenhado par-a-par: nenhuma tela responde <i>"o que o bot está fazendo em todos os pares agora?"</i>. Este handoff especifica as UIs novas e as adaptações — com a arquitetura pensada para <b>N genérico</b>: adicionar criptos deve ser rotina, não projeto.</div>
+    <div class="meta-row">
+      <span class="meta">gatilho · SYMBOLS=5 majors na VPS</span>
+      <span class="meta">princípio · genérico para N pares</span>
+      <span class="meta" id="meta-count"></span>
+      <span class="meta">data · jul/2026</span>
+    </div>
+    <div id="doc"></div>
+  </main>
+</div>
+
+<script>
+const EFF = { P:'P · horas', M:'M · 1–2 dias', G:'G · 3+ dias' };
+const PRI = {
+  p0:'<span class="pill p-p0"><span class="d"></span>P0 · lacuna operacional</span>',
+  p1:'<span class="pill p-p1"><span class="d"></span>P1 · contexto de par</span>',
+  p2:'<span class="pill p-p2"><span class="d"></span>P2 · escala N</span>',
+};
+const PDOT = { p0:'var(--crit)', p1:'var(--warn)', p2:'var(--info)' };
+const ep = (m,path,desc)=>`<div class="ep"><span class="method m-${m}">${m.toUpperCase()}</span><span class="path">${path}</span><span class="desc">${desc}</span></div>`;
+
+const ITEMS = [
+{
+  id:'N1', pri:'p0', eff:'M', title:'Seletor de par dinâmico — a API vira a fonte, não o mock',
+  hot:false,
+  why:'O <code>PairSelect</code> tem a lista de pares embutida no front. Com <code>SYMBOLS</code>/<code>MARKET_PAIRS</code> agora definindo o que o sistema realmente opera, o seletor mente sempre que o env mudar — e o objetivo declarado é adicionar pares com frequência.',
+  blocks:[
+    '<b>Fonte única:</b> novo <code>GET /v1/pairs</code> → operados (com status do último ciclo) + allowlist (observáveis). O seletor renderiza daí; zero lista hardcoded.',
+    '<b>Dois grupos no dropdown:</b> "Operados" (badge verde, o loop negocia) e "Observáveis" (allowlist, só análise) — a distinção SYMBOLS × MARKET_PAIRS vira visível.',
+    '<b>Busca a partir de 8 itens</b> + ordenação por notional/atividade. Preparação para N: o dropdown não pode virar uma lista de 40 itens sem filtro.',
+    '<b>"Portfólio (∑)" continua o default</b> — e ganha mais valor com N pares.',
+  ],
+  endpoints:[
+    ['get','/v1/pairs','operados + allowlist + last_cycle_at + status'],
+  ],
+  files:['components.jsx (PairSelect)','src/api/routes/pairs.py (novo, fino sobre pairs.py core)'],
+  accept:[
+    'Mudar SYMBOLS no env e reiniciar → o seletor reflete sem tocar no front.',
+    'Par operado vs observável distinguível no seletor.',
+  ],
+},
+{
+  id:'N2', pri:'p0', eff:'G', title:'Tela nova: Mesa Multi-Ativo (visão de todos os pares)',
+  hot:true,
+  why:'É a lacuna central. Visão Geral agrega o portfólio (números somados); Mercado aprofunda UM par. Com 5+ operados, não existe onde ver lado a lado: preço, regime, sinal, posição e último ciclo de CADA par. O operador teria que navegar par a par no seletor — inviável já com 5, absurdo com 15.',
+  blocks:[
+    '<b>Grid de cartões-linha por par operado:</b> símbolo + preço + variação (sparkline 24h), regime detectado, sinal atual (ação + confiança), posição aberta (lado, P&L não-realizado) ou "—", frescor do último ciclo.',
+    '<b>Ordenação:</b> por sinal ativo → posição aberta → confiança → alfabético (o acionável sobe). Toggle de ordenação por P&L / variação.',
+    '<b>Linha-resumo fixa no topo:</b> slots de posição (ver N3), capital alocado vs livre, pares com sinal ≥ 0.6.',
+    '<b>Clique na linha → Mercado daquele par</b> (seta o par global e navega). A Mesa é o hub; o Mercado vira o drill-down.',
+    '<b>Nav:</b> "Mesa" entra como primeiro item da Operação (ou substitui a Visão Geral como landing — decisão de produto: recomendo Mesa como landing quando SYMBOLS > 1).',
+    '<b>Batch obrigatório:</b> UM request para todos os pares (<code>/v1/desk/summary</code>), não N fan-outs — com N crescendo, isso é arquitetura, não otimização.',
+  ],
+  endpoints:[
+    ['get','/v1/desk/summary','snapshot por par: preço, Δ24h, regime, sinal, posição, as_of — 1 request para N pares'],
+  ],
+  files:['screen_desk.jsx (novo)','src/api/routes/desk.py (novo — agrega stores existentes)','shell.jsx (nav)'],
+  accept:[
+    'Com 5 operados, a Mesa mostra os 5 com dados coerentes ao header em < 1s e 1 request.',
+    'Adicionar um 6º par ao env → aparece na Mesa sem mudança de front.',
+    'Clique em XRP → tela de Mercado com XRP selecionado.',
+  ],
+},
+{
+  id:'N3', pri:'p0', eff:'M', title:'Risco & Capital: slots, exposição por par e "por que não operou"',
+  hot:true,
+  why:'Cinco pares disputam 3 slots e um capital só — essa competição é invisível hoje. Pior: quando o loop pula um sinal ("confidence too low", sem slot, sem capital, breaker), isso morre no log do orchestrator. O operador vê um sinal forte na Mesa e não entende por que não virou ordem.',
+  blocks:[
+    '<b>Cartão "Slots de posição":</b> N de M ocupados, qual par ocupa cada slot (lado, notional, desde quando).',
+    '<b>Exposição por par:</b> barra empilhada do capital — alocado por par + livre; % do teto por posição.',
+    '<b>Feed "decisões do ciclo":</b> por que cada sinal não virou ordem — <code>skip_reason: confidence_low | no_slot | insufficient_capital | circuit_breaker | cooldown</code>. Backend: o orchestrator grava <code>signal_skipped</code> no ledger (hoje só loga) — alimenta este feed e o A4.',
+    '<b>Aviso de concentração</b> (P2, junto com N9): % do capital num único par acima de limiar.',
+  ],
+  endpoints:[
+    ['get','/v1/risk/slots','ocupação de slots + exposição por par'],
+    ['get','/v1/process/skips','últimos signal_skipped com motivo (ou filtro no /v1/audit)'],
+  ],
+  files:['screen_risk.jsx','squad_orchestrator.py (evento signal_skipped)','src/audit/normalize.py (ação skip)'],
+  accept:[
+    '3 posições abertas → 3 slots visíveis com seus pares; 4º sinal forte aparece no feed como no_slot.',
+    'Todo skip do log vira evento consultável com motivo.',
+  ],
+},
+{
+  id:'N4', pri:'p1', eff:'P', title:'HITL: a fila mistura pares — filtrar e contextualizar',
+  hot:false,
+  why:'Com 5 pares gerando ordens, a fila do HITL intercala BTC/XRP/BNB. O operador precisa decidir com o contexto do par certo — e o badge de pendências no nav não diz de quais pares.',
+  blocks:[
+    '<b>Filtro por par</b> na fila (chips com contagem: "BTC 2 · XRP 1").',
+    '<b>Chip do par + mini-contexto</b> em cada ordem pendente: preço atual vs entrada proposta, regime do par (o dado já existe no desk/summary).',
+    '<b>Respeitar o par global:</b> chegar do "Ver no HITL" do Mercado → fila já filtrada naquele par (comportamento da Fase 2 estendido ao filtro).',
+  ],
+  endpoints:[],
+  files:['screen_hitl.jsx'],
+  accept:['Fila filtrável por par; cada ordem mostra seu par e o preço atual dele.'],
+},
+{
+  id:'N5', pri:'p1', eff:'P', title:'Ordens & Diário: dimensão de par no modo Portfólio',
+  hot:false,
+  why:'No modo ∑ (Portfólio), as listas de ordens/trades e o diário precisam da coluna de par + filtro — senão o P&L multi-ativo é ilegível ("qual trade foi do quê?").',
+  blocks:[
+    '<b>Coluna "Par"</b> visível só no modo ∑ (no modo par único é redundante).',
+    '<b>Filtro por par</b> nas Ordens (junto aos filtros de status) e no Diário.',
+    '<b>P&L por par</b> no rodapé das Ordens fechadas (soma agrupada).',
+  ],
+  endpoints:[],
+  files:['screen_orders.jsx','screen_journal.jsx'],
+  accept:['No modo ∑, toda linha identifica o par e as listas filtram por ele.'],
+},
+{
+  id:'N6', pri:'p1', eff:'P', title:'Observabilidade: ciclos por símbolo',
+  hot:false,
+  why:'O ciclo agora é ×N símbolos — o event log fica N vezes mais denso e sem dimensão de par vira ruído. O <code>cycles_today</code> dos agentes também muda de significado (ciclos × símbolos).',
+  blocks:[
+    '<b>Coluna/filtro de símbolo</b> no event log de ciclos.',
+    '<b>Duração por símbolo</b> no detalhe do ciclo (onde o tempo foi gasto — importa com N crescendo e rate-limits de exchange).',
+    '<b>Contadores por par</b> nos cartões de agente: ciclos e sinais de hoje, por símbolo (tooltip ou expansão).',
+  ],
+  endpoints:[],
+  files:['screen_observability.jsx','screen_agents.jsx'],
+  accept:['É possível ver só os ciclos de um par e a duração de cada análise por símbolo.'],
+},
+{
+  id:'N7', pri:'p1', eff:'P', title:'Notificações: regra com dimensão de par',
+  hot:false,
+  why:'As regras do 6b são evento×severidade. Com N pares, "sinal forte" de um par de teste tem peso diferente de um sinal no BTC — a regra precisa opcionalmente segmentar por par.',
+  blocks:[
+    '<b>Campo opcional <code>pairs</code></b> na regra (default <code>*</code> = todos — retrocompatível com as regras existentes).',
+    '<b>UI:</b> multi-select de pares (da fonte do N1) no modal da regra.',
+  ],
+  endpoints:[
+    ['patch','/v1/notifications/rules/{id}','ganha pairs[] opcional'],
+  ],
+  files:['screen_notifications.jsx','src/api/routes/notifications.py','dispatcher (match por par)'],
+  accept:['Regra "critical só de BTC/USDT" não dispara para XRP; regras antigas seguem valendo para todos.'],
+},
+{
+  id:'N8', pri:'p1', eff:'G', title:'Configurações: gestão de pares pela UI (em 2 etapas honestas)',
+  hot:true,
+  why:'"Adicionar mais criptos" hoje = editar env + recreate na VPS. Para virar rotina, precisa de UI — mas SYMBOLS é env de deploy lido no boot do orchestrator. Propor as duas etapas separadas evita prometer hot-reload que não existe.',
+  blocks:[
+    '<b>Etapa 1 (neste ciclo):</b> seção "Pares operados" nas Configurações, <b>somente leitura</b> — operados, allowlist, e a instrução exata de env para mudar (o padrão honesto do protótipo). Zero risco, valor imediato.',
+    '<b>Etapa 2 (quando priorizar):</b> gestão real — tabela <code>operated_pairs</code> no SQLite (padrão A5: DB > env quando existir), UI de adicionar/remover com validação (par existe na exchange via ccxt <code>load_markets</code>; quote USDT; aviso de exposição por par adicional), e a <b>semântica declarada</b>: mudança aplica no próximo restart do orchestrator (banner "pendente de restart", igual à rotação de conexão do A5).',
+    '<b>Permissão:</b> <code>edit_settings</code> (admin); mudanças geram <code>config_changed</code> scope <code>pairs</code> (A4 de graça).',
+  ],
+  endpoints:[
+    ['get','/v1/pairs','já criado no N1 — Etapa 1 só consome'],
+    ['post','/v1/pairs/operated','Etapa 2: adiciona par (valida na exchange)'],
+    ['patch','/v1/pairs/operated/{symbol}','Etapa 2: ativa/desativa'],
+  ],
+  files:['screen_settings.jsx (Etapa 1)','migrations/011_pairs.sql + exchange_factory (Etapa 2)'],
+  accept:[
+    'Etapa 1: a tela mostra exatamente o que o loop opera, com a instrução de mudança.',
+    'Etapa 2: adicionar par inválido é recusado com motivo; par válido entra no próximo restart com banner de pendência.',
+  ],
+},
+{
+  id:'N9', pri:'p2', eff:'G', title:'Escala N: heatmap, pausa por par e watchlists',
+  hot:false,
+  why:'Acima de ~10 pares, a Mesa em lista também satura. Este é o horizonte "ver além" — projetado agora para as decisões de N1–N3 não precisarem ser refeitas.',
+  blocks:[
+    '<b>Heatmap regime × par</b> na Mesa (modo compacto): célula colorida por regime/variação, N pares num relance — vira o modo default acima de um limiar de pares.',
+    '<b>Pausar par</b> (kill switch por símbolo): flag <code>paused</code> na tabela do N8-Etapa 2, respeitada pelo loop no início do ciclo — pausar não exige restart (é leitura por ciclo, diferente de adicionar). Ação na Mesa e na gestão de pares, com <code>config_changed</code> no ledger.',
+    '<b>Watchlists/grupos</b> no seletor e na Mesa (majors / alts / experimentos) — organização, não comportamento.',
+    '<b>Exposição correlacionada</b> (backlog declarado): aviso quando X% do capital está em pares altamente correlacionados — exige série de correlação no backend; registrar, não construir agora.',
+  ],
+  endpoints:[
+    ['patch','/v1/pairs/operated/{symbol}','pausa/retoma (flag paused, lida por ciclo)'],
+  ],
+  files:['screen_desk.jsx (heatmap, pausa)','orchestrator (checagem paused por ciclo)'],
+  accept:[
+    'Pausar um par interrompe novas ordens dele no ciclo seguinte sem restart; posições abertas seguem geridas (stop/TP).',
+    'Heatmap legível com 15+ pares.',
+  ],
+},
+];
+
+const counts = ITEMS.reduce((a,i)=>(a[i.pri]=(a[i.pri]||0)+1,a),{});
+document.getElementById('meta-count').textContent = `${ITEMS.length} itens · ${counts.p0} P0 · ${counts.p1} P1 · ${counts.p2} P2`;
+
+function card(it){
+  const epHtml = it.endpoints.length
+    ? `<div class="blk"><div class="bl">Endpoints</div>${it.endpoints.map(e=>ep(e[0],e[1],e[2])).join('')}</div>`
+    : '';
+  return `<div class="scr ${it.pri}" id="${it.id}">
+    <div class="scr-h"><span class="id">${it.id}</span><span class="ti">${it.title}</span>
+      <span class="right"><span class="eff">${EFF[it.eff]}</span>${PRI[it.pri]}</span></div>
+    <div class="scr-b">
+      <div class="why ${it.hot?'hot':''}"><span class="k">Por quê →</span><div>${it.why}</div></div>
+      <div class="twocol">
+        <div><div class="blk"><div class="bl">O que construir</div><ul class="feat">${it.blocks.map(b=>`<li>${b}</li>`).join('')}</ul></div></div>
+        <div>
+          ${epHtml}
+          <div class="blk"><div class="bl">Onde mexer</div><div style="display:flex;flex-wrap:wrap;gap:6px">${it.files.map(f=>`<span class="filechip">${f}</span>`).join('')}</div></div>
+          <div class="blk accept"><div class="al">Critério de aceite</div><ul>${it.accept.map(a=>`<li>${a}</li>`).join('')}</ul></div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+const SECTIONS = [
+  { id:'diagnostico', num:'00', title:'Diagnóstico' },
+  { id:'lacunas', num:'01', title:'Lacunas operacionais (P0)', items:['N1','N2','N3'] },
+  { id:'contexto', num:'02', title:'Contexto de par nas telas existentes (P1)', items:['N4','N5','N6','N7'] },
+  { id:'gestao', num:'03', title:'Gestão genérica de pares (P1→P2)', items:['N8','N9'] },
+  { id:'principios', num:'04', title:'Princípios de arquitetura para N' },
+  { id:'roadmap', num:'05', title:'Sequência sugerida' },
+];
+const byId = Object.fromEntries(ITEMS.map(i=>[i.id,i]));
+
+document.getElementById('nav').innerHTML = SECTIONS.map(s=>{
+  const its=(s.items||[]).map(i=>byId[i]);
+  const worst = its.some(i=>i.pri==='p0')?'p0':its.some(i=>i.pri==='p1')?'p1':its.length?'p2':null;
+  const dot = worst?`<span class="sd" style="background:${PDOT[worst]}"></span>`:'';
+  return `<a href="#${s.id}"><span class="sn">${s.num}</span>${s.title}${dot}</a>`;
+}).join('');
+
+document.getElementById('doc').innerHTML = SECTIONS.map(s=>{
+  let body='';
+  if(s.id==='diagnostico'){
+    body = `<div class="tally">
+      <div class="t"><div class="n">5→N</div><div class="l">pares operados por ciclo — e crescendo por decisão de produto</div></div>
+      <div class="t"><div class="n" style="color:var(--crit)">3</div><div class="l">lacunas P0: seletor mockado, sem visão multi-par, competição por capital invisível</div></div>
+      <div class="t"><div class="n" style="color:var(--warn)">1</div><div class="l">tela nova de verdade: a Mesa Multi-Ativo (N2)</div></div>
+      <div class="t"><div class="n" style="color:var(--info)">1</div><div class="l">request por refresh da Mesa — batch desde o dia 1</div></div>
+    </div>
+    <div class="note blue"><div>▣&nbsp;</div><div><b>O deslocamento conceitual:</b> o console foi desenhado com o par como <i>contexto global</i> (seletor no header) e as telas como <i>visões daquele par</i>. Multi-ativo inverte: o par vira <i>linha de uma tabela</i> e o seletor vira <i>drill-down</i>. A Mesa (N2) materializa essa inversão; o resto são adaptações de dimensão (coluna/filtro de par) e a competição por capital tornada visível (N3).</div></div>
+    <div class="note amber"><div>⚠&nbsp;</div><div><b>O que NÃO fazer:</b> não construir a Mesa com N requests (um por par) — com 15 pares vira tempestade de fan-out; não duplicar telas por par; não prometer hot-reload de SYMBOLS (a semântica real é restart — o N8 trata isso honestamente em 2 etapas).</div></div>`;
+  } else if(s.id==='principios'){
+    body = `<div class="sec-desc">Regras que mantêm o sistema genérico conforme os pares crescem — valem para todo item acima e para os futuros.</div>
+    <table class="tb">
+      <thead><tr><th>Princípio</th><th>Na prática</th></tr></thead>
+      <tbody>
+        <tr><td><b>Par nunca é hardcoded</b></td><td>Toda lista de pares vem de <code>GET /v1/pairs</code> (front) ou de <code>pairs.py</code>/tabela (back). O mock do protótipo é a única exceção — e é declarada.</td></tr>
+        <tr><td><b>Batch por padrão</b></td><td>Dados "de todos os pares" viajam num request agregado (<code>desk/summary</code>). Fan-out por par é proibido em telas de lista.</td></tr>
+        <tr><td><b>Dimensão, não duplicação</b></td><td>Multi-ativo = coluna/filtro de par nas telas existentes. Nunca uma cópia da tela por par.</td></tr>
+        <tr><td><b>Competição visível</b></td><td>Tudo que disputa recurso compartilhado (slots, capital, breaker) tem UI própria e evento no ledger (<code>signal_skipped</code>).</td></tr>
+        <tr><td><b>Semântica de aplicação honesta</b></td><td>Mudança que exige restart mostra "pendente de restart" (padrão A5). Pausa por par é por-ciclo e aplica sem restart — a UI diz qual é qual.</td></tr>
+        <tr><td><b>Escala degrada para densidade</b></td><td>Listas viram heatmap/compacto acima de limiar de pares; seletores ganham busca a partir de 8 itens.</td></tr>
+      </tbody>
+    </table>
+    <div class="note green" style="margin-top:14px;"><div>✓&nbsp;</div><div><b>Sinergias já pagas:</b> o contrato de secrets (A5/6b) não é tocado; <code>signal_skipped</code> e <code>config_changed scope pairs</code> entram no A4 só com extensão do normalize; o frescor <code>as_of</code> (Fase 2) já é por-request e serve a Mesa como está.</div></div>`;
+  } else if(s.id==='roadmap'){
+    body = `<div class="road">
+      <div class="sprint"><div class="sh"><div class="n">FASE 9</div><div class="t">Ver o multi-ativo</div><div class="g">A lacuna operacional fecha</div></div>
+        <ul><li><span class="tag">N1</span>GET /v1/pairs + seletor dinâmico</li><li><span class="tag">N2</span>Mesa Multi-Ativo + desk/summary</li><li><span class="tag">N3</span>Slots, exposição e signal_skipped</li></ul></div>
+      <div class="sprint"><div class="sh"><div class="n">FASE 10</div><div class="t">Dimensão de par em tudo</div><div class="g">Telas existentes ganham a coluna</div></div>
+        <ul><li><span class="tag">N4</span>HITL: filtro + contexto</li><li><span class="tag">N5</span>Ordens/Diário: coluna + P&L por par</li><li><span class="tag">N6</span>Observabilidade por símbolo</li><li><span class="tag">N7</span>Regras de notificação por par</li><li><span class="tag">N8¹</span>Config: pares somente-leitura</li></ul></div>
+      <div class="sprint"><div class="sh"><div class="n">FASE 11</div><div class="t">Gestão & escala</div><div class="g">Adicionar cripto vira rotina</div></div>
+        <ul><li><span class="tag">N8²</span>Gestão de pares no DB + validação</li><li><span class="tag">N9</span>Pausa por par · heatmap · watchlists</li><li><span class="tag">—</span>Backlog: correlação de exposição</li></ul></div>
+    </div>
+    <div class="note blue" style="margin-top:16px;"><div>↪&nbsp;</div><div><b>Protótipo demo:</b> após a Fase 9 real, sincronizo o protótipo de apresentação (data.js por par para as 5 majors + tela Mesa + "Como funciona de verdade" dela) — mantendo a demo fiel ao produto.</div></div>`;
+  } else {
+    body = (s.items||[]).map(i=>card(byId[i])).join('');
+  }
+  return `<section id="${s.id}"><div class="sec-head"><span class="sec-num">${s.num}</span><span class="sec-title">${s.title}</span></div>${body}</section>`;
+}).join('');
+</script>
+</body>
+</html>

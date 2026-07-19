@@ -79,12 +79,14 @@ Layouts, componentes por tela, estados e critérios de aceite estão detalhados 
 ## Assets
 Nenhum binário — ícones são SVG inline (`ICON_PATHS` em components.jsx, stroke 24×24), gráficos são SVG gerados. Fontes via Google Fonts (IBM Plex).
 
-## Ordem de execução sugerida (consolidada dos docs)
-1. **Backend primeiro:** `Handoff Dev - Fechamento de Posições (Grid)` — destrava P&L/win-rate reais ("Sem dados" some). Design pronto, 5 passos incrementais, 0 testes existentes modificados.
-2. **P0 do console:** M1 (rebind por par), M2 (Ver no HITL), M3/S1 (estados), S3 (deep-link) — em `Melhorias - Dashboard de Mercado`.
-3. **Layout:** C4–C6 de `Validação de Layout - Mercado` (banda de sinal responsiva, breakpoints).
-4. **Camada administrativa:** A1→A3→A9 primeiro (auth, RBAC, páginas de sistema), depois A4/A5/A7 — em `Handoff Dev - Telas Administrativas`.
-5. ⚠️ **Antes de abrir issues do plano antigo:** o `master` já resolveu CT-002/004/005/006 e ORDER_ROUTING — ver seção "O master está à frente" em `Validação de Fidelidade`.
+## Estado do handoff (jul/2026) e próxima frente
+Já ENTREGUES no produto (Fases 1–8, PRs #74–#86): Grid FIFO, P0 do console (as_of, HITL), layout responsivo C4–C6, e TODA a camada administrativa A1–A10 (A8 descartado — uso pessoal, não SaaS). Os docs correspondentes permanecem como especificação de referência.
+
+**Frente ATIVA: `docs/Handoff Dev - Console Multi-Ativo.html`** — o loop agora opera 5 pares (`SYMBOLS`) disputando capital compartilhado e 3 slots; o console é par-a-par. 9 itens N1–N9 em 3 fases:
+1. **Fase 9 (P0):** N1 seletor dinâmico (`GET /v1/pairs`), N2 Mesa Multi-Ativo (tela nova + `/v1/desk/summary` batch), N3 slots/exposição/`signal_skipped`.
+2. **Fase 10 (P1):** dimensão de par nas telas existentes (HITL, Ordens/Diário, Observabilidade, regras de notificação, Config somente-leitura).
+3. **Fase 11 (P2):** gestão de pares no DB, pausa por par sem restart, heatmap, watchlists.
+Seguir os 6 princípios de arquitetura para N do doc (par nunca hardcoded, batch por padrão, dimensão-não-duplicação, etc.).
 
 ## Files
 Todos listados na árvore acima. Entry point do protótipo: `prototype/Criptotrade Console.html`. Especificações: `docs/*.html`.

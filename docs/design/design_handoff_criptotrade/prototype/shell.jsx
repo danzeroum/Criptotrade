@@ -107,7 +107,7 @@ function Header({ regime, circuitBreaker, hitl, alertsCount, onBell }) {
           <Icon name="bell" size={18} />
           {alertsCount > 0 && <span style={{ position: 'absolute', top: 4, right: 4, width: 7, height: 7, borderRadius: 99, background: 'var(--down)', border: '1.5px solid #fff' }} />}
         </button>
-        <div style={{ width: 30, height: 30, borderRadius: 99, background: 'var(--surface-3)', display: 'grid', placeItems: 'center', fontWeight: 600, fontSize: 12, color: 'var(--ink-2)' }} data-tip="Operador logado. Conta, papéis e logout fazem parte da camada administrativa (em construção).">OP</div>
+        <div style={{ width: 30, height: 30, borderRadius: 99, background: 'var(--surface-3)', display: 'grid', placeItems: 'center', fontWeight: 600, fontSize: 12, color: 'var(--ink-2)' }} data-tip="Operador logado (mock da demo). No produto real, o menu abre Conta, Segurança, Bloquear e Sair — com login, 2FA, papéis e auditoria já entregues.">OP</div>
       </div>
     </header>
   );

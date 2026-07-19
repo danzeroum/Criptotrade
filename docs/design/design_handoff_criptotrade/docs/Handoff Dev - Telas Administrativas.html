@@ -473,6 +473,7 @@ document.getElementById('doc').innerHTML = SECTIONS.map(s=>{
         <div class="t"><div class="n" style="color:var(--crit)">${counts.crit}</div><div class="l">críticas (auth, RBAC, auditoria, chaves)</div></div>
         <div class="t"><div class="n" style="color:var(--cond)">${counts.cond}</div><div class="l">condicional (faturamento, se SaaS)</div></div>
       </div>
+      <div class="note blue"><div>✓&nbsp;</div><div><b>Status jul/2026 — handoff 100% resolvido:</b> A1–A7, A9 e A10 <b>entregues</b> no produto (Fases 4–8, PRs #77–#86), com os deferidos declarados nos PRs. <b>A8: descartado</b> — decisão do PM: a plataforma é de uso pessoal, não SaaS. Este documento permanece como especificação de referência.</div></div>
       <div class="note blue"><div>▣&nbsp;</div><div><b>O diagnóstico:</b> o produto está completo na <b>operação</b> (mercado, risco, HITL, ordens, agentes, validação, observabilidade) e <b>vazio na administração</b>. Há evidências disso no próprio app — o avatar “OP” sem destino, o <code>operator</code> registrado sem tela de gestão, o “ledger” citado sem visualizador, e a Exchange como simples dropdown sem gestão de chaves.</div></div>
       <div class="note amber"><div>⚠&nbsp;</div><div><b>Dependência:</b> A3 (RBAC), A4 (auditoria), A5 (chaves) e A7 (segurança) só fazem sentido depois de A1 (autenticação). Comece pela porta de entrada.</div></div>`;
   } else if(s.id==='legenda'){
