@@ -74,6 +74,9 @@ const CT_API = (() => {
     patchHITL:        (body)       => req('/v1/hitl/config', { method: 'PATCH', body: JSON.stringify(body) }),
     getOrders:        (limit = 50, offset = 0, q = '') =>
       req(`/v1/orders?limit=${limit}&offset=${offset}${q}`),
+    // N5: closed trades (realized P&L per pair) — optional ?pair filter.
+    getTrades:        (limit = 200, offset = 0, q = '') =>
+      req(`/v1/trades?limit=${limit}&offset=${offset}${q}`),
     createOrder:      (body)       => req('/v1/orders', { method: 'POST', body: JSON.stringify(body) }),
     decideOrder:      (id, body)   => req(`/v1/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify(body) }),
     getAgents:        ()           => req('/v1/agents'),

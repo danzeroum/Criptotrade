@@ -265,7 +265,8 @@
   const ro = rng(99);
   for (let i = 0; i < 22; i++) {
     const side = ro() > 0.42 ? 'buy' : 'sell';
-    const pair = pairs[Math.floor(ro() * pairs.length)];
+    let pair = pairs[Math.floor(ro() * pairs.length)];
+    if (i < 2) pair = pairs[i];  // N4: the 2 pending orders span 2 pairs so the filter chips show
     const px = pair === 'BTC/USDT' ? price : pair === 'ETH/USDT' ? 3420 : 168;
     const qty = +(pair === 'BTC/USDT' ? (0.01 + ro() * 0.04) : pair === 'ETH/USDT' ? (0.2 + ro() * 0.8) : (3 + ro() * 12)).toFixed(4);
     const st = i < 2 ? 'pending' : statuses[i % statuses.length];

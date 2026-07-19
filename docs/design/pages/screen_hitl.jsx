@@ -23,7 +23,7 @@ function ConfidenceBreakdown({ breakdown }) {
   );
 }
 
-function PendingOrderCard({ order, onDecide, highlight = false }) {
+function PendingOrderCard({ order, onDecide, highlight = false, ctx = null }) {
   // A3 gating: authenticated Visualizador sees NO action controls (spec
   // acceptance); the public demo shows them DISABLED with a discovery tooltip
   // (approved demo-mode correction). 'off'/operador/admin get the live UI.
@@ -61,6 +61,20 @@ function PendingOrderCard({ order, onDecide, highlight = false }) {
           {Math.round((order.confidence ?? 0) * 100)}% confiança
         </Badge>
       </div>
+      {/* N4: mini-contexto do par (preço atual vs entrada + regime), do desk/summary
+          — buscado 1× na tela e distribuído, nunca por ordem. */}
+      {ctx && ctx.last != null && (
+        <div className="hitl-ctx">
+          <span>Agora <b>{fmtUsd(ctx.last)}</b></span>
+          {order.price ? (
+            <span className={(ctx.last - order.price) >= 0 ? 'up' : 'down'}>
+              {(ctx.last - order.price) >= 0 ? '+' : ''}
+              {fmtNum((ctx.last - order.price) / order.price * 100, 2)}% vs entrada
+            </span>
+          ) : null}
+          {ctx.regime_label && <span className="badge badge-neutral">{ctx.regime_label}</span>}
+        </div>
+      )}
       <div className="card-pad">
         <div className="grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)', marginBottom: 12, gap: 0 }}>
           {[
@@ -181,6 +195,25 @@ function ScreenHITL({ addToast }) {
       return p || null;
     } catch (_) { return null; }
   });
+  // N4: arriving from Mercado's "Ver no HITL" pre-filters the queue to that pair.
+  const [pairFilter, setPairFilter] = useState(focusPair);
+  // N4: per-pair context (preço atual + regime) from the desk snapshot — fetched
+  // ONCE here and distributed to the cards, never one request per order.
+  const [deskCtx, setDeskCtx] = useState(() => mock ? {
+    'BTC/USDT': { last: 64810, regime_label: 'Alta forte' },
+    'ETH/USDT': { last: 3208, regime_label: 'Lateral' },
+    'SOL/USDT': { last: 160.42, regime_label: 'Alta forte' },
+    'XRP/USDT': { last: 0.61, regime_label: 'Desconhecido' },
+    'BNB/USDT': { last: 592, regime_label: 'Caótico' },
+  } : {});
+  useEffect(() => {
+    if (mock) return;
+    CT_API.getDeskSummary().then(d => {
+      const map = {};
+      (d.rows || []).forEach(r => { map[r.symbol] = { last: r.last, regime_label: r.regime_label }; });
+      setDeskCtx(map);
+    }).catch(() => {});
+  }, [mock]);
 
   const load = useCallback(() => {
     if (mock) return;
@@ -292,14 +325,34 @@ function ScreenHITL({ addToast }) {
               {pending.length} aguardando
             </Badge>
           </div>
-          {pending.length === 0 ? (
-            <EmptyState label="Nenhuma ordem pendente" sub="Todas as ordens foram processadas" />
-          ) : (
-            pending.map(order => (
+          {/* N4: filtro por par (chips com contagem) — a fila mistura BTC/XRP/BNB. */}
+          {(() => {
+            const counts = pending.reduce((m, o) => ((m[o.pair] = (m[o.pair] || 0) + 1), m), {});
+            const pairs = Object.keys(counts);
+            if (pairs.length <= 1) return null;
+            return (
+              <div className="hitl-chips">
+                <button className={'chip-btn' + (!pairFilter ? ' active' : '')}
+                  onClick={() => setPairFilter(null)}>Todos ({pending.length})</button>
+                {pairs.map(p => (
+                  <button key={p} className={'chip-btn' + (pairFilter === p ? ' active' : '')}
+                    onClick={() => setPairFilter(p)}>{p} ({counts[p]})</button>
+                ))}
+              </div>
+            );
+          })()}
+          {(() => {
+            const shown = pairFilter ? pending.filter(o => o.pair === pairFilter) : pending;
+            if (shown.length === 0) {
+              return <EmptyState label="Nenhuma ordem pendente"
+                sub={pairFilter ? `Nenhuma ordem de ${pairFilter}` : 'Todas as ordens foram processadas'} />;
+            }
+            return shown.map(order => (
               <PendingOrderCard key={order.id} order={order} onDecide={decide}
+                ctx={deskCtx[order.pair]}
                 highlight={focusPair != null && order.pair === focusPair} />
-            ))
-          )}
+            ));
+          })()}
         </div>
 
         <div className="card">
