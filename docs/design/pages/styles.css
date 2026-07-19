@@ -316,6 +316,17 @@ input, select, textarea { font-family: inherit; }
 /* tooltip-ish chip */
 .chip { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 11.5px; padding: 3px 8px; border-radius: var(--r-sm); background: var(--surface-3); color: var(--ink-2); }
 
+/* N1 — PairSelect custom dropdown (groups + operated badge + search) */
+.pair-btn { width: auto; min-width: 132px; display: inline-flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; }
+.pair-caret { color: var(--ink-3); font-size: 11px; }
+.pair-pop { position: absolute; top: calc(100% + 4px); right: 0; z-index: 40; min-width: 236px; max-height: 340px; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: 0 8px 24px rgba(20,24,28,.12); padding: 5px; }
+.pair-search { width: 100%; margin-bottom: 4px; }
+.pair-group { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-4); padding: 8px 9px 4px; }
+.pair-opt { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 9px; border-radius: var(--r-sm); cursor: pointer; font-size: 13px; }
+.pair-opt:hover { background: var(--surface-2); }
+.pair-opt.sel { background: var(--info-bg); color: var(--info); font-weight: 600; }
+.pair-empty { padding: 10px 9px; font-size: 12.5px; color: var(--ink-3); }
+
 /* screen switch — no entrance animation (kept as a hook; instant + always visible) */
 .screen-enter { }
 

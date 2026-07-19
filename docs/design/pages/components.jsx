@@ -379,6 +379,34 @@ function loadPairs() {
 }
 window.loadPairs = loadPairs;
 
+// N1: rich pair source for the selector — operated (loop trades) vs observable
+// (allowlist, analysis-only). Kept separate from loadPairs() so Mercado/Backtest
+// (which want a flat list) are untouched. Mock shows both groups + enough items
+// to trigger search, so the demo mirrors the multi-asset reality.
+let _pairsRichPromise = null;
+function loadPairsRich() {
+  if (!_pairsRichPromise) {
+    _pairsRichPromise = window.USE_MOCK_DATA
+      ? Promise.resolve({
+          operados: [
+            { symbol: 'BTC/USDT', status: 'operando', last_cycle_at: new Date().toISOString() },
+            { symbol: 'ETH/USDT', status: 'operando', last_cycle_at: new Date().toISOString() },
+            { symbol: 'SOL/USDT', status: 'operando', last_cycle_at: new Date().toISOString() },
+            { symbol: 'BNB/USDT', status: 'operando', last_cycle_at: new Date().toISOString() },
+            { symbol: 'XRP/USDT', status: 'aguardando', last_cycle_at: null },
+          ],
+          observaveis: ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT',
+                        'ADA/USDT', 'DOGE/USDT', 'AVAX/USDT'],
+        })
+      : CT_API.getPairsRich().catch(() => ({
+          operados: [{ symbol: 'BTC/USDT', status: 'aguardando', last_cycle_at: null }],
+          observaveis: ['BTC/USDT'],
+        }));
+  }
+  return _pairsRichPromise;
+}
+window.loadPairsRich = loadPairsRich;
+
 function useCurrentPair() {
   const [pair, setPair] = useState(CT_PAIR.get());
   useEffect(() => CT_PAIR.subscribe(setPair), []);
@@ -394,31 +422,85 @@ function effectivePair(scope, pairs) {
 }
 window.effectivePair = effectivePair;
 
-// Pair dropdown bound to the global store. `allowAll` adds "Todos os pares".
+// Pair dropdown bound to the global store (N1). Custom popover — native <select>
+// can't badge operated pairs nor offer search. Two groups (Operados badge verde ×
+// Observáveis), search from >=8 items, "Portfólio (∑)" when `allowAll`. Renders
+// from /v1/pairs so a SYMBOLS change reflects without touching the front.
 function PairSelect({ allowAll = false }) {
   const [scope, setScope] = useCurrentPair();
-  const [pairs, setPairs] = useState(null);
+  const [rich, setRich] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const ref = useRef(null);
+
   useEffect(() => {
     let alive = true;
-    loadPairs().then(p => { if (alive) setPairs(p); });
+    loadPairsRich().then(r => { if (alive) setRich(r); });
     return () => { alive = false; };
   }, []);
-  const list = pairs ?? [];
-  const options = allowAll ? ['ALL', ...list] : list;
-  // Concrete-only select must not render value="ALL" (no matching option).
-  const shown = allowAll ? scope : effectivePair(scope, list);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+
+  const operated = (rich && rich.operados) || [];
+  const opSet = new Set(operated.map(o => o.symbol));
+  const observable = ((rich && rich.observaveis) || []).filter(s => !opSet.has(s));
+  const flat = operated.map(o => o.symbol).concat(observable);
+  const showSearch = operated.length + observable.length >= 8;
+
+  const hit = (s) => !q || s.toLowerCase().includes(q.toLowerCase());
+  const opShown = operated.filter(o => hit(o.symbol));
+  const obShown = observable.filter(hit);
+
+  const label = (allowAll && scope === 'ALL') ? 'Portfólio (∑)' : effectivePair(scope, flat);
+  const pick = (val) => { setScope(val); setOpen(false); setQ(''); };
+
+  const optRow = (sym, badge) => (
+    <div key={sym} role="option" aria-selected={scope === sym}
+         className={'pair-opt' + (scope === sym ? ' sel' : '')}
+         onClick={() => pick(sym)}>
+      <span>{sym}</span>{badge}
+    </div>
+  );
+
   return (
-    <select
-      className="input"
-      value={shown}
-      onChange={(e) => setScope(e.target.value)}
-      style={{ width: 'auto', minWidth: 118 }}
-      aria-label="Par"
-    >
-      {Array.from(new Set([shown, ...options])).map(p => (
-        <option key={p} value={p}>{p === 'ALL' ? 'Todos os pares' : p}</option>
-      ))}
-    </select>
+    <div className="pairselect" ref={ref} style={{ position: 'relative' }}>
+      <button type="button" className="input pair-btn" aria-haspopup="listbox"
+        aria-expanded={open} aria-label="Par" onClick={() => setOpen(o => !o)}>
+        <span>{label}</span><span className="pair-caret">▾</span>
+      </button>
+      {open && (
+        <div className="pair-pop" role="listbox" aria-label="Selecionar par">
+          {showSearch && (
+            <input className="input pair-search" autoFocus placeholder="Buscar par…"
+              value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar par" />
+          )}
+          {allowAll && (!q || 'portfólio todos ∑'.includes(q.toLowerCase())) && (
+            <div role="option" aria-selected={scope === 'ALL'}
+                 className={'pair-opt' + (scope === 'ALL' ? ' sel' : '')}
+                 onClick={() => pick('ALL')}>Portfólio (∑)</div>
+          )}
+          {opShown.length > 0 && <div className="pair-group">Operados</div>}
+          {opShown.map(o => optRow(
+            o.symbol,
+            <span className={'badge ' + (o.status === 'operando' ? 'badge-ok' : 'badge-neutral')}>
+              <span className="dot"></span>{o.status}
+            </span>
+          ))}
+          {obShown.length > 0 && <div className="pair-group">Observáveis</div>}
+          {obShown.map(s => optRow(s, <span className="chip">análise</span>))}
+          {opShown.length + obShown.length === 0 && (
+            <div className="pair-empty">Nenhum par encontrado</div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 window.PairSelect = PairSelect;

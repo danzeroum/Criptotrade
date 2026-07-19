@@ -418,6 +418,30 @@ class TickerOut(BaseModel):
     as_of: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class OperatedPair(BaseModel):
+    """A pair the loop actually trades, with its last-cycle freshness (N1)."""
+
+    symbol: str
+    # UTC time of the most recent signal for this pair, or None if it has never
+    # produced one yet (env just added it / loop hasn't reached it).
+    last_cycle_at: Optional[datetime] = None
+    # "operando" once it has a signal; "aguardando" until the first cycle lands.
+    status: Literal["operando", "aguardando"] = "aguardando"
+
+
+class PairsOut(BaseModel):
+    """Dynamic pair source for the selector (N1) — supersedes the flat list.
+
+    ``operados`` = env ``SYMBOLS`` ∩ allowlist (the loop trades these);
+    ``observaveis`` = the full ``MARKET_PAIRS`` allowlist (viewable/analysable).
+    Operated ⊆ observable by construction, so the selector can badge the former
+    and offer the latter for analysis.
+    """
+
+    operados: List[OperatedPair]
+    observaveis: List[str]
+
+
 class MacdOut(BaseModel):
     macd: float
     signal: float

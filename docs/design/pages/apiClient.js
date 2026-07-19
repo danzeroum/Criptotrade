@@ -90,6 +90,8 @@ const CT_API = (() => {
 
     // ---- Phase 1: market ----
     getPairs:         ()           => req('/v1/market/pairs'),
+    // N1: dynamic pair source — { operados:[{symbol,last_cycle_at,status}], observaveis:[] }
+    getPairsRich:     ()           => req('/v1/pairs'),
     getTicker:        (pair)       => req(`/v1/market/${pair.replace('/', '-')}/ticker`),
     getCandles:       (pair, tf = '1h', limit = 100) =>
       req(`/v1/market/${pair.replace('/', '-')}/candles?tf=${tf}&limit=${limit}`),
