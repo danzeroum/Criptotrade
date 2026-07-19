@@ -345,12 +345,31 @@ class SquadOrchestrator:
                 "issues": issues,
             }
 
-        # N3 slot cap: N pairs compete for a bounded book. Opening a new lot when
-        # full is skipped (no_slot); a closing SELL for an already-open pair is
-        # never blocked (it frees a slot). Makes the "5 pairs / 3 slots" contest real.
+        # Spot semantics (ALLOW_SHORTS=false, hardcoded — a futures/margin flag is
+        # declared backlog): a SELL only sells existing long inventory; it never
+        # opens a naked short (a real spot SELL with no balance is rejected). A fill
+        # that REDUCES an opposite-side open lot is "closing" (frees a slot); net-new
+        # exposure competes for the bounded book (N3 slot cap). The old gate keyed
+        # the cap bypass on symbol-only + sell-only, so a SELL with only shorts open
+        # bypassed the cap and _match_or_open opened yet another short — unbounded
+        # short accumulation. Keying on the OPPOSITE-side lot fixes that at the root.
         action = str(strategy_result["signal"].get("action", "buy")).lower()
-        has_open_here = any(p.get("symbol") == symbol for p in self._open_positions.values())
-        if len(self._open_positions) >= self._max_concurrent and not (action == "sell" and has_open_here):
+        opposite_side = "buy" if action == "sell" else "sell"
+        opposite_qty = sum(
+            float(p.get("quantity") or 0.0)
+            for p in self._open_positions.values()
+            if p.get("symbol") == symbol and p.get("side") == opposite_side
+        )
+        is_closing = opposite_qty > EPS
+
+        if action == "sell" and not is_closing:
+            # No long inventory to sell → skip (spot: never short). Transition-only.
+            logger.info("No long inventory to sell for %s — skipping (spot: no naked short)", symbol)
+            self._record_skip(symbol, "no_inventory", heartbeat=False)
+            return {"success": False, "reason": "no_inventory"}
+
+        # N3 slot cap: new exposure competes for a bounded book; a closing fill frees a slot.
+        if len(self._open_positions) >= self._max_concurrent and not is_closing:
             logger.info("No free position slot (%d/%d) — skipping %s",
                         len(self._open_positions), self._max_concurrent, symbol)
             self._record_skip(symbol, "no_slot", {"slots_open": len(self._open_positions)})
@@ -516,46 +535,68 @@ class SquadOrchestrator:
         # FIFO: oldest lot first (stable sort keeps insertion order on ties).
         candidates.sort(key=lambda kv: kv[1].get("opened_at") or "")
 
+        # Plan the FIFO matches first so the leftover (residual) is known before the
+        # closes are booked — the residual is attached to the FINAL close event.
+        plan: list[tuple[str, dict[str, Any], float, bool]] = []
         remaining = quantity
         for oid, pos in candidates:
             if remaining <= EPS:
                 break
             pos_qty = float(pos["quantity"])
             matched = min(remaining, pos_qty)
+            plan.append((oid, pos, matched, matched >= pos_qty - EPS))
+            remaining -= matched
+        residual = remaining if remaining > EPS else 0.0
+        # Spot: a SELL never opens a short — the residual beyond netted inventory is
+        # dropped and audited (on the last close). A BUY residual opens a long.
+        drop_on_close = residual if (side == "sell" and residual > EPS) else None
+
+        for i, (oid, pos, matched, is_full) in enumerate(plan):
+            pos_qty = float(pos["quantity"])
             exit_fee_chunk = fee * (matched / quantity) if quantity else 0.0
             entry_fee_chunk = (
                 float(pos.get("entry_fee", 0.0)) * (matched / pos_qty) if pos_qty else 0.0
             )
-            if matched >= pos_qty - EPS:  # full close of this lot
+            residual_arg = drop_on_close if i == len(plan) - 1 else None
+            if is_full:  # full close of this lot
                 self._record_close(
                     oid, pos, exit_price=price,
                     exit_fee=exit_fee_chunk, entry_fee=entry_fee_chunk,
-                    closed_qty=pos_qty,
+                    closed_qty=pos_qty, residual_dropped=residual_arg,
                 )
             else:  # partial: book the chunk, shrink the lot in place
                 self._record_close(
                     oid, pos, exit_price=price,
                     exit_fee=exit_fee_chunk, entry_fee=entry_fee_chunk,
-                    closed_qty=matched, keep_open=True,
+                    closed_qty=matched, keep_open=True, residual_dropped=residual_arg,
                 )
                 pos["quantity"] = pos_qty - matched
                 pos["entry_fee"] = float(pos.get("entry_fee", 0.0)) * (pos["quantity"] / pos_qty)
                 self._positions.upsert(oid, pos)
-            remaining -= matched
 
-        if remaining > EPS:  # net-new exposure on the incoming side
-            new_pos = {
-                "symbol": symbol,
-                "side": side,
-                "entry_price": price,
-                "quantity": remaining,
-                "stop_loss": stop_loss,
-                "take_profit": take_profit,
-                "entry_fee": fee * (remaining / quantity) if quantity else 0.0,
-                "opened_at": datetime.now(UTC).isoformat(),
-            }
-            self._open_positions[order_id] = new_pos
-            self._positions.upsert(order_id, new_pos)
+        if residual > EPS:
+            if side == "buy":  # net-new long — holding spot inventory is legitimate
+                new_pos = {
+                    "symbol": symbol,
+                    "side": side,
+                    "entry_price": price,
+                    "quantity": residual,
+                    "stop_loss": stop_loss,
+                    "take_profit": take_profit,
+                    "entry_fee": fee * (residual / quantity) if quantity else 0.0,
+                    "opened_at": datetime.now(UTC).isoformat(),
+                }
+                self._open_positions[order_id] = new_pos
+                self._positions.upsert(order_id, new_pos)
+            else:  # spot: drop the unsellable SELL residual — never open a short
+                logger.info("Dropped unsellable SELL residual %.8f %s (spot: no naked short)",
+                            residual, symbol)
+                if not plan:  # nothing to net (defensive: the gate blocks this path)
+                    self.ledger.log_decision(
+                        "sell_residual_dropped",
+                        {"symbol": symbol, "order_id": order_id, "quantity": residual,
+                         "reason": "no_inventory"},
+                    )
 
     def _check_open_positions(self, current_price: float, symbol: str) -> None:
         """Close any paper positions whose stop-loss or take-profit has been reached.
@@ -582,13 +623,16 @@ class SquadOrchestrator:
         entry_fee: float = 0.0,
         closed_qty: float | None = None,
         keep_open: bool = False,
+        residual_dropped: float | None = None,
     ) -> None:
         """Book a position close: ledger event + circuit-breaker feed.
 
         Single close path shared by stop/TP exits and (future) fill matching, so
         P&L accounting and breaker feeding cannot diverge. ``closed_qty`` allows
         partial closes; ``keep_open=True`` books the chunk without removing the
-        (shrunken) lot from the position book. Feeds the breaker exactly once.
+        (shrunken) lot from the position book. ``residual_dropped`` records a SELL
+        quantity discarded rather than opened as a naked short (spot). Feeds the
+        breaker exactly once.
         """
         qty = closed_qty if closed_qty is not None else pos["quantity"]
         if not keep_open:
@@ -604,6 +648,7 @@ class SquadOrchestrator:
             quantity=qty,
             fee=fee,
             opened_at=pos.get("opened_at"),
+            residual_dropped=residual_dropped,
         )
         direction = 1.0 if pos["side"] == "buy" else -1.0
         pnl = direction * (exit_price - pos["entry_price"]) * qty - fee

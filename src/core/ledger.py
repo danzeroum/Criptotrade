@@ -188,11 +188,16 @@ class TradingLedger:
         quantity: float,
         fee: float = 0.0,
         opened_at: str | None = None,
+        residual_dropped: float | None = None,
     ) -> None:
         """Log a closed position with realised P&L (net of ``fee``).
 
         ``side`` is the side of the *opening* trade: ``buy`` for a long,
         ``sell`` for a short. P&L is expressed in quote currency.
+
+        ``residual_dropped`` (spot semantics): quantity of an incoming SELL that
+        exceeded the netted long inventory and was discarded instead of opening a
+        naked short. Recorded on the close for an honest audit trail.
         """
         side = side.lower()
         direction = 1.0 if side == "buy" else -1.0
@@ -200,22 +205,22 @@ class TradingLedger:
         pnl = gross_pnl - fee
         entry_notional = entry_price * quantity
         pnl_pct = (pnl / entry_notional) if entry_notional else 0.0
-        self.log_decision(
-            "position_closed",
-            {
-                "order_id": order_id,
-                "symbol": symbol,
-                "side": side,
-                "entry_price": entry_price,
-                "exit_price": exit_price,
-                "quantity": quantity,
-                "fee": fee,
-                "gross_pnl": gross_pnl,
-                "pnl": pnl,
-                "pnl_pct": pnl_pct,
-                "opened_at": opened_at,
-            },
-        )
+        data = {
+            "order_id": order_id,
+            "symbol": symbol,
+            "side": side,
+            "entry_price": entry_price,
+            "exit_price": exit_price,
+            "quantity": quantity,
+            "fee": fee,
+            "gross_pnl": gross_pnl,
+            "pnl": pnl,
+            "pnl_pct": pnl_pct,
+            "opened_at": opened_at,
+        }
+        if residual_dropped is not None and residual_dropped > 0:
+            data["residual_dropped"] = residual_dropped
+        self.log_decision("position_closed", data)
 
     @staticmethod
     def _row_to_entry(row: Any) -> Dict[str, Any]:

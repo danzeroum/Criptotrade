@@ -97,6 +97,49 @@ async def test_no_slot_when_book_is_full(orch):
     assert skips[-1]["data"]["reason"] == "no_slot"
 
 
+# -------------------------------------------- fix #1: spot semantics (no shorts)
+@pytest.mark.asyncio
+async def test_sell_without_inventory_skips_no_inventory(orch):
+    # Spot: a SELL with no long to sell is skipped (no_inventory), never shorts.
+    orch.strategy_agent.execute = _aqueue([_sig("sell", 100.0, conf=0.9)])
+    orch.risk_agent.execute = _aqueue([_OK])
+    result = await orch.analyze_and_trade("BTC/USDT")
+    assert result["reason"] == "no_inventory"
+    assert orch._open_positions == {}  # no short opened
+    assert orch.ledger.get_events("signal_skipped")[-1]["data"]["reason"] == "no_inventory"
+
+
+@pytest.mark.asyncio
+async def test_repeated_sells_never_accumulate_shorts(orch):
+    # The bug: SELLs with only same-symbol shorts open bypassed the cap and opened
+    # MORE shorts, unbounded. Now every SELL without long inventory is no_inventory.
+    orch.strategy_agent.execute = _aqueue([_sig("sell", 100.0, conf=0.9) for _ in range(4)])
+    orch.risk_agent.execute = _aqueue([_OK for _ in range(4)])
+    for _ in range(4):
+        await orch.analyze_and_trade("BTC/USDT")
+    assert orch._open_positions == {}  # zero shorts (was 4 before the fix)
+    reasons = [e["data"]["reason"] for e in orch.ledger.get_events("signal_skipped")]
+    assert reasons.count("no_inventory") == 1  # transition-only, like paused
+
+
+@pytest.mark.asyncio
+async def test_sell_with_long_bypasses_full_book_and_nets(orch):
+    # A closing SELL frees a slot: it bypasses the cap even with the book full, and
+    # nets the long (position_closed) instead of being blocked as no_slot.
+    orch._open_positions["btc"] = {"symbol": "BTC/USDT", "side": "buy",
+                                   "entry_price": 100.0, "quantity": 2.0, **_LOT}
+    orch._open_positions["p1"] = {"symbol": "P1/USDT", "side": "buy",
+                                  "entry_price": 100.0, "quantity": 1.0, **_LOT}
+    orch._open_positions["p2"] = {"symbol": "P2/USDT", "side": "buy",
+                                  "entry_price": 100.0, "quantity": 1.0, **_LOT}
+    orch.strategy_agent.execute = _aqueue([_sig("sell", 100.0, conf=0.9)])
+    orch.risk_agent.execute = _aqueue([_OK])
+    result = await orch.analyze_and_trade("BTC/USDT")
+    # Passed the gate (no reason == blocked); the success path returns no "reason".
+    assert result.get("reason") not in ("No free position slot", "no_inventory")
+    assert len(orch.ledger.get_events("position_closed")) >= 1  # the BTC long netted
+
+
 @pytest.mark.asyncio
 async def test_human_rejected_is_not_a_signal_skipped(orch):
     orch.approval_handler = _reject
