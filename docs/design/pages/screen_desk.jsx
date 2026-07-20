@@ -27,47 +27,6 @@ const _SIGNAL_CLS = { buy: 'badge-ok', sell: 'badge-down' };
 
 const _PAUSED_TIP = 'Pausado — sem novas ordens; posições abertas seguem geridas (stop/TP ativos)';
 
-// Deterministic mock — 5 majors in MIXED states (position aberta, sinal ativo,
-// aguardando), so the demo mirrors the real Mesa and screenshots stay stable.
-// e2e: window.MOCK_OPERATED (array) força um conjunto arbitrário (ex.: 12+ pares
-// para o hint) — determinístico por índice, sem backend.
-function _mockDesk() {
-  const now = new Date();
-  const iso = (minsAgo) => new Date(now - minsAgo * 60000).toISOString();
-  const override = (typeof window !== 'undefined' && window.MOCK_OPERATED) || null;
-  if (override && override.length) {
-    const regimes = ['strong_uptrend', 'strong_downtrend', 'sideways', 'chaotic', 'unknown'];
-    const actions = ['buy', 'sell', null];
-    const rows = override.map((symbol, i) => {
-      const regime = regimes[i % regimes.length];
-      const action = actions[i % actions.length];
-      return {
-        symbol, last: 100 + i, change_24h_pct: ((i % 7) - 3) * 1.1,
-        regime, regime_label: _REGIME_META[regime].label,
-        signal_action: action,
-        signal_confidence: action ? 0.6 + (i % 4) * 0.1 : null,
-        position_side: null, position_qty: null, position_entry: null, unrealized_pnl: null,
-        as_of: iso(1 + (i % 5)), last_cycle_at: iso(1 + (i % 5)), paused: false,
-      };
-    });
-    return { rows, slots_used: 0, slots_max: 3, capital_allocated: 0, capital_free: 10000,
-             signals_active: rows.filter(r => (r.signal_confidence || 0) >= 0.6).length };
-  }
-  const rows = [
-    { symbol: 'SOL/USDT', last: 160.42, change_24h_pct: 4.81, regime: 'strong_uptrend', regime_label: 'Alta forte',
-      signal_action: 'buy', signal_confidence: 0.90, position_side: 'buy', position_qty: 1.2, position_entry: 150.1, unrealized_pnl: 12.38, as_of: iso(1), last_cycle_at: iso(1) },
-    { symbol: 'BTC/USDT', last: 64810.0, change_24h_pct: 2.34, regime: 'strong_uptrend', regime_label: 'Alta forte',
-      signal_action: 'buy', signal_confidence: 0.82, position_side: 'buy', position_qty: 0.03, position_entry: 61200.0, unrealized_pnl: 108.30, as_of: iso(1), last_cycle_at: iso(1) },
-    { symbol: 'ETH/USDT', last: 3208.5, change_24h_pct: -1.12, regime: 'sideways', regime_label: 'Lateral',
-      signal_action: 'sell', signal_confidence: 0.71, position_side: null, position_qty: null, position_entry: null, unrealized_pnl: null, as_of: iso(2), last_cycle_at: iso(2) },
-    { symbol: 'BNB/USDT', last: 592.3, change_24h_pct: 0.42, regime: 'chaotic', regime_label: 'Caótico', paused: true,
-      signal_action: 'hold', signal_confidence: 0.34, position_side: null, position_qty: null, position_entry: null, unrealized_pnl: null, as_of: iso(2), last_cycle_at: iso(2) },
-    { symbol: 'XRP/USDT', last: 0.61, change_24h_pct: 1.05, regime: 'unknown', regime_label: 'Desconhecido',
-      signal_action: null, signal_confidence: null, position_side: null, position_qty: null, position_entry: null, unrealized_pnl: null, as_of: null, last_cycle_at: null },
-  ];
-  return { rows, slots_used: 2, slots_max: 3, capital_allocated: 3673.0, capital_free: 6327.0, signals_active: 3 };
-}
-
 function _rel(iso) {
   if (!iso) return '—';
   const secs = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
@@ -85,7 +44,6 @@ function _sortRows(rows, by) {
 }
 
 function ScreenDesk({ navigate, addToast } = {}) {
-  const mock = window.USE_MOCK_DATA;
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [sortBy, setSortBy] = useState('default');
@@ -96,17 +54,11 @@ function ScreenDesk({ navigate, addToast } = {}) {
   const canEdit = CT_AUTH.can('edit_settings');
 
   const load = () => {
-    if (mock) { setData(_mockDesk()); return; }
     CT_API.getDeskSummary().then((d) => { setData(d); setError(null); }).catch(setError);
   };
 
   // N9: pausar/retoma um par direto da Mesa — aplica por ciclo, sem restart.
   const pausePair = async (sym, paused) => {
-    if (mock) {
-      setData((d) => ({ ...d, rows: d.rows.map((r) => r.symbol === sym ? { ...r, paused } : r) }));
-      addToast?.(paused ? 'Par pausado.' : 'Par retomado.', 'check');
-      return;
-    }
     try {
       await CT_API.setPairPaused(sym, paused);
       addToast?.(paused ? 'Par pausado — sem novas ordens; posições seguem geridas.' : 'Par retomado.', 'check');
@@ -115,7 +67,6 @@ function ScreenDesk({ navigate, addToast } = {}) {
   };
   useEffect(() => { load(); }, []);
   useEffect(() => {
-    if (mock) return;
     const id = setInterval(load, 15000);  // server TTL is ~8s; poll a bit slower
     return () => clearInterval(id);
   }, []);

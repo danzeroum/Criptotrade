@@ -3,9 +3,12 @@
 // (dois segmentos → 404). Este teste intercepta a requisição REAL do apiClient
 // (não depende de backend nem do mock das telas) e afirma a forma proxy-safe.
 import { test, expect } from "@playwright/test";
+import { installMockApi } from "./fixtures/mockApi.js";
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
+  // Boot via fixture; o route específico do teste (abaixo) é registrado depois e
+  // vence para /v1/pairs/operated/** (captura as URLs de PATCH/DELETE).
+  await installMockApi(page, { authMode: "user", role: "admin" });
 });
 
 test("apiClient: PATCH/DELETE de par usam hífen no path (não %2F)", async ({ page }) => {

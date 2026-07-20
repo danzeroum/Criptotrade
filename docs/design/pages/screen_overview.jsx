@@ -19,21 +19,21 @@ const O_STATUS = {
 };
 
 function ScreenOverview() {
-  // A9 e2e hook: lets the boundary test force a render exception (mock only).
-  if (window.USE_MOCK_DATA && window.MOCK_THROW_SCREEN === 'overview') {
+  // A9 seam de teste e2e: o teste do error-boundary força uma exceção de render
+  // injetando window.__E2E_THROW_SCREEN via addInitScript. Inerte na produção
+  // (nunca injetado no bundle servido) — é fault-injection, não dado mockado.
+  if (window.__E2E_THROW_SCREEN === 'overview') {
     throw new Error('Falha simulada para teste do boundary');
   }
-  const mock = !!window.USE_MOCK_DATA;
   const [scope] = useCurrentPair();
   const [period, setPeriod] = useState('7d');
   const [metrics, setMetrics] = useState(null);
   const [equity, setEquity] = useState(null);
   const [orders, setOrders] = useState(null);
-  const [loading, setLoading] = useState(!mock);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const load = () => {
-    if (mock) return;
     setLoading(true);
     setError(null);
     const sym = scope;
@@ -53,16 +53,14 @@ function ScreenOverview() {
       .catch(e => { setError(e); setLoading(false); });
   };
 
-  useEffect(() => { load(); }, [scope, period, mock]);
+  useEffect(() => { load(); }, [scope, period]);
 
   // Honest formatting: null ≠ 0 → "Sem dados".
   const ratio = (v) => (v == null ? 'Sem dados' : fmtNum(v));
   const pct = (v) => (v == null ? 'Sem dados' : `${fmtNum(+v * 100, 1)}%`);
 
   let body;
-  if (mock) {
-    body = <EmptyState label="Visão Geral conecta ao backend" sub="Inicie a API para ver os KPIs reais do portfólio." />;
-  } else if (loading) {
+  if (loading) {
     body = <LoadingState label="Carregando métricas…" />;
   } else if (error) {
     body = <ErrorState message="Erro ao carregar métricas" onRetry={load} />;

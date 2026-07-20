@@ -372,9 +372,7 @@ window.DataState = DataState;
 let _pairsPromise = null;
 function loadPairs() {
   if (!_pairsPromise) {
-    _pairsPromise = window.USE_MOCK_DATA
-      ? Promise.resolve(['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT'])
-      : CT_API.getPairs().catch(() => ['BTC/USDT']);
+    _pairsPromise = CT_API.getPairs().catch(() => ['BTC/USDT']);
   }
   return _pairsPromise;
 }
@@ -382,28 +380,15 @@ window.loadPairs = loadPairs;
 
 // N1: rich pair source for the selector — operated (loop trades) vs observable
 // (allowlist, analysis-only). Kept separate from loadPairs() so Mercado/Backtest
-// (which want a flat list) are untouched. Mock shows both groups + enough items
-// to trigger search, so the demo mirrors the multi-asset reality.
+// (which want a flat list) are untouched.
 let _pairsRichPromise = null;
 function loadPairsRich(force) {
   if (force) _pairsRichPromise = null;  // N8²: re-fetch after add/remove
   if (!_pairsRichPromise) {
-    // e2e hook: window.MOCK_OPERATED (array of symbols) overrides the operated
-    // set, so a spec can force single-pair (landing stays Visão Geral) vs multi.
-    const mockOperated = (typeof window !== 'undefined' && window.MOCK_OPERATED) || null;
-    _pairsRichPromise = window.USE_MOCK_DATA
-      ? Promise.resolve({
-          operados: (mockOperated || ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT'])
-            .map((s, i) => ({ symbol: s, status: i === 4 ? 'aguardando' : 'operando',
-                              paused: s === 'BNB/USDT',  // N9: one paused pair for the demo/screenshots
-                              last_cycle_at: i === 4 ? null : new Date().toISOString() })),
-          observaveis: ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT',
-                        'ADA/USDT', 'DOGE/USDT', 'AVAX/USDT'],
-        })
-      : CT_API.getPairsRich().catch(() => ({
-          operados: [{ symbol: 'BTC/USDT', status: 'aguardando', last_cycle_at: null }],
-          observaveis: ['BTC/USDT'],
-        }));
+    _pairsRichPromise = CT_API.getPairsRich().catch(() => ({
+      operados: [{ symbol: 'BTC/USDT', status: 'aguardando', last_cycle_at: null }],
+      observaveis: ['BTC/USDT'],
+    }));
   }
   return _pairsRichPromise;
 }

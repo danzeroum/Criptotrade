@@ -6,7 +6,6 @@
    Configuration (set before this script loads):
      window.API_BASE = 'http://localhost:8000'  (default)
      window.API_KEY  = 'your-key'               (optional)
-     window.USE_MOCK_DATA = true                (fallback to CT.*)
 
    Request/response shapes are generated from the API's OpenAPI schema into
    ./openapi.d.ts (`npm run gen:types`). CI fails if either drifts (P3-4).
@@ -394,7 +393,7 @@ window.CT_GROUPS = CT_GROUPS;
    ============================================================ */
 const CT_PREFS = (() => {
   const DEFAULTS = { locale: 'pt-BR', timezone: 'auto', number_locale: 'auto', date_locale: 'auto' };
-  let current = { ...DEFAULTS, ...(window.MOCK_PREFS ?? {}) };
+  let current = { ...DEFAULTS };
   const emit = () => window.dispatchEvent(new CustomEvent('ct:prefs', { detail: current }));
   return {
     get: () => current,
@@ -422,8 +421,8 @@ window.CT_PREFS = CT_PREFS;
    Global auth/session store (A1). Mirrors CT_PAIR's pattern.
    kind: 'off' (auth disabled — no auth UI), 'user' (real session),
    'demo' (public demo, read-only), 'anonymous' (must log in).
-   Mock branch (e2e): window.MOCK_AUTH='none' boots unauthenticated;
-   anything else auto-authenticates as CT.currentUser (role via MOCK_ROLE).
+   Permissions ALWAYS come from GET /v1/auth/me (fromMe); e2e serve o probe
+   via o fixture page.route (installMockApi) — sem branch de mock aqui.
    ============================================================ */
 const CT_AUTH = (() => {
   let current = {
@@ -448,15 +447,6 @@ const CT_AUTH = (() => {
     };
   };
 
-  // Mirror of the backend matrix (src/auth/rbac.py) for mock/e2e mode only —
-  // in live mode permissions ALWAYS come from /v1/auth/me.
-  const MOCK_MATRIX = {
-    visualizador: [],
-    operador: ['approve_order', 'change_autonomy', 'view_audit'],
-    admin: ['approve_order', 'change_autonomy', 'change_risk', 'edit_settings',
-            'manage_keys', 'view_audit', 'manage_users'],
-  };
-
   return {
     state: () => current,
     kind: () => current.kind,
@@ -468,24 +458,11 @@ const CT_AUTH = (() => {
       return false;
     },
     load: async () => {
-      if (window.USE_MOCK_DATA) {
-        const none = window.MOCK_AUTH === 'none';
-        const role = window.MOCK_ROLE ?? window.CT?.currentUser?.role ?? 'admin';
-        current = none
-          ? { loaded: true, mode: 'required', kind: 'anonymous',
-              authenticated: false, user: null, permissions: [] }
-          : { loaded: true, mode: 'mock',
-              kind: window.MOCK_AUTH === 'demo' ? 'demo' : 'user',
-              authenticated: window.MOCK_AUTH !== 'demo',
-              user: { ...(window.CT?.currentUser ?? { name: 'Demo', email: 'demo@dev' }), role },
-              permissions: window.MOCK_AUTH === 'demo' ? [] : (MOCK_MATRIX[role] ?? []) };
-      } else {
-        try {
-          current = fromMe(await CT_API.getMe());
-        } catch (_) {
-          current = { loaded: true, mode: 'unreachable', kind: 'off',
-                      authenticated: false, user: null, permissions: [] };
-        }
+      try {
+        current = fromMe(await CT_API.getMe());
+      } catch (_) {
+        current = { loaded: true, mode: 'unreachable', kind: 'off',
+                    authenticated: false, user: null, permissions: [] };
       }
       emit();
       return current;

@@ -1,6 +1,7 @@
 // E2E smoke for the React console (P3-5b). Runs against the built dist/ with
 // mock data, so it exercises the real shell + hash routing without a backend.
 import { test, expect } from "@playwright/test";
+import { installMockApi } from "./fixtures/mockApi.js";
 
 const NAV = [
   // N2: "Mesa" (multi-asset hub) is the first Operação item and the landing
@@ -13,8 +14,9 @@ const ADMIN_NAV = ["Conta & Perfil", "Usuários & Permissões", "Conexões & Cha
   "Trilha de Auditoria", "Notificações & Canais", "Segurança & Sessões"];
 
 test.beforeEach(async ({ page }) => {
-  // Screens read window.USE_MOCK_DATA and render mock data instead of fetching.
-  await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
+  // O console chama o apiClient real; o fixture page.route serve os dados (admin →
+  // grupo Administração; PAIRS_RICH opera 5 pares → landing na Mesa).
+  await installMockApi(page, { authMode: "user", role: "admin" });
 });
 
 test("loads the app shell with the full navigation", async ({ page }) => {
@@ -40,7 +42,8 @@ test("default landing is the Mesa when >1 pair is operated (N2)", async ({ page 
 });
 
 test("single operated pair keeps Visão Geral as the landing", async ({ page }) => {
-  await page.addInitScript(() => { window.MOCK_OPERATED = ["BTC/USDT"]; });
+  // 1 operado → a Mesa não sequestra o boot (operados.length > 1 é falso).
+  await installMockApi(page, { authMode: "user", role: "admin", operados: ["BTC/USDT"] });
   await page.goto("/");
   await expect(page.locator(".nav-item.active")).toContainText("Visão Geral");
 });

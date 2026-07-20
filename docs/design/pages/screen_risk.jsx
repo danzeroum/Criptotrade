@@ -73,14 +73,14 @@ function ScreenRisk() {
   if (loading) return <LoadingState label="Carregando dados de risco…" />;
   if (error)   return <ErrorState message="Erro ao carregar risco" onRetry={() => { setError(null); setLoading(true); }} />;
 
-  // Capital KPIs from the real portfolio metrics (was the CT.capital mock).
+  // Capital KPIs from the real portfolio metrics (antes vinham do mock global).
   const cap = metrics ? {
     value: metrics.portfolio_value_usdt,
     pnlPct: (metrics.pnl_period_pct ?? 0) * 100,
     exposurePct: (metrics.exposure_pct ?? 0) * 100,
     openPositions: metrics.open_positions,
   } : null;
-  // Header badge derived from the real protections (was CT.drawdown.overallStatus).
+  // Header badge derived from the real protections (antes derivado do mock global).
   const overallStatus = (protections || []).some(p => p.status && p.status !== 'ok') ? 'warn' : 'ok';
   const cbArmed = cb?.status === 'armed';
   const kellyOk = kelly?.data_quality === 'ok';

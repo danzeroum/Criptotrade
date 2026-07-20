@@ -5,7 +5,7 @@ import { installMockApi } from "./fixtures/mockApi.js";
 test("unknown deep-link lands on the 404 page, not a blank overview", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
+  await installMockApi(page, { authMode: "user", role: "admin" });
   await page.goto("/#does-not-exist");
   await expect(page.getByRole("heading", { name: "Página não encontrada" })).toBeVisible();
   await page.getByRole("button", { name: "Voltar ao início" }).click();
@@ -14,10 +14,7 @@ test("unknown deep-link lands on the 404 page, not a blank overview", async ({ p
 });
 
 test("route without permission shows 403 with the required permission", async ({ page }) => {
-  await page.addInitScript(() => {
-    window.USE_MOCK_DATA = true;
-    window.MOCK_ROLE = "visualizador";
-  });
+  await installMockApi(page, { authMode: "user", role: "visualizador" });
   await page.goto("/#users");
   await expect(page.getByRole("heading", { name: "Sem permissão" })).toBeVisible();
   await expect(page.getByText("manage_users")).toBeVisible();
@@ -25,24 +22,17 @@ test("route without permission shows 403 with the required permission", async ({
 });
 
 test("admin still reaches the users screen directly", async ({ page }) => {
-  // Users de-mockada (5.4) → serve /v1/users + /v1/roles pelo fixture; USE_MOCK_DATA
-  // segue só para a auth mock admin (o route-guard). Coexistência transitória.
   await installMockApi(page, { authMode: "user", role: "admin" });
-  await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
   await page.goto("/#users");
   await expect(page.locator(".page-title")).toContainText("Usuários & Permissões");
 });
 
 test("a screen exception hits the boundary with an error id and recovers", async ({ page }) => {
-  // A recuperação navega para o Mercado, já de-mockado (5.3b) → serve seus dados
-  // pelo fixture; USE_MOCK_DATA segue ligado só para o hook de exceção do Overview
-  // (que ainda usa mock, sai na 5.7). Coexistência transitória.
-  await installMockApi(page, { authMode: "user" });
-  await page.addInitScript(() => {
-    window.USE_MOCK_DATA = true;
-    // Test hook: makes the Overview screen throw during render.
-    window.MOCK_THROW_SCREEN = "overview";
-  });
+  // Seam de teste: __E2E_THROW_SCREEN força uma exceção de RENDER no Overview
+  // (fault-injection síncrona — o error-boundary precisa de throw em render, não
+  // dá para simular por dados do fixture). Inerte na produção (nunca injetado).
+  await installMockApi(page, { authMode: "user", role: "admin" });
+  await page.addInitScript(() => { window.__E2E_THROW_SCREEN = "overview"; });
   await page.goto("/#overview");
   await expect(page.getByText("Erro inesperado nesta tela")).toBeVisible();
   await expect(page.getByText(/erro [a-z0-9]+-[a-z0-9]+/)).toBeVisible();

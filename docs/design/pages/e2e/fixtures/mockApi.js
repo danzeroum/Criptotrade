@@ -21,7 +21,7 @@ import {
   NOTIF_CHANNELS, NOTIF_RULES, NOTIF_SETTINGS, CONNECTIONS, PLATFORM_KEYS, EGRESS_IP,
   createdPlatformKey,
   ACCOUNT_PROFILE, PREFERENCES, SECURITY_SESSIONS, SECURITY_LOGINS, auditList, auditEvent,
-  onboardingPending,
+  onboardingPending, deskSummaryN,
 } from "./datasets.js";
 
 // Wrap a payload in the API envelope the client's req() unwraps ({ data, meta }).
@@ -111,12 +111,18 @@ const SSE_PATHS = new Set(["/v1/alerts"]);
  * @returns {{ unstubbed: string[] }} handle exposing any unstubbed endpoints hit
  */
 export async function installMockApi(page, scenario = {}) {
-  const { authMode = "user", role = "admin", routes = {}, onboarding = null } = scenario;
+  const { authMode = "user", role = "admin", routes = {}, onboarding = null,
+          operados = null, desk = null } = scenario;
   const table = { ...baseline({ authMode, role }), ...routes };
   const unstubbed = [];
+  // Stateful desk summary: N linhas geradas (hint) ou as 5 ricas padrão. O PATCH de
+  // par (pausar/retomar) sincroniza a linha aqui, então o reload da Mesa reflete (N9).
+  const deskState = desk != null ? deskSummaryN(desk) : deskSummary();
   // Stateful operated pairs (N8²/N9): POST/PATCH/DELETE mutate; GET /v1/pairs reflects.
-  // Seeded fresh per test from PAIRS_RICH (BNB starts paused).
-  const operated = PAIRS_RICH.operados.map((o) => ({ ...o }));
+  // Seeded fresh por teste de PAIRS_RICH (BNB paused), ou de `operados` (ex.: single-pair).
+  const operated = operados
+    ? operados.map((s) => ({ symbol: s, status: "operando", paused: false, last_cycle_at: null }))
+    : PAIRS_RICH.operados.map((o) => ({ ...o }));
   const decode = (seg) => decodeURIComponent(seg).replace("-", "/");
   // Stateful onboarding (onboarding.spec T1/T2) — só quando o cenário pede 'pending';
   // caso contrário o baseline completed responde /v1/onboarding/status.
@@ -147,6 +153,11 @@ export async function installMockApi(page, scenario = {}) {
       }
     }
 
+    // --- stateful desk summary (reflete pausar/retomar da Mesa, N9) --------
+    if (path === "/v1/desk/summary" && method === "GET") {
+      return fulfillJson(route, deskState);
+    }
+
     // --- stateful operated pairs -------------------------------------------
     if (path === "/v1/pairs" && method === "GET") {
       return fulfillJson(route, { operados: operated, observaveis: PAIRS_RICH.observaveis });
@@ -159,8 +170,12 @@ export async function installMockApi(page, scenario = {}) {
     }
     const opMatch = path.match(/^\/v1\/pairs\/operated\/(.+)$/);
     if (opMatch && method === "PATCH") {
-      const row = operated.find((o) => o.symbol === decode(opMatch[1]));
-      if (row) row.paused = !!(req.postDataJSON() || {}).paused;
+      const sym = decode(opMatch[1]);
+      const paused = !!(req.postDataJSON() || {}).paused;
+      const row = operated.find((o) => o.symbol === sym);
+      if (row) row.paused = paused;
+      const drow = deskState.rows.find((r) => r.symbol === sym);  // N9: sincroniza a Mesa
+      if (drow) drow.paused = paused;
       return fulfillJson(route, row || {});
     }
     if (opMatch && method === "DELETE") {
