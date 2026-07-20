@@ -1,5 +1,6 @@
 // A9 system pages: 404 deep-link, 403 coherent with RBAC, boundary error id.
 import { test, expect } from "@playwright/test";
+import { installMockApi } from "./fixtures/mockApi.js";
 
 test("unknown deep-link lands on the 404 page, not a blank overview", async ({ page }) => {
   const errors = [];
@@ -30,6 +31,10 @@ test("admin still reaches the users screen directly", async ({ page }) => {
 });
 
 test("a screen exception hits the boundary with an error id and recovers", async ({ page }) => {
+  // A recuperação navega para o Mercado, já de-mockado (5.3b) → serve seus dados
+  // pelo fixture; USE_MOCK_DATA segue ligado só para o hook de exceção do Overview
+  // (que ainda usa mock, sai na 5.7). Coexistência transitória.
+  await installMockApi(page, { authMode: "user" });
   await page.addInitScript(() => {
     window.USE_MOCK_DATA = true;
     // Test hook: makes the Overview screen throw during render.

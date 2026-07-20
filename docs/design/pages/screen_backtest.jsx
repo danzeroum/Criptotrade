@@ -46,49 +46,20 @@ function FoldTable({ folds }) {
 }
 
 function ScreenBacktest({ addToast }) {
-  const mock = !!window.USE_MOCK_DATA;
-
   const defaultConfig = {
     pair: effectivePair(CT_PAIR.get(), null),  // herda o par do seletor global
     strategy: STRATEGIES[0],
     start_date: '2025-01-01',
     end_date: '2025-12-31',
-    initial_capital: CT.backtestConfig.initialCapital,
-    commission_pct: CT.backtestConfig.commissionPct,
-    slippage_bps: CT.backtestConfig.slippageBps,
-  };
-
-  const mockResult = {
-    total_trades: CT.backtest.totalTrades,
-    win_rate: CT.backtest.winRate,
-    pnl_pct: CT.backtest.pnlPct,
-    pnl_usdt: CT.backtest.pnlUsd,
-    max_drawdown: CT.backtest.maxDrawdown,
-    sharpe: CT.backtest.sharpe,
-    profit_factor: CT.backtest.profitFactor,
-    expectancy: CT.backtest.expectancy,
-    equity: CT.equity.map(e => ({ t: String(e.i), equity: e.equity, drawdown: e.dd })),
-  };
-  const mockMC = {
-    n: CT.monteCarlo.n,
-    p5: CT.monteCarlo.p5,
-    p50: CT.monteCarlo.p50,
-    p95: CT.monteCarlo.p95,
-    profitable_pct: CT.monteCarlo.profitablePct,
-    rejected: CT.monteCarlo.rejected,
-    histogram: CT.monteCarlo.hist,
-  };
-  const mockWF = {
-    valid: CT.walkForward.valid,
-    windows: CT.walkForward.windows,
-    sharpe_deviation: CT.walkForward.sharpeDeviation,
-    folds: CT.walkForward.folds,
+    initial_capital: 10000,
+    commission_pct: 0.1,
+    slippage_bps: 5,
   };
 
   const [config,    setConfig]    = useState(defaultConfig);
-  const [result,    setResult]    = useState(mock ? mockResult : null);
-  const [mc,        setMC]        = useState(mock ? mockMC : null);
-  const [wf,        setWF]        = useState(mock ? mockWF : null);
+  const [result,    setResult]    = useState(null);
+  const [mc,        setMC]        = useState(null);
+  const [wf,        setWF]        = useState(null);
   const [jobId,     setJobId]     = useState(null);
   const [jobStatus, setJobStatus] = useState(null);
   const [running,   setRunning]   = useState(false);
@@ -96,17 +67,11 @@ function ScreenBacktest({ addToast }) {
   const [pairs,     setPairs]     = useState(null);
   const pollRef = useRef(null);
 
-  useEffect(() => { if (!mock) loadPairs().then(setPairs); }, [mock]);
+  useEffect(() => { loadPairs().then(setPairs); }, []);
 
   const updateConfig = (k, v) => setConfig(prev => ({ ...prev, [k]: v }));
 
   const runBacktest = async () => {
-    if (mock) {
-      setResult(mockResult);
-      setMC(mockMC);
-      setWF(mockWF);
-      return;
-    }
     setRunning(true);
     setResult(null);
     setMC(null);
@@ -347,7 +312,7 @@ function ScreenBacktest({ addToast }) {
         </>
       )}
 
-      {!result && !running && !mock && (
+      {!result && !running && (
         <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--ink-3)' }}>
           <Icon name="play" size={32} style={{ margin: '0 auto 12px', display: 'block', opacity: 0.3 }} />
           <div style={{ fontSize: 14 }}>Configure os parâmetros e clique em Rodar para iniciar o backtest</div>

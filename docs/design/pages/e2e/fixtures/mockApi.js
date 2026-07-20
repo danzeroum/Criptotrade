@@ -12,9 +12,11 @@
 // no mock branch ever ships in production.
 
 import {
-  AGENTS, authMe, deskSummary, EQUITY, HEALTH, HITL_CONFIG, metrics, ONBOARDING, PAIRS_FLAT,
-  PAIRS_RICH, processEvents, RISK_CIRCUIT_BREAKER, RISK_CONFIG, RISK_KELLY, RISK_PROTECTIONS,
-  RISK_SKIPS, RISK_SLOTS, SYS_CONFIG, ticker,
+  AGENTS, authMe, candles, deskSummary, EQUITY, HEALTH, HITL_CONFIG, MARKET_INDICATORS,
+  JOURNAL, JOURNAL_METRICS, MARKET_LEVELS, MARKET_PATTERNS, MARKET_REGIME, MARKET_SIGNAL,
+  MARKET_VOLUME_PROFILE,
+  metrics, ONBOARDING, PAIRS_FLAT, PAIRS_RICH, processEvents, RISK_CIRCUIT_BREAKER,
+  RISK_CONFIG, RISK_KELLY, RISK_PROTECTIONS, RISK_SKIPS, RISK_SLOTS, SYS_CONFIG, ticker,
 } from "./datasets.js";
 
 // Wrap a payload in the API envelope the client's req() unwraps ({ data, meta }).
@@ -52,13 +54,23 @@ function baseline({ authMode, role }) {
     "GET /v1/config": () => SYS_CONFIG,
     "GET /v1/risk/config": () => RISK_CONFIG,
     "GET /v1/agents": () => AGENTS,
+    // Diário (screen_journal)
+    "GET /v1/journal": () => JOURNAL,
+    "GET /v1/journal/metrics": () => JOURNAL_METRICS,
   };
 }
 
 // Parameterized paths (pair in the path). Checked after exact keys.
 const PATTERNS = [
-  { re: /^GET \/v1\/market\/([^/]+)\/ticker$/,
-    payload: (m) => ticker(m[1].replace("-", "/")) },
+  { re: /^GET \/v1\/market\/([^/]+)\/ticker$/, payload: (m) => ticker(m[1].replace("-", "/")) },
+  { re: /^GET \/v1\/market\/([^/]+)\/candles/, payload: (m) => candles(m[1].replace("-", "/")) },
+  { re: /^GET \/v1\/market\/[^/]+\/indicators$/, payload: () => MARKET_INDICATORS },
+  { re: /^GET \/v1\/market\/[^/]+\/regime$/, payload: () => MARKET_REGIME },
+  { re: /^GET \/v1\/market\/[^/]+\/levels$/, payload: () => MARKET_LEVELS },
+  { re: /^GET \/v1\/market\/[^/]+\/volume-profile$/, payload: () => MARKET_VOLUME_PROFILE },
+  { re: /^GET \/v1\/market\/[^/]+\/patterns$/, payload: () => MARKET_PATTERNS },
+  { re: /^GET \/v1\/market\/[^/]+\/signal$/, payload: () => MARKET_SIGNAL },
+  { re: /^GET \/v1\/market\/[^/]+\/confluence$/, payload: () => null },
 ];
 
 // EventSource endpoints — fulfilled as a short text/event-stream so the client
