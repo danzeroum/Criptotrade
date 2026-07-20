@@ -2,9 +2,10 @@
 // mostra "só <par>"; o editor de nova regra oferece "Todos" + os pares da
 // fonte dinâmica (N1). Mock data.
 import { test, expect } from "@playwright/test";
+import { installMockApi } from "./fixtures/mockApi.js";
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
+  await installMockApi(page, { authMode: "user", role: "admin" });
   await page.goto("/#notifications");
 });
 

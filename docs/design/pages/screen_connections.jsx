@@ -36,7 +36,6 @@ function TestDetail({ detail, ok }) {
 }
 
 function ConnectionModal({ onClose, onSaved, addToast }) {
-  const mock = !!window.USE_MOCK_DATA;
   const [form, setForm] = useConnState({
     exchange_id: 'binance', label: '', api_key: '', api_secret: '',
     scope: 'read', testnet: true, confirm: '',
@@ -47,7 +46,6 @@ function ConnectionModal({ onClose, onSaved, addToast }) {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (mock) { addToast?.('Modo demo: ação não aplicada.', 'info'); onClose?.(); return; }
     setBusy(true); setError(null);
     try {
       const body = { ...form };
@@ -151,7 +149,6 @@ function ConnectionModal({ onClose, onSaved, addToast }) {
 }
 
 function RotateModal({ conn, onClose, onRotated, addToast }) {
-  const mock = !!window.USE_MOCK_DATA;
   const [secret, setSecret] = useConnState('');
   const [key, setKey] = useConnState('');
   const [busy, setBusy] = useConnState(false);
@@ -159,7 +156,6 @@ function RotateModal({ conn, onClose, onRotated, addToast }) {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (mock) { addToast?.('Modo demo: ação não aplicada.', 'info'); onClose?.(); return; }
     setBusy(true); setError(null);
     try {
       const body = { api_secret: secret };
@@ -228,11 +224,10 @@ function KeyCreatedModal({ created, onClose }) {
 }
 
 function ScreenConnections({ addToast }) {
-  const mock = !!window.USE_MOCK_DATA;
-  const [conns, setConns] = useConnState(mock ? (CT.connections ?? []) : null);
-  const [keys, setKeys] = useConnState(mock ? (CT.platformKeys ?? []) : null);
-  const [egress, setEgress] = useConnState(mock ? { ip: '203.0.113.42', cached: true } : null);
-  const [loading, setLoading] = useConnState(!mock);
+  const [conns, setConns] = useConnState(null);
+  const [keys, setKeys] = useConnState(null);
+  const [egress, setEgress] = useConnState(null);
+  const [loading, setLoading] = useConnState(true);
   const [error, setError] = useConnState(null);
   const [connecting, setConnecting] = useConnState(false);
   const [rotating, setRotating] = useConnState(null);
@@ -241,7 +236,6 @@ function ScreenConnections({ addToast }) {
   const [keyCreated, setKeyCreated] = useConnState(null);
 
   const load = useConnCallback(() => {
-    if (mock) return;
     setLoading(true);
     Promise.all([CT_API.getConnections(), CT_API.getPlatformKeys(),
                  CT_API.getEgressIp().catch(() => null)])
@@ -250,18 +244,16 @@ function ScreenConnections({ addToast }) {
         setLoading(false); setError(null);
       })
       .catch(e => { setError(e); setLoading(false); });
-  }, [mock]);
+  }, []);
 
   useConnEffect(() => { load(); }, [load]);
 
   const act = async (fn, okMsg) => {
-    if (mock) { addToast?.('Modo demo: ação não aplicada.', 'info'); return; }
     try { await fn(); if (okMsg) addToast?.(okMsg, 'check'); load(); }
     catch (e) { addToast?.(e?.message ?? 'Falha na ação.', 'alert'); }
   };
 
   const runTest = async (conn) => {
-    if (mock) { addToast?.('Teste executado (demo).', 'check'); return; }
     setTesting(conn.id);
     try {
       const r = await CT_API.testConnection(conn.id);
@@ -444,11 +436,6 @@ function ScreenConnections({ addToast }) {
             <span style={{ display: 'flex', gap: 8 }}>
               <Btn variant="primary" size="sm" disabled={!keyDraft.label}
                 onClick={async () => {
-                  if (mock) {
-                    setKeyCreated({ label: keyDraft.label, key: 'ctk_demo1234exemplo-nao-e-uma-chave-real' });
-                    setKeyDraft(null);
-                    return;
-                  }
                   try {
                     const created = await CT_API.createPlatformKey(keyDraft);
                     setKeyCreated(created);

@@ -34,7 +34,6 @@ const ALERT_TYPES_UI = [
 ];
 
 function ChannelModal({ existing, onClose, onSaved, addToast }) {
-  const mock = !!window.USE_MOCK_DATA;
   const [kind, setKind] = useNotState(existing?.kind ?? 'telegram');
   const [label, setLabel] = useNotState(existing?.label ?? '');
   const [config, setConfig] = useNotState(existing?.config_masked ?? {});
@@ -44,7 +43,6 @@ function ChannelModal({ existing, onClose, onSaved, addToast }) {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (mock) { addToast?.('Modo demo: ação não aplicada.', 'info'); onClose?.(); return; }
     setBusy(true); setError(null);
     try {
       if (existing) await CT_API.patchChannel(existing.id, { label, config });
@@ -102,13 +100,10 @@ function ChannelModal({ existing, onClose, onSaved, addToast }) {
 }
 
 function ScreenNotifications({ addToast }) {
-  const mock = !!window.USE_MOCK_DATA;
-  const [channels, setChannels] = useNotState(mock ? (CT.notificationChannels ?? []) : null);
-  const [rules, setRules] = useNotState(mock ? (CT.notificationRules ?? []) : null);
-  const [settings, setSettings] = useNotState(mock
-    ? { quiet_start: '22:00', quiet_end: '07:00', quiet_tz: 'America/Sao_Paulo', group_window_min: 5 }
-    : null);
-  const [loading, setLoading] = useNotState(!mock);
+  const [channels, setChannels] = useNotState(null);
+  const [rules, setRules] = useNotState(null);
+  const [settings, setSettings] = useNotState(null);
+  const [loading, setLoading] = useNotState(true);
   const [error, setError] = useNotState(null);
   const [editing, setEditing] = useNotState(null);   // null | 'new' | channel
   const [testing, setTesting] = useNotState(null);   // channel id being tested
@@ -123,7 +118,6 @@ function ScreenNotifications({ addToast }) {
   }, []);
 
   const load = useNotCallback(() => {
-    if (mock) return;
     setLoading(true);
     Promise.all([CT_API.getChannels(), CT_API.getNotifRules(), CT_API.getNotifSettings()])
       .then(([c, r, s]) => {
@@ -131,18 +125,16 @@ function ScreenNotifications({ addToast }) {
         setLoading(false); setError(null);
       })
       .catch(e => { setError(e); setLoading(false); });
-  }, [mock]);
+  }, []);
 
   useNotEffect(() => { load(); }, [load]);
 
   const act = async (fn, okMsg) => {
-    if (mock) { addToast?.('Modo demo: ação não aplicada.', 'info'); return; }
     try { await fn(); if (okMsg) addToast?.(okMsg, 'check'); load(); }
     catch (e) { addToast?.(e?.message ?? 'Falha na ação.', 'alert'); }
   };
 
   const runTest = async (ch) => {
-    if (mock) { addToast?.(`Teste enviado para ${ch.destination_masked} (demo).`, 'check'); return; }
     setTesting(ch.id);
     try {
       const r = await CT_API.testChannel(ch.id);
@@ -361,7 +353,7 @@ function ScreenNotifications({ addToast }) {
             O agrupamento suprime repetições do mesmo alerta dentro da janela e
             anexa “(+N suprimidos)” na próxima entrega.
           </p>
-          <NotifSettingsForm settings={settings} mock={mock} addToast={addToast}
+          <NotifSettingsForm settings={settings} addToast={addToast}
             onSaved={(s) => setSettings(s)} />
         </div>
       </div>
@@ -374,7 +366,7 @@ function ScreenNotifications({ addToast }) {
   );
 }
 
-function NotifSettingsForm({ settings, mock, addToast, onSaved }) {
+function NotifSettingsForm({ settings, addToast, onSaved }) {
   const [draft, setDraft] = useNotState({
     quiet_start: settings?.quiet_start ?? '',
     quiet_end: settings?.quiet_end ?? '',
@@ -385,7 +377,6 @@ function NotifSettingsForm({ settings, mock, addToast, onSaved }) {
 
   const save = async (e) => {
     e.preventDefault();
-    if (mock) { addToast?.('Modo demo: ação não aplicada.', 'info'); return; }
     setBusy(true);
     try {
       const body = draft.quiet_start && draft.quiet_end

@@ -2,9 +2,10 @@
 // detected permissions, trade scope blocked until the typed confirmation) and
 // platform keys (full key shown exactly once); non-admins land on the 403.
 import { test, expect } from "@playwright/test";
+import { installMockApi } from "./fixtures/mockApi.js";
 
 test("admin sees connections with masked keys and detected permissions", async ({ page }) => {
-  await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
+  await installMockApi(page, { authMode: "user", role: "admin" });
   await page.goto("/");
   await page.locator(".nav-item", { hasText: "Conexões & Chaves" }).click();
   await expect(page).toHaveURL(/#connections$/);
@@ -19,7 +20,7 @@ test("admin sees connections with masked keys and detected permissions", async (
 });
 
 test("trade scope demands the typed TRADE confirmation before submitting", async ({ page }) => {
-  await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
+  await installMockApi(page, { authMode: "user", role: "admin" });
   await page.goto("/#connections");
   await page.getByRole("button", { name: "Conectar exchange" }).click();
   const modal = page.getByRole("dialog", { name: "Nova conexão" });
@@ -35,7 +36,7 @@ test("trade scope demands the typed TRADE confirmation before submitting", async
 });
 
 test("platform key is shown exactly once on creation", async ({ page }) => {
-  await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
+  await installMockApi(page, { authMode: "user", role: "admin" });
   await page.goto("/#connections");
   await page.getByRole("button", { name: "Criar chave" }).click();
   await page.getByPlaceholder("ex.: grafana-readonly").fill("bot-webhooks");
@@ -50,10 +51,7 @@ test("platform key is shown exactly once on creation", async ({ page }) => {
 });
 
 test("operador lands on the 403 with manage_keys", async ({ page }) => {
-  await page.addInitScript(() => {
-    window.USE_MOCK_DATA = true;
-    window.MOCK_ROLE = "operador";
-  });
+  await installMockApi(page, { authMode: "user", role: "operador" });
   await page.goto("/#connections");
   await expect(page.getByRole("heading", { name: "Sem permissão" })).toBeVisible();
   await expect(page.getByText("manage_keys")).toBeVisible();
@@ -61,10 +59,7 @@ test("operador lands on the 403 with manage_keys", async ({ page }) => {
 });
 
 test("public demo never sees the connections screen", async ({ page }) => {
-  await page.addInitScript(() => {
-    window.USE_MOCK_DATA = true;
-    window.MOCK_AUTH = "demo";
-  });
+  await installMockApi(page, { authMode: "demo" });
   await page.goto("/#connections");
   await expect(page.getByRole("heading", { name: "Sem permissão" })).toBeVisible();
   await expect(page.locator(".nav-item", { hasText: "Conexões & Chaves" })).toHaveCount(0);
