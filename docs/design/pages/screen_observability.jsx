@@ -7,32 +7,6 @@
    ============================================================ */
 const { useState, useEffect } = React;
 
-// N6: light mock so the multi-symbol demo shows the per-symbol breakdown.
-function _mockProcessEvents() {
-  const now = Date.now();
-  const iso = (sAgo) => new Date(now - sAgo * 1000).toISOString();
-  const cyc = (id, sAgo, perSymbol, failed) => {
-    const syms = Object.keys(perSymbol);
-    const dur = Object.values(perSymbol).reduce((a, b) => a + b, 0);
-    const evs = [
-      { case_id: id, activity: 'agent_cycle_started', actor: 'orchestrator',
-        timestamp: iso(sAgo + 1), attributes: { symbols: syms } },
-      { case_id: id, activity: 'agent_cycle_completed', actor: 'orchestrator',
-        timestamp: iso(sAgo), attributes: {
-          duration_ms: dur, ran: ['strategy', 'risk'], failures: failed ? 1 : 0,
-          per_symbol: perSymbol } },
-    ];
-    if (failed) evs.push({ case_id: id, activity: 'agent_cycle_failed', actor: 'strategy',
-      timestamp: iso(sAgo + 0.5), attributes: { symbol: 'ETH/USDT', error: 'timeout' } });
-    return evs;
-  };
-  return [
-    ...cyc('cycle_a1b2', 12, { 'BTC/USDT': 812, 'ETH/USDT': 640, 'SOL/USDT': 590 }, false),
-    ...cyc('cycle_c3d4', 74, { 'BTC/USDT': 903, 'ETH/USDT': 1180, 'SOL/USDT': 610 }, true),
-    ...cyc('cycle_e5f6', 135, { 'BTC/USDT': 780, 'ETH/USDT': 655, 'SOL/USDT': 602 }, false),
-  ];
-}
-
 function _ago(iso) {
   if (!iso) return '—';
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -46,14 +20,12 @@ const TRACE_STATUS = { completed: 'ok', failed: 'down', running: 'warn' };
 const TRACE_LABEL = { completed: 'Concluído', failed: 'Falhou', running: 'Em curso' };
 
 function ScreenObservability() {
-  const mock = !!window.USE_MOCK_DATA;
-  const [events, setEvents] = useState(mock ? _mockProcessEvents() : null);
-  const [loading, setLoading] = useState(!mock);
+  const [events, setEvents] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [symbolF, setSymbolF] = useState('all');  // N6: filter cycles by symbol
 
   const load = () => {
-    if (mock) return;
     setLoading(true);
     setError(null);
     CT_API.getProcessEvents(400)
@@ -61,7 +33,7 @@ function ScreenObservability() {
       .catch(e => { setError(e); setLoading(false); });
   };
 
-  useEffect(() => { load(); }, [mock]);
+  useEffect(() => { load(); }, []);
 
   // Group events into traces (one case_id = one cycle or one order flow).
   const traces = {};

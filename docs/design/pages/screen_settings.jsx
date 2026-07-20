@@ -92,41 +92,14 @@ function PairGroupsManager({ operated, canEdit, addToast }) {
 }
 
 function ScreenSettings({ addToast }) {
-  const mock = !!window.USE_MOCK_DATA;
-
-  const mockConfig = {
-    exchange: 'binance',
-    dry_run: true,
-    initial_capital: 10000,
-    orchestrator_interval_seconds: 60,
-    autonomy_level: CT.hitl.level,
-    app_env: 'development',
-  };
-  const mockRiskConfig = {
-    max_position_size_pct: CT.riskConfig.maxPositionPct,
-    stop_loss_default_pct: 3,
-    take_profit_default_pct: 6,
-    max_daily_loss_pct: CT.riskConfig.ddDaily,
-    max_weekly_loss_pct: CT.riskConfig.ddWeekly,
-    max_monthly_loss_pct: CT.riskConfig.ddMonthly,
-    kelly_fraction: CT.riskConfig.kellyFraction,
-    circuit_breaker_enabled: true,
-  };
-  const mockAlerts = {
-    revenge_size_multiplier: CT.alertThresholds.revengeSize / 100 + 1,
-    euphoria_size_multiplier: CT.alertThresholds.euphoriaSize / 100 + 1,
-    overconfidence_margin: CT.alertThresholds.overconfidenceGap / 100,
-    risk_of_ruin_alert_pct: CT.alertThresholds.riskOfRuin,
-  };
-
-  const [sysConfig,    setSysConfig]    = useState(mock ? mockConfig : null);
-  const [riskConfig,   setRiskConfig]   = useState(mock ? mockRiskConfig : null);
-  const [alertConfig,  setAlertConfig]  = useState(mock ? mockAlerts : null);
+  const [sysConfig,    setSysConfig]    = useState(null);
+  const [riskConfig,   setRiskConfig]   = useState(null);
+  const [alertConfig,  setAlertConfig]  = useState(null);
   const [agents,       setAgents]       = useState(null);
   const [pairsRich,    setPairsRich]    = useState(null);  // N8¹/N8²: operated/observable
   const [pairsDirty,   setPairsDirty]   = useState(false); // N8²: pending-restart flag
   const [addPairSel,   setAddPairSel]   = useState('');
-  const [loading,      setLoading]      = useState(!mock);
+  const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState(null);
   const [saved,        setSaved]        = useState(null);
 
@@ -137,37 +110,21 @@ function ScreenSettings({ addToast }) {
   // N8²: add/remove operated pair — aplica no PRÓXIMO restart do orchestrator.
   const addPair = async (symbol) => {
     if (!symbol) return;
-    if (mock) {
-      setPairsRich(p => ({ ...p, operados: [...(p.operados || []), { symbol, status: 'aguardando' }] }));
-      setPairsDirty(true); setAddPairSel(''); addToast?.('Par adicionado (pendente de restart).', 'check'); return;
-    }
     try { await CT_API.addOperatedPair(symbol); setPairsDirty(true); setAddPairSel(''); await reloadPairs(); addToast?.('Par adicionado — reinicie o orchestrator para aplicar.', 'check'); }
     catch (e) { addToast?.(e?.message ?? 'Falha ao adicionar par.', 'alert'); }
   };
   const removePair = async (symbol) => {
-    if (mock) {
-      setPairsRich(p => ({ ...p, operados: (p.operados || []).filter(o => o.symbol !== symbol) }));
-      setPairsDirty(true); addToast?.('Par removido (pendente de restart).', 'check'); return;
-    }
     try { await CT_API.removeOperatedPair(symbol); setPairsDirty(true); await reloadPairs(); addToast?.('Par removido — reinicie o orchestrator para aplicar.', 'check'); }
     catch (e) { addToast?.(e?.message ?? 'Falha ao remover par.', 'alert'); }
   };
   // N9: pausar/retomar — aplica SEM restart (lido por ciclo). NÃO seta pairsDirty.
   const pausePair = async (symbol, paused) => {
-    if (mock) {
-      setPairsRich(p => ({ ...p, operados: (p.operados || []).map(o => o.symbol === symbol ? { ...o, paused } : o) }));
-      addToast?.(paused ? 'Par pausado.' : 'Par retomado.', 'check'); return;
-    }
     try { await CT_API.setPairPaused(symbol, paused); await reloadPairs();
           addToast?.(paused ? 'Par pausado — sem novas ordens; posições seguem geridas.' : 'Par retomado.', 'check'); }
     catch (e) { addToast?.(e?.message ?? 'Falha ao pausar par.', 'alert'); }
   };
 
   useEffect(() => {
-    if (mock) {
-      CT_API.getAgents().then(setAgents).catch(() => setAgents(CT.agents));
-      return;
-    }
     setLoading(true);
     Promise.all([
       CT_API.getConfig(),
@@ -181,7 +138,7 @@ function ScreenSettings({ addToast }) {
         setLoading(false);
       })
       .catch(e => { setError(e); setLoading(false); });
-  }, [mock]);
+  }, []);
 
   const flash = (msg) => {
     setSaved(msg);
@@ -189,7 +146,6 @@ function ScreenSettings({ addToast }) {
   };
 
   const saveSysConfig = async (patch) => {
-    if (mock) { setSysConfig(prev => ({ ...prev, ...patch })); flash('Config salva'); return; }
     try {
       const updated = await CT_API.patchConfig(patch);
       setSysConfig(updated);
@@ -198,7 +154,6 @@ function ScreenSettings({ addToast }) {
   };
 
   const saveRiskConfig = async (patch) => {
-    if (mock) { setRiskConfig(prev => ({ ...prev, ...patch })); flash('Risco salvo'); return; }
     try {
       const updated = await CT_API.patchRiskConfig(patch);
       setRiskConfig(updated);
@@ -207,7 +162,6 @@ function ScreenSettings({ addToast }) {
   };
 
   const saveAlertConfig = async (patch) => {
-    if (mock) { setAlertConfig(prev => ({ ...prev, ...patch })); flash('Alertas salvos'); return; }
     try {
       const updated = await CT_API.patchAlertsConfig(patch);
       setAlertConfig(updated);

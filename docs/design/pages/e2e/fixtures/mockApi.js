@@ -12,22 +12,27 @@
 // no mock branch ever ships in production.
 
 import {
-  authMe, deskSummary, EQUITY, HEALTH, HITL_CONFIG, metrics, ONBOARDING, PAIRS_FLAT,
-  PAIRS_RICH, ticker,
+  AGENTS, authMe, deskSummary, EQUITY, HEALTH, HITL_CONFIG, metrics, ONBOARDING, PAIRS_FLAT,
+  PAIRS_RICH, processEvents, RISK_CIRCUIT_BREAKER, RISK_CONFIG, RISK_KELLY, RISK_PROTECTIONS,
+  RISK_SKIPS, RISK_SLOTS, SYS_CONFIG, ticker,
 } from "./datasets.js";
 
 // Wrap a payload in the API envelope the client's req() unwraps ({ data, meta }).
 function envelope(payload) {
   return JSON.stringify({ data: payload });
 }
+function fulfillJson(route, payload) {
+  return route.fulfill({ status: 200, contentType: "application/json", body: envelope(payload) });
+}
 
 // Exact "METHOD /path" stubs every authenticated boot touches (probe + landing).
 // Per-test `routes` override or extend this. Values are payloads or (req,url)=>payload.
+// Note: /v1/pairs and its POST/PATCH/DELETE mutations are handled statefully in the
+// route handler (see installMockApi), not here.
 function baseline({ authMode, role }) {
   return {
     "GET /health": () => HEALTH,
     "GET /v1/auth/me": () => authMe({ authMode, role }),
-    "GET /v1/pairs": () => PAIRS_RICH,
     "GET /v1/market/pairs": () => PAIRS_FLAT,
     "GET /v1/hitl/config": () => HITL_CONFIG,
     "GET /v1/metrics": () => metrics(),
@@ -35,6 +40,18 @@ function baseline({ authMode, role }) {
     "GET /v1/onboarding/status": () => ONBOARDING,
     "GET /v1/desk/summary": () => deskSummary(),
     "GET /v1/orders": () => [], // sidebar pending-count poll → empty
+    // Risco (screen_risk)
+    "GET /v1/risk/protections": () => RISK_PROTECTIONS,
+    "GET /v1/risk/circuit-breaker": () => RISK_CIRCUIT_BREAKER,
+    "GET /v1/risk/kelly": () => RISK_KELLY,
+    "GET /v1/risk/slots": () => RISK_SLOTS,
+    "GET /v1/process/skips": () => RISK_SKIPS,
+    // Observabilidade (screen_observability)
+    "GET /v1/process/events": () => processEvents(),
+    // Config (screen_settings)
+    "GET /v1/config": () => SYS_CONFIG,
+    "GET /v1/risk/config": () => RISK_CONFIG,
+    "GET /v1/agents": () => AGENTS,
   };
 }
 
@@ -58,6 +75,10 @@ export async function installMockApi(page, scenario = {}) {
   const { authMode = "user", role = "admin", routes = {} } = scenario;
   const table = { ...baseline({ authMode, role }), ...routes };
   const unstubbed = [];
+  // Stateful operated pairs (N8²/N9): POST/PATCH/DELETE mutate; GET /v1/pairs reflects.
+  // Seeded fresh per test from PAIRS_RICH (BNB starts paused).
+  const operated = PAIRS_RICH.operados.map((o) => ({ ...o }));
+  const decode = (seg) => decodeURIComponent(seg).replace("-", "/");
 
   await page.route("**/api/**", async (route) => {
     const req = route.request();
@@ -66,6 +87,28 @@ export async function installMockApi(page, scenario = {}) {
     // Strip the API base prefix so keys are stable ("GET /v1/..." / "GET /health").
     const path = url.pathname.replace(/^\/api/, "");
     const key = `${method} ${path}`;
+
+    // --- stateful operated pairs -------------------------------------------
+    if (path === "/v1/pairs" && method === "GET") {
+      return fulfillJson(route, { operados: operated, observaveis: PAIRS_RICH.observaveis });
+    }
+    if (path === "/v1/pairs/operated" && method === "POST") {
+      const sym = (req.postDataJSON() || {}).symbol;
+      const row = { symbol: sym, last_cycle_at: null, status: "aguardando", paused: false };
+      operated.push(row);
+      return fulfillJson(route, row);
+    }
+    const opMatch = path.match(/^\/v1\/pairs\/operated\/(.+)$/);
+    if (opMatch && method === "PATCH") {
+      const row = operated.find((o) => o.symbol === decode(opMatch[1]));
+      if (row) row.paused = !!(req.postDataJSON() || {}).paused;
+      return fulfillJson(route, row || {});
+    }
+    if (opMatch && method === "DELETE") {
+      const i = operated.findIndex((o) => o.symbol === decode(opMatch[1]));
+      if (i >= 0) operated.splice(i, 1);
+      return fulfillJson(route, { removed: decode(opMatch[1]) });
+    }
 
     if (SSE_PATHS.has(path)) {
       await route.fulfill({
