@@ -97,7 +97,7 @@ function PendingOrderCard({ order, onDecide, highlight = false, ctx = null }) {
           </p>
         )}
 
-        <ConfidenceBreakdown breakdown={CT.confidenceBreakdown} />
+        <ConfidenceBreakdown breakdown={order.confidence_breakdown} />
 
         {!canApprove && !demoView && (
           <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 7,
@@ -161,31 +161,9 @@ function PendingOrderCard({ order, onDecide, highlight = false, ctx = null }) {
 }
 
 function ScreenHITL({ addToast }) {
-  const mock = !!window.USE_MOCK_DATA;
-
-  const mockConfig = {
-    current_level: CT.hitl.level,
-    threshold_usdt: CT.hitl.threshold,
-    level_description: CT.hitl.levels[CT.hitl.level]?.desc ?? '',
-    pending_orders_count: CT.pendingOrders.length,
-    human_approved_today: CT.hitl.approvedToday,
-    human_rejected_today: CT.hitl.rejectedToday,
-    levels: CT.hitl.levels.map(l => ({
-      level: l.level,
-      threshold_usdt: l.threshold,
-      description: l.desc,
-    })),
-  };
-  const mockOrders = CT.pendingOrders.map(o => ({
-    ...o,
-    stop_loss: o.stop,
-    take_profit: o.takeProfit,
-    position_size_pct: o.sizePct,
-  }));
-
-  const [config, setConfig] = useState(mock ? mockConfig : null);
-  const [orders, setOrders] = useState(mock ? mockOrders : []);
-  const [loading, setLoading] = useState(!mock);
+  const [config, setConfig] = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   // M2: pair handed over by Mercado's "Ver no HITL" — highlight its orders once.
   const [focusPair] = useState(() => {
@@ -199,24 +177,16 @@ function ScreenHITL({ addToast }) {
   const [pairFilter, setPairFilter] = useState(focusPair);
   // N4: per-pair context (preço atual + regime) from the desk snapshot — fetched
   // ONCE here and distributed to the cards, never one request per order.
-  const [deskCtx, setDeskCtx] = useState(() => mock ? {
-    'BTC/USDT': { last: 64810, regime_label: 'Alta forte' },
-    'ETH/USDT': { last: 3208, regime_label: 'Lateral' },
-    'SOL/USDT': { last: 160.42, regime_label: 'Alta forte' },
-    'XRP/USDT': { last: 0.61, regime_label: 'Desconhecido' },
-    'BNB/USDT': { last: 592, regime_label: 'Caótico' },
-  } : {});
+  const [deskCtx, setDeskCtx] = useState(() => ({}));
   useEffect(() => {
-    if (mock) return;
     CT_API.getDeskSummary().then(d => {
       const map = {};
       (d.rows || []).forEach(r => { map[r.symbol] = { last: r.last, regime_label: r.regime_label }; });
       setDeskCtx(map);
     }).catch(() => {});
-  }, [mock]);
+  }, []);
 
   const load = useCallback(() => {
-    if (mock) return;
     setLoading(true);
     Promise.all([
       CT_API.getHITL(),
@@ -228,15 +198,11 @@ function ScreenHITL({ addToast }) {
         setLoading(false);
       })
       .catch(e => { setError(e); setLoading(false); });
-  }, [mock]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const decide = async (orderId, action, note) => {
-    if (mock) {
-      setOrders(prev => prev.filter(o => o.id !== orderId));
-      return;
-    }
     try {
       // A3: no client-sent operator — the server stamps the session identity.
       await CT_API.decideOrder(orderId, {
@@ -252,14 +218,6 @@ function ScreenHITL({ addToast }) {
   };
 
   const setLevel = async (level) => {
-    if (mock) {
-      setConfig(prev => ({
-        ...prev,
-        current_level: level,
-        level_description: prev.levels[level]?.description ?? '',
-      }));
-      return;
-    }
     try {
       // A3: no client-sent operator — the server stamps the session identity.
       const updated = await CT_API.patchHITL({

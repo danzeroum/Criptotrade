@@ -20,32 +20,15 @@ const ORDER_STATUS_LABEL = {
 };
 
 function ScreenOrders() {
-  const mock = !!window.USE_MOCK_DATA;
-  const mockOrders = CT.orders.map(o => ({
-    ...o,
-    stop_loss:         o.stop,
-    take_profit:       o.takeProfit,
-    position_size_pct: o.sizePct,
-    operator_note:     o.operatorNote,
-  }));
-
-  // N5: mock closed trades (realized P&L) for the per-pair footer.
-  const mockTrades = [
-    { symbol: 'BTC/USDT', pnl: 108.30 }, { symbol: 'BTC/USDT', pnl: -42.10 },
-    { symbol: 'ETH/USDT', pnl: 61.50 }, { symbol: 'SOL/USDT', pnl: 12.38 },
-    { symbol: 'SOL/USDT', pnl: 24.90 }, { symbol: 'XRP/USDT', pnl: -8.20 },
-  ];
-
   const [scope] = useCurrentPair();
-  const [orders,  setOrders]  = useState(mock ? mockOrders : null);
-  const [trades,  setTrades]  = useState(mock ? mockTrades : null);
-  const [loading, setLoading] = useState(!mock);
+  const [orders,  setOrders]  = useState(null);
+  const [trades,  setTrades]  = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(null);
   const [statusF, setStatusF] = useState('all');
   const [sideF,   setSideF]   = useState('all');
 
   useEffect(() => {
-    if (mock) return;
     setLoading(true);
     const pairQ = scope && scope !== 'ALL' ? `&pair=${encodeURIComponent(scope)}` : '';
     Promise.all([CT_API.getOrders(100, 0, pairQ), CT_API.getTrades(200, 0, pairQ).catch(() => [])])
@@ -55,7 +38,7 @@ function ScreenOrders() {
         setLoading(false);
       })
       .catch(e => { setError(e); setLoading(false); });
-  }, [mock, scope]);
+  }, [scope]);
 
   if (loading) return <LoadingState label="Carregando ordens…" />;
   if (error)   return <ErrorState message="Erro ao carregar ordens" onRetry={() => { setError(null); setLoading(true); }} />;
