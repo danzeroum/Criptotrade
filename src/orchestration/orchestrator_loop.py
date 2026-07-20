@@ -216,6 +216,7 @@ class OrchestratorLoop:
         ``filled`` post-execution — the handler returns a bool, so the orchestrator
         lacks the order id to call ``mark_filled``. Linking them is the next step.
         """
+        from src.core.alerts import AlertStore
         from src.core.db import get_db_path
         from src.core.exchange_factory import build_exchange_client
         from src.hitl.config import level_from_env, level_info
@@ -241,8 +242,15 @@ class OrchestratorLoop:
         )
         handler = approval_handler or make_approval_handler(order_store)
 
+        # Fix #2 bonus — wire the loop's alert sink. Without this the loop ran with
+        # alert_store=None, so _emit_stub_alert / _emit_alert / guardrails were no-ops
+        # and no data_fallback (or risk) alert ever reached alerts.jsonl for the
+        # dispatcher. AlertStore() writes the same LEDGER_DIR/alerts.jsonl the
+        # dispatcher tails; the in-process AlertBus is omitted (no SSE subscribers in
+        # the loop process — cross-process delivery is via the JSONL file).
         orchestrator = SquadOrchestrator(
             exchange, approval_handler=handler, fill_callback=order_store.mark_filled,
+            alert_store=AlertStore(),
         )
         orchestrator.ledger = ledger  # share one ledger between pipeline and loop
         orchestrator.reload_open_positions()  # restore positions + breaker after a restart

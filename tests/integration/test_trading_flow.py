@@ -28,11 +28,21 @@ async def _approve(order):
     return True
 
 
+# Fix #2 (stub-data gate): _DummyExchange has no fetch_ohlcv, which used to route
+# the strategy to the flat-$50k stub — these pipeline tests leaned on that stub as
+# their signal source. Trading on stub data is now gated (skip), so the pipeline
+# tests feed an explicit scripted BUY instead (same BUY, real signal→risk→HITL→
+# execution path). See _scripted_strategy below.
+_PIPELINE_BUY = {"action": "BUY", "entry_price": 50_000.0, "stop_loss": 48_500.0,
+                 "take_profit": None, "position_size_pct": 5.0}
+
+
 @pytest.mark.asyncio
 async def test_analyze_and_trade_success(tmp_path):
     orchestrator = SquadOrchestrator(_DummyExchange(), approval_handler=_approve)
     ledger_path = tmp_path / "trades.jsonl"
     orchestrator.ledger = TradingLedger(ledger_path)
+    orchestrator.strategy_agent.execute = _scripted_strategy([_PIPELINE_BUY])
 
     result = await orchestrator.analyze_and_trade("BTC/USDT", timeframe="1h")
 
@@ -56,6 +66,7 @@ async def test_manual_approval_completes_to_filled(tmp_path):
         fill_callback=store.mark_filled,
     )
     orchestrator.ledger = ledger
+    orchestrator.strategy_agent.execute = _scripted_strategy([_PIPELINE_BUY])
 
     task = asyncio.create_task(orchestrator.analyze_and_trade("BTC/USDT"))
     await asyncio.sleep(0.05)
@@ -75,6 +86,7 @@ async def test_analyze_and_trade_blocked_when_no_hitl_handler(tmp_path):
     # Fail-closed: with no approval handler, the trade must be rejected.
     orchestrator = SquadOrchestrator(_DummyExchange())
     orchestrator.ledger = TradingLedger(tmp_path / "trades.jsonl")
+    orchestrator.strategy_agent.execute = _scripted_strategy([_PIPELINE_BUY])
 
     result = await orchestrator.analyze_and_trade("BTC/USDT", timeframe="1h")
 
@@ -272,6 +284,7 @@ def test_log_fill_falls_back_to_signal_price(tmp_path):
 @pytest.mark.asyncio
 async def test_full_cycle_fill_tracked_then_closed(tmp_path):
     orch, ledger = _make_orch(tmp_path)
+    orch.strategy_agent.execute = _scripted_strategy([_PIPELINE_BUY])
 
     result = await orch.analyze_and_trade("BTC/USDT")
     assert result["success"] is True
@@ -292,6 +305,7 @@ async def test_full_cycle_fill_tracked_then_closed(tmp_path):
 @pytest.mark.asyncio
 async def test_circuit_breaker_sees_loss_after_close(tmp_path):
     orch, ledger = _make_orch(tmp_path)
+    orch.strategy_agent.execute = _scripted_strategy([_PIPELINE_BUY])
 
     await orch.analyze_and_trade("BTC/USDT")
     initial_loss = orch.circuit_breaker._daily_loss_pct
