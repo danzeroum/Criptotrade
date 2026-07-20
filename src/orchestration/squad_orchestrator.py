@@ -22,6 +22,11 @@ logger = logging.getLogger(__name__)
 EPS = 1e-9
 
 
+def _truthy(value: str | None) -> bool:
+    """Parse a boolean env flag (mirrors the helper in llm_client / config)."""
+    return (value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 class CircuitBreaker:
     """Pause trading when daily loss or consecutive losses exceed limits.
 
@@ -174,6 +179,9 @@ class SquadOrchestrator:
         # N3: last skip reason per symbol, so we log STATE TRANSITIONS (+ a throttled
         # heartbeat) instead of one event per cycle — the ledger/A4 don't drown.
         self._last_skip: dict[str, dict[str, Any]] = {}
+        # Fix #2: last data_fallback state per symbol — same transition+heartbeat
+        # discipline as _last_skip, so a persistent stub-data outage logs ~1/10min.
+        self._last_fallback: dict[str, dict[str, Any]] = {}
         # Wire the RiskAgent's guardrails to publish each violation as an alert.
         if alert_store is not None:
             from src.core.alerts import make_guardrail_sink
@@ -209,6 +217,44 @@ class SquadOrchestrator:
     # symbol stuck on "confidence_low" produces ~1 event / 10 min, not 1 / cycle.
     _SKIP_THROTTLE_S = 600.0
 
+    def _emit_throttled(
+        self,
+        state: dict[str, dict[str, Any]],
+        symbol: str,
+        reason: str,
+        event_type: str,
+        extra: dict[str, Any] | None = None,
+        heartbeat: bool = True,
+    ) -> None:
+        """Book ``event_type`` on a reason CHANGE (or first time), or a throttled
+        heartbeat while the reason persists — the shared transition/heartbeat engine
+        behind ``signal_skipped`` and ``data_fallback``. ``state`` is the per-event
+        per-symbol memory (so the two event streams throttle independently).
+
+        ``heartbeat=False``: emit ONLY on the transition, never re-emit while the
+        reason persists (a deliberate persistent state, not a transient contest)."""
+        now = time.time()
+        prev = state.get(symbol)
+        if prev and prev["reason"] == reason:
+            prev["count"] += 1
+            if not heartbeat or now - prev["last_emit"] < self._SKIP_THROTTLE_S:
+                return  # same reason, within the window (or no heartbeat) — stay quiet
+            prev["last_emit"] = now
+            count, since = prev["count"], prev["since"]
+        else:
+            state[symbol] = {"reason": reason, "count": 1, "since": now, "last_emit": now}
+            count, since = 1, now
+        data: dict[str, Any] = {
+            "symbol": symbol, "reason": reason, "count": count,
+            "since": datetime.fromtimestamp(since, tz=UTC).isoformat(),
+        }
+        if extra:
+            data.update(extra)
+        try:
+            self.ledger.log_decision(event_type, data)
+        except Exception:  # pragma: no cover - a status log must never break the loop
+            logger.warning("Failed to log %s for %s", event_type, symbol, exc_info=True)
+
     def _record_skip(
         self,
         symbol: str,
@@ -224,31 +270,21 @@ class SquadOrchestrator:
         transient contest like ``no_slot``/``circuit_breaker`` — a pair paused for a
         month must not spam the ledger; its steady state is visible via
         ``config_changed`` and the ``paused`` badge instead."""
-        now = time.time()
-        prev = self._last_skip.get(symbol)
-        if prev and prev["reason"] == reason:
-            prev["count"] += 1
-            if not heartbeat or now - prev["last_emit"] < self._SKIP_THROTTLE_S:
-                return  # same reason, within the window (or no heartbeat) — stay quiet
-            prev["last_emit"] = now
-            count, since = prev["count"], prev["since"]
-        else:
-            self._last_skip[symbol] = {"reason": reason, "count": 1, "since": now, "last_emit": now}
-            count, since = 1, now
-        data: dict[str, Any] = {
-            "symbol": symbol, "reason": reason, "count": count,
-            "since": datetime.fromtimestamp(since, tz=UTC).isoformat(),
-        }
-        if extra:
-            data.update(extra)
-        try:
-            self.ledger.log_decision("signal_skipped", data)
-        except Exception:  # pragma: no cover - a skip log must never break the loop
-            logger.warning("Failed to log signal_skipped for %s", symbol, exc_info=True)
+        self._emit_throttled(self._last_skip, symbol, reason, "signal_skipped", extra, heartbeat)
 
     def _clear_skip(self, symbol: str) -> None:
         """A symbol that traded resets its skip state (next skip is a fresh transition)."""
         self._last_skip.pop(symbol, None)
+
+    def _record_data_fallback(self, symbol: str, reason: str = "stub_data") -> None:
+        """Book a ``data_fallback`` event (Fix #2) — one on the transition into the
+        stub-data state, plus a throttled heartbeat while it persists. Auditable in
+        A4; carries ``symbol``/``reason`` so entity/detail render for free."""
+        self._emit_throttled(self._last_fallback, symbol, reason, "data_fallback")
+
+    def _clear_fallback(self, symbol: str) -> None:
+        """A symbol back on real data resets its fallback state (next outage is fresh)."""
+        self._last_fallback.pop(symbol, None)
 
     @staticmethod
     def _risk_skip_reason(issues: list[Any]) -> str:
@@ -286,10 +322,20 @@ class SquadOrchestrator:
         # (the demo strategy stub omits it) — fixes orders showing pair="UNKNOWN".
         strategy_result["signal"].setdefault("symbol", symbol)
 
-        # Surface a silent data fallback: trading on synthetic stub data (e.g. a
-        # failed live OHLCV fetch) must not pass unnoticed by the operator.
+        # Fix #2 — stub-data gate. A failed live OHLCV fetch silently falls back to
+        # synthetic stub prices (flat $50k, tuned to a ~0.76 BUY) — the root of the
+        # 88 stub buys. Without a trustworthy price we evaluate NOTHING: gate BEFORE
+        # the stop/TP check below, so stops don't fire against the fake price either.
+        # Emit the alert + a throttled data_fallback event, then skip the whole cycle
+        # for this symbol. ALLOW_STUB_DATA=true (default false) is an explicit opt-in
+        # for dry-run demos only — never in live.
         if strategy_result.get("stub_used"):
             await self._emit_stub_alert(symbol)
+            self._record_data_fallback(symbol)
+            if not _truthy(os.getenv("ALLOW_STUB_DATA")):
+                return {"success": False, "reason": "stub_data"}
+        else:
+            self._clear_fallback(symbol)  # back on real data → next outage is fresh
 
         # Check open paper positions against current price on every cycle, even
         # when this cycle generates no new trade (fail-safe: wrap so a close error
