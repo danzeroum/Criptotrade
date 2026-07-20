@@ -152,18 +152,13 @@ function NewEntryForm({ onSave, onCancel }) {
 }
 
 function ScreenJournal({ addToast }) {
-  const mock = !!window.USE_MOCK_DATA;
-  const mockEntries = CT.journal;
-  const mockMetrics = CT.journalMetrics;
-
-  const [entries,  setEntries]  = useState(mock ? mockEntries : null);
-  const [metrics,  setMetrics]  = useState(mock ? mockMetrics : null);
-  const [loading,  setLoading]  = useState(!mock);
+  const [entries,  setEntries]  = useState(null);
+  const [metrics,  setMetrics]  = useState(null);
+  const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState(null);
   const [showForm, setShowForm] = useState(false);
 
   const load = () => {
-    if (mock) return;
     setLoading(true);
     Promise.all([CT_API.getJournal(), CT_API.getJournalMetrics()])
       .then(([e, m]) => {
@@ -177,11 +172,6 @@ function ScreenJournal({ addToast }) {
   useEffect(() => { load(); }, []);
 
   const save = async (entry) => {
-    if (mock) {
-      setEntries(prev => [{ id: Date.now(), date: new Date().toISOString().substring(0, 10), ...entry }, ...prev]);
-      setShowForm(false);
-      return;
-    }
     try {
       await CT_API.addJournalEntry(entry);
       setShowForm(false);
@@ -197,12 +187,12 @@ function ScreenJournal({ addToast }) {
   if (error)   return <ErrorState message="Erro ao carregar diário" onRetry={() => { setError(null); load(); }} />;
 
   const allEntries = entries ?? [];
-  const scatter = mock ? CT.journalScatter : allEntries.map(e => ({
+  const scatter = allEntries.map(e => ({
     x: e.emotion_before ?? e.before,
     y: e.pnl_pct ?? e.pnl,
     followed: e.plan_followed ?? e.followed,
   }));
-  const heatmap = mock ? CT.heatmap : null;
+  const heatmap = null;
   const byEmotion = metrics?.byEmotion ?? metrics?.by_emotion ?? [];
   const planFollowedPnl = metrics?.planFollowedPnl ?? metrics?.plan_followed_pnl;
   const planDeviatedPnl = metrics?.planDeviatedPnl ?? metrics?.plan_deviated_pnl;

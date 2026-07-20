@@ -178,6 +178,64 @@ export const RISK_CONFIG = {
 // GET /v1/agents — the Config screen lists agents; empty is a valid honest state.
 export const AGENTS = [];
 
+// ---- Mercado (screen_market) — análise completa por endpoint ------------------
+export function candles(pair = "BTC/USDT") {
+  const base = pair.startsWith("BTC") ? 64000 : pair.startsWith("ETH") ? 3200 : 150;
+  const now = Date.now();
+  return Array.from({ length: 70 }, (_, i) => {
+    const c = base * (1 + Math.sin(i / 6) * 0.012);
+    return { t: now - (69 - i) * 3600e3, o: c * 0.999, h: c * 1.005, l: c * 0.995, c, v: 900 + (i % 10) * 40 };
+  });
+}
+export const MARKET_INDICATORS = {
+  rsi: 57.2, macd: { macd: 42.1, signal: 38.0, hist: 4.1 }, stoch: { k: 61, d: 55 },
+  bb: { up: 65200, mid: 64500, low: 63800, pct_b: 0.62 },
+  atr: 820, atr_pct: 1.27, ema9: 64650, ema21: 64200, sma20: 64100, sma50: 63500,
+  sma200: 61000, obv_trend: "up", volume_ratio: 1.18, as_of: new Date().toISOString(),
+};
+export const MARKET_REGIME = {
+  regime: "strong_uptrend", confidence: 0.78, label: "Alta forte",
+  active_strategy: "trend_following", bars_in_regime: 6,
+  since: new Date(Date.now() - 6 * 3600e3).toISOString(),
+  last_transition: "sideways→strong_uptrend", extreme: false, as_of: new Date().toISOString(),
+};
+export const MARKET_LEVELS = {
+  support: [{ price: 63800, strength: 3 }, { price: 62500, strength: 2 }],
+  resistance: [{ price: 65200, strength: 3 }, { price: 66800, strength: 2 }],
+  fib: [62000, 63000, 64000, 65000, 66000],
+};
+export const MARKET_VOLUME_PROFILE = {
+  poc: 64100, vah: 65000, val: 63200, lvn: [63500, 64800],
+  bins: Array.from({ length: 12 }, (_, i) => ({ price: 62000 + i * 400, volume: 500 + (i % 4) * 300 })),
+};
+export const MARKET_PATTERNS = [
+  { name: "Martelo", direction: "bullish", confidence: 0.7, target: 65500 },
+];
+// ---- Diário (screen_journal) --------------------------------------------------
+export const JOURNAL = [
+  { id: 1, date: "2026-07-18", pair: "BTC/USDT", emotion_before: 3, pnl_pct: 1.8,
+    plan_followed: true, setup: "Rompimento de resistência", note: "Segui o plano." },
+  { id: 2, date: "2026-07-17", pair: "ETH/USDT", emotion_before: 5, pnl_pct: -0.9,
+    plan_followed: false, setup: "FOMO", note: "Entrei sem confirmação." },
+];
+export const JOURNAL_METRICS = {
+  by_emotion: [{ emotion: 3, avg_pnl: 1.2 }, { emotion: 5, avg_pnl: -0.6 }],
+  plan_followed_pnl: 2.4, plan_deviated_pnl: -1.1, discipline_correlation: 0.62,
+  real_win_rate: 0.58,
+};
+
+export const MARKET_SIGNAL = {
+  action: "buy", entry: 64500, stop: 63200, take_profit: 66800, position_size_pct: 2,
+  rr: 1.8, strategy: "trend_following", confidence: 0.76,
+  reason: "RSI saindo de sobrevendido + suporte forte confirmado por volume.",
+  confidence_factors: [
+    { name: "trend", weight: 0.4, score: 0.8, contribution: 0.32, note: "" },
+    { name: "momentum", weight: 0.3, score: 0.7, contribution: 0.21, note: "" },
+    { name: "volume", weight: 0.3, score: 0.75, contribution: 0.225, note: "" },
+  ],
+  valid_until: new Date(Date.now() + 3600e3).toISOString(), as_of: new Date().toISOString(),
+};
+
 // GET /v1/hitl/config — the header's autonomy badge.
 export const HITL_CONFIG = { level: 1, threshold_usdt: 100.0, label: "Assistido" };
 

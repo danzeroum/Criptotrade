@@ -44,94 +44,30 @@ function SRLevelRow({ label, price, strength, color }) {
   );
 }
 
+// Static regime legend — the set of regimes is a fixed enum (was CT.regime.options mock).
+const REGIME_OPTIONS = [
+  { key: 'strong_uptrend', label: 'Alta forte', desc: 'Tendência de alta consistente', strat: 'Trend-following' },
+  { key: 'strong_downtrend', label: 'Baixa forte', desc: 'Tendência de baixa consistente', strat: 'Trend-following (venda)' },
+  { key: 'sideways', label: 'Lateral', desc: 'Sem tendência; oscila numa faixa', strat: 'Mean-reversion / Grid' },
+  { key: 'chaotic', label: 'Caótico', desc: 'Volatilidade alta sem direção', strat: 'Aguardar (stand-aside)' },
+];
+
 function ScreenMarket({ navigate, addToast } = {}) {
-  const mock = !!window.USE_MOCK_DATA;
   const [pair, setPair] = useState(CT_PAIR.get());
   const [tf, setTf] = useState('1h');
-  const [pairs, setPairs] = useState(mock ? ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'] : null);
+  const [pairs, setPairs] = useState(null);
 
-  const mockData = useMemo(() => ({
-    candles: CT.candles.map((c, idx, arr) => ({
-      t: Date.now() - (arr.length - 1 - idx) * 3600e3,
-      o: c.open, h: c.high, l: c.low, c: c.close, v: c.volume,
-    })),
-    bb: CT.bb,
-    indicators: {
-      rsi: CT.indicators.rsi,
-      macd: CT.indicators.macd,
-      stoch: CT.indicators.stoch,
-      bb: { up: CT.bb[CT.bb.length - 1]?.up, mid: CT.bb[CT.bb.length - 1]?.mid, low: CT.bb[CT.bb.length - 1]?.low, pct_b: CT.indicators.bollPctB },
-      atr: CT.indicators.atr,
-      atr_pct: CT.indicators.atrPctOfPrice,
-      ema9: CT.indicators.ema9,
-      ema21: CT.indicators.ema21,
-      sma20: CT.indicators.sma20,
-      sma50: CT.indicators.sma50,
-      sma200: CT.indicators.sma200,
-      obv_trend: CT.indicators.obvTrend,
-      volume_ratio: CT.indicators.volumeRatio,
-      as_of: new Date().toISOString(),
-    },
-    regime: {
-      regime: CT.regime.current,
-      confidence: CT.regime.confidence,
-      label: CT.regime.label,
-      active_strategy: CT.regime.strategy,
-      bars_in_regime: 6,
-      since: new Date(Date.now() - 6 * 3600e3).toISOString(),
-      last_transition: 'strong_uptrend→sideways',
-      extreme: CT.regime.extreme,
-      as_of: new Date().toISOString(),
-    },
-    levels: {
-      support: CT.sr.support.map(s => ({ price: s.price, strength: s.strength })),
-      resistance: CT.sr.resistance.map(r => ({ price: r.price, strength: r.strength })),
-      fib: CT.sr.fib.map(f => f.price),
-    },
-    volumeProfile: {
-      poc: CT.volumeProfile.poc,
-      vah: CT.volumeProfile.vah,
-      val: CT.volumeProfile.val,
-      lvn: CT.volumeProfile.lvn,
-      bins: CT.volumeProfile.bins,
-    },
-    patterns: CT.patterns.map(p => ({
-      name: p.name,
-      direction: p.dir === 'up' ? 'bullish' : p.dir === 'down' ? 'bearish' : 'neutral',
-      confidence: p.confidence,
-      target: p.target,
-    })),
-    signal: {
-      action: CT.signal.action,
-      entry: CT.signal.entry,
-      stop: CT.signal.stop,
-      take_profit: CT.signal.takeProfit,
-      position_size_pct: CT.signal.sizePct,
-      rr: CT.signal.rr,
-      strategy: CT.signal.strategy,
-      confidence: CT.signal.confidence,
-      reason: 'RSI saindo de sobrevendido + suporte forte confirmado por volume.',
-      confidence_factors: (CT.confidenceBreakdown || []).map(f => ({
-        name: f.key, weight: f.weight, score: f.score,
-        contribution: +(f.weight * f.score).toFixed(4), note: '',
-      })),
-      valid_until: new Date(Date.now() + 3600e3).toISOString(),
-      as_of: new Date().toISOString(),
-    },
-    confluence: CT.confluence,
-  }), []);
-
-  const [candles,       setCandles]       = useState(mock ? mockData.candles : null);
-  const [bb,            setBb]            = useState(mock ? mockData.bb : null);
-  const [indicators,    setIndicators]    = useState(mock ? mockData.indicators : null);
-  const [regime,        setRegime]        = useState(mock ? mockData.regime : null);
-  const [levels,        setLevels]        = useState(mock ? mockData.levels : null);
-  const [volumeProfile, setVolumeProfile] = useState(mock ? mockData.volumeProfile : null);
-  const [patterns,      setPatterns]      = useState(mock ? mockData.patterns : null);
-  const [signal,        setSignal]        = useState(mock ? mockData.signal : null);
-  const [confluence,    setConfluence]    = useState(mock ? mockData.confluence : null);  // M12
+  const [candles,       setCandles]       = useState(null);
+  const [bb,            setBb]            = useState(null);
+  const [indicators,    setIndicators]    = useState(null);
+  const [regime,        setRegime]        = useState(null);
+  const [levels,        setLevels]        = useState(null);
+  const [volumeProfile, setVolumeProfile] = useState(null);
+  const [patterns,      setPatterns]      = useState(null);
+  const [signal,        setSignal]        = useState(null);
+  const [confluence,    setConfluence]    = useState(null);  // M12
   const [ticker,        setTicker]        = useState(null);
-  const [loading,       setLoading]       = useState(!mock);
+  const [loading,       setLoading]       = useState(true);
   const [error,         setError]         = useState(null);
   const [auto,          setAuto]          = useState(false);   // M3: auto-refresh
   const [showFactors,   setShowFactors]   = useState(false);   // M6: confidence breakdown
@@ -142,7 +78,6 @@ function ScreenMarket({ navigate, addToast } = {}) {
   const effPair = effectivePair(pair, pairs);
 
   const load = () => {
-    if (mock) return;
     setLoading(true);
     Promise.all([
       CT_API.getCandles(effPair, tf, 70),
@@ -173,7 +108,7 @@ function ScreenMarket({ navigate, addToast } = {}) {
   // Source the dropdown from the allowlist and let other screens (the header)
   // drive the pair too. The store is the single source of truth for `pair`.
   useEffect(() => {
-    if (!mock) loadPairs().then(setPairs);
+    loadPairs().then(setPairs);
     return CT_PAIR.subscribe(setPair);
   }, []);
 
@@ -181,7 +116,7 @@ function ScreenMarket({ navigate, addToast } = {}) {
 
   // M3: auto-refresh on an interval, without flashing the full-screen spinner.
   useEffect(() => {
-    if (mock || !auto) return;
+    if (!auto) return;
     const id = setInterval(load, 30000);
     return () => clearInterval(id);
   }, [auto, effPair, tf]);
@@ -191,7 +126,7 @@ function ScreenMarket({ navigate, addToast } = {}) {
 
   // M13: fire stored price alerts when the live ticker crosses them (client-side MVP).
   useEffect(() => {
-    if (mock || ticker?.last == null) return;
+    if (ticker?.last == null) return;
     let list;
     try { list = JSON.parse(localStorage.getItem('ct.alerts') || '[]'); } catch (_) { return; }
     if (!Array.isArray(list) || !list.length) return;
@@ -211,7 +146,6 @@ function ScreenMarket({ navigate, addToast } = {}) {
   if (loading && !candles) return <LoadingState label="Carregando análise de mercado…" />;
   if (error)   return <ErrorState message="Erro ao carregar mercado" onRetry={() => { setError(null); load(); }} />;
 
-  const sym = CT.symbol;
   const lastClose = candles?.length ? candles[candles.length - 1].c : null;
   const ind = indicators;
 
@@ -219,7 +153,6 @@ function ScreenMarket({ navigate, addToast } = {}) {
   const submitOrder = () => {
     setOrdering(false);
     if (!signal || signal.action === 'hold' || signal.stop == null) return;
-    if (mock) { addToast?.('Modo demo: ordem paper não enviada (sem backend).', 'check'); return; }
     const notional = (signal.position_size_pct ?? 2) / 100 * 10000;
     const body = {
       pair: effPair,
@@ -296,7 +229,7 @@ function ScreenMarket({ navigate, addToast } = {}) {
           <KPI label="Preço atual" value={lastClose} format="usd" icon="dollar" />
         </div>
         <div className="card">
-          <KPI label="Variação 24h" value={mock ? sym?.change24h : ticker?.change_24h_pct} format="pct_direct" delta={mock ? sym?.change24h : ticker?.change_24h_pct} icon="trending" />
+          <KPI label="Variação 24h" value={ticker?.change_24h_pct} format="pct_direct" delta={ticker?.change_24h_pct} icon="trending" />
         </div>
         <div className="card">
           <KPI label="RSI" value={ind?.rsi != null ? fmtNum(ind.rsi, 1) : null} sub={ind?.rsi < 30 ? 'Sobrevendido' : ind?.rsi > 70 ? 'Sobrecomprado' : 'Neutro'} />
@@ -642,7 +575,7 @@ function ScreenMarket({ navigate, addToast } = {}) {
               </div>
             )}
             <div className="grid grid-regime4" style={{ gap: 0 }}>
-              {CT.regime.options.map(opt => (
+              {REGIME_OPTIONS.map(opt => (
                 <div
                   key={opt.key}
                   style={{

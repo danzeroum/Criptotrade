@@ -82,10 +82,8 @@ test("11c — Config: criar grupo, atribuir par e excluir devolve a 'sem grupo'"
 });
 
 test("11c — seletor agrupa os operados pela watchlist", async ({ page }) => {
-  // Mercado ainda não de-mockado (5.3b) — este teste segue no caminho mock até lá;
-  // o fixture do beforeEach fica dormente (o mock não dispara fetch de /api).
+  // Mercado de-mockado na 5.3b → este teste passa a rodar no fixture (beforeEach).
   await page.addInitScript(() => {
-    window.USE_MOCK_DATA = true;
     localStorage.setItem("ct.groups", JSON.stringify({
       names: ["majors"], members: { "BTC/USDT": "majors" },
     }));
