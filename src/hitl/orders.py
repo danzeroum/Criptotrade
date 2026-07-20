@@ -20,6 +20,7 @@ process events, fills, HITL approvals) still goes to the JSONL ledger in 5a.
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import time
 import uuid
@@ -31,6 +32,8 @@ from typing import Any, Callable, Dict, List, Optional
 from src.core.db import connection, init_db
 from src.core.ledger import TradingLedger
 from src.safety.guardrails import GuardrailSystem
+
+logger = logging.getLogger(__name__)
 
 
 class OrderStatus(str, Enum):
@@ -302,6 +305,23 @@ class OrderStore:
             return conn.execute(
                 "SELECT COUNT(*) FROM orders WHERE status='pending'"
             ).fetchone()[0]
+
+    def clear(self) -> int:
+        """Delete every order; return how many were removed (0 on error).
+
+        Operational reset (scripts/reset_paper_state.py): the ``orders`` table is
+        live operational state — the HITL/Orders view — NOT the audit trail (that
+        is ``ledger_events`` in the ledger db, left intact). Best-effort: never
+        raises, mirroring :meth:`PositionStore.clear`.
+        """
+        try:
+            with connection(self._db_path) as conn:
+                n = conn.execute("SELECT COUNT(*) FROM orders").fetchone()[0]
+                conn.execute("DELETE FROM orders")
+                return int(n)
+        except Exception:  # pragma: no cover - an operational reset must not raise
+            logger.warning("OrderStore.clear failed", exc_info=True)
+            return 0
 
     # ------------------------------------------------------------------ bridge
     async def wait_for_decision(self, order_id: str, timeout: Optional[float] = None) -> bool:
