@@ -89,6 +89,26 @@ export function deskSummary() {
   };
 }
 
+// Desk summary com N linhas geradas (desk.spec: hint de heatmap aparece com >10 pares).
+export function deskSummaryN(n) {
+  const regimes = ["strong_uptrend", "strong_downtrend", "sideways", "chaotic", "unknown"];
+  const labels = { strong_uptrend: "Alta forte", strong_downtrend: "Baixa forte", sideways: "Lateral", chaotic: "Caótico", unknown: "Desconhecido" };
+  const iso = (minsAgo) => new Date(Date.now() - minsAgo * 60000).toISOString();
+  const rows = Array.from({ length: n }, (_, i) => {
+    const regime = regimes[i % regimes.length];
+    const action = ["buy", "sell", null][i % 3];
+    return {
+      symbol: `PAIR${i}/USDT`, last: 100 + i, change_24h_pct: ((i % 7) - 3) * 1.1,
+      regime, regime_label: labels[regime], signal_action: action,
+      signal_confidence: action ? 0.6 + (i % 4) * 0.1 : null,
+      position_side: null, position_qty: null, position_entry: null, unrealized_pnl: null,
+      as_of: iso(1 + (i % 5)), last_cycle_at: iso(1 + (i % 5)), paused: false,
+    };
+  });
+  return { rows, slots_used: 0, slots_max: 3, capital_allocated: 0, capital_free: 10000,
+           signals_active: rows.filter((r) => (r.signal_confidence || 0) >= 0.6).length };
+}
+
 // GET /v1/onboarding/status — completed so the first-run redirect stays quiet.
 // GET /v1/onboarding/status — baseline COMPLETED: o boot dos outros specs não é
 // sequestrado. O cenário pending (onboarding.spec) é servido stateful por-teste.

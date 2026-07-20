@@ -86,7 +86,6 @@ window.Sidebar = Sidebar;
 // fmtPrice now lives in components.jsx (window.fmtPrice) — single source of truth (M7).
 
 function Header({ onToggleAlerts, alertCount, auth, onLock, onLogout, onNavigate }) {
-  const mock = !!window.USE_MOCK_DATA;
   const [health, setHealth] = useState(null);
   const [hitl, setHitl] = useState(null);
   const [pair, setPair] = useState(CT_PAIR.get());
@@ -106,16 +105,16 @@ function Header({ onToggleAlerts, alertCount, auth, onLock, onLogout, onNavigate
   const isAll = pair === 'ALL';
 
   useEffect(() => {
-    if (mock || isAll) { setTicker(null); return; }
+    if (isAll) { setTicker(null); return; }
     let alive = true;
     CT_API.getTicker(pair)
       .then(t => { if (alive) setTicker(t); })
       .catch(() => { if (alive) setTicker(null); });
     return () => { alive = false; };
-  }, [pair, mock, isAll]);
+  }, [pair, isAll]);
 
-  const price = ticker?.last ?? CT.symbol?.price ?? 65200;
-  const change = ticker?.change_24h_pct ?? CT.symbol?.change24h ?? 0;
+  const price = ticker?.last ?? 65200;
+  const change = ticker?.change_24h_pct ?? 0;
 
   return (
     <header className="header">

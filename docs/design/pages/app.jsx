@@ -76,7 +76,7 @@ class GlobalBoundary extends React.Component {
 
 // ---- Alert Drawer ----
 function AlertDrawer({ onClose }) {
-  const [alerts, setAlerts] = useState(CT.alerts ?? []);
+  const [alerts, setAlerts] = useState([]);  // populado pelo stream SSE /v1/alerts
   const esRef = useRef(null);
 
   useEffect(() => {
@@ -179,10 +179,10 @@ function App() {
   };
 
   const [screen,       setScreen]       = useState(getInitialScreen);
-  const [pendingCount, setPendingCount] = useState(CT.pendingOrders?.length ?? 0);
+  const [pendingCount, setPendingCount] = useState(0);  // poll de GET /v1/orders
   const [showAlerts,   setShowAlerts]   = useState(false);
   const [showTweaks,   setShowTweaks]   = useState(false);
-  const [alertCount,   setAlertCount]   = useState(CT.alerts?.length ?? 0);
+  const [alertCount,   setAlertCount]   = useState(0);  // stream SSE /v1/alerts
   const [toasts,       setToasts]       = useState([]);
   // A1 auth gate: 'loading' → probe /v1/auth/me; 'login' → auth screens instead
   // of the shell; 'ready' → shell (kind 'off'/'user'/'demo'). Locked = overlay.
@@ -205,8 +205,8 @@ function App() {
   useEffect(() => CT_PREFS.subscribe(() => setPrefsRev(n => n + 1)), []);
 
   // A10: first admin login with an incomplete guide opens it — ONCE per boot,
-  // never hijacking an explicit deep link. Mock default is "completed" so the
-  // e2e suite boots unchanged; MOCK_ONBOARDING='pending' opts in.
+  // never hijacking an explicit deep link. Real: GET /v1/onboarding/status; o e2e
+  // serve completed por padrão (boot inalterado) e o cenário pending pelo fixture.
   const initialHashRef = useRef(window.location.hash.replace('#', ''));
   useEffect(() => {
     if (!booted || auth.kind !== 'user' || auth.user?.role !== 'admin') return;
@@ -215,10 +215,6 @@ function App() {
     const open = (st) => {
       if (st && !st.completed && !st.dismissed) navigate('onboarding');
     };
-    if (window.USE_MOCK_DATA) {
-      if (window.MOCK_ONBOARDING === 'pending') open({ completed: false, dismissed: false });
-      return;
-    }
     CT_API.getOnboarding().then(open).catch(() => {});
   }, [booted, auth.kind]);
 
@@ -232,11 +228,11 @@ function App() {
     // Only a bare boot (empty hash) is a candidate — an explicit #overview (or any
     // deep link) is respected, never hijacked.
     if (initialHashRef.current) return;
-    const onboardingWins = window.USE_MOCK_DATA
-      ? (window.MOCK_ONBOARDING === 'pending' && auth.kind === 'user' && auth.user?.role === 'admin')
-      : false;  // real onboarding runs in its own effect; the hash guard below yields
-    if (onboardingWins) return;
     deskLandingRef.current = true;
+    // Determinístico vs. o onboarding (que roda no effect acima): relemos o hash na
+    // resolução — se o onboarding já navegou (#onboarding), a Mesa cede; o auto-open
+    // não tem guarda de hash e sobrescreve se a Mesa tiver ido primeiro. Ambas as
+    // ordens de resolução terminam em #onboarding quando o guia está incompleto.
     loadPairsRich().then((r) => {
       const operados = (r && r.operados) || [];
       const h = window.location.hash;

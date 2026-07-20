@@ -41,7 +41,36 @@ await mkdir(vendor, { recursive: true });
 //    arquivos (componentes, telas, CT, CT_API) sao expostos via window.* dentro
 //    de cada arquivo, entao isolar os locais nao quebra as refs bare (<Badge/>).
 const jsx = (await readdir(here)).filter((f) => f.endsWith(".jsx")).sort();
-const js = ["apiClient.js", "data.js"].filter((f) => existsSync(path.join(here, f)));
+const js = ["apiClient.js"].filter((f) => existsSync(path.join(here, f)));
+
+// 2b. Guard anti-regressão de mocks (limpeza de mocks, fatia 5.7): a PRODUÇÃO nunca
+//     pode referenciar o objeto mock global (CT.*), as flags USE_MOCK_DATA/MOCK_*,
+//     nem o data.js deletado — o mock vive SÓ em e2e/fixtures (fora de readdir(here),
+//     que só lê os fontes top-level, não a pasta e2e/). Falha o build e o CI
+//     (console-build) apontando a diretriz. O seam de teste do boundary usa
+//     window.__E2E_THROW_SCREEN (sem prefixo MOCK_/CT.), então não é pego aqui.
+const MOCK_GUARD = [
+  [/\bUSE_MOCK_DATA\b/, "USE_MOCK_DATA"],
+  [/\bMOCK_[A-Z][A-Z0-9_]*/, "MOCK_* flag"],
+  [/\bCT\.[a-zA-Z]/, "CT.* mock global — use os stores reais CT_API/CT_AUTH/CT_PAIR/CT_PREFS"],
+  [/\bdata\.js\b/, "data.js (deletado)"],
+];
+const guardHits = [];
+for (const f of [...jsx, ...js]) {
+  (await readFile(path.join(here, f), "utf8")).split("\n").forEach((line, i) => {
+    for (const [re, label] of MOCK_GUARD) {
+      if (re.test(line)) guardHits.push(`  ${f}:${i + 1}  [${label}]  ${line.trim()}`);
+    }
+  });
+}
+if (guardHits.length) {
+  throw new Error(
+    "[mock-guard] referência a mock proibida na produção (o mock vive só em " +
+    "e2e/fixtures — limpeza de mocks 5.7):\n" + guardHits.join("\n"),
+  );
+}
+log(`mock-guard OK: ${jsx.length + js.length} fontes sem USE_MOCK_DATA/MOCK_*/CT.*/data.js`);
+
 log(`transpilando ${jsx.length} .jsx + ${js.length} .js (minify)`);
 await build({
   entryPoints: [...jsx, ...js].map((f) => path.join(here, f)),

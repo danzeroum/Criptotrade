@@ -2,9 +2,12 @@
 // mixed states (open position, active signal, awaiting), so we assert the grid,
 // the summary row, and the row → Mercado drill-down (sets the global pair).
 import { test, expect } from "@playwright/test";
+import { installMockApi } from "./fixtures/mockApi.js";
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
+  // A Mesa chama GET /v1/desk/summary; o fixture serve as 5 linhas ricas (estados
+  // mistos, BNB paused) que antes vinham do _mockDesk() removido.
+  await installMockApi(page, { authMode: "user", role: "admin" });
 });
 
 test("Mesa is the landing and shows every operated pair (aceite 1)", async ({ page }) => {
@@ -95,9 +98,8 @@ test("11c — heatmap respeita o badge PAUSADO", async ({ page }) => {
 });
 
 test("11c — hint aparece com muitos pares (pós-filtro) e some ao dispensar", async ({ page }) => {
-  await page.addInitScript(() => {
-    window.MOCK_OPERATED = Array.from({ length: 14 }, (_, i) => `PAIR${i}/USDT`);
-  });
+  // 14 linhas no desk summary → o hint de heatmap dispara (visible.length > 10).
+  await installMockApi(page, { authMode: "user", role: "admin", desk: 14 });
   await page.goto("/#desk");
   const hint = page.getByText(/experimente o modo heatmap/);
   await expect(hint).toBeVisible();

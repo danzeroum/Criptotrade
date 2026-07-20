@@ -44,7 +44,7 @@ function SRLevelRow({ label, price, strength, color }) {
   );
 }
 
-// Static regime legend — the set of regimes is a fixed enum (was CT.regime.options mock).
+// Static regime legend — the set of regimes is a fixed enum (antes vinha do mock global).
 const REGIME_OPTIONS = [
   { key: 'strong_uptrend', label: 'Alta forte', desc: 'Tendência de alta consistente', strat: 'Trend-following' },
   { key: 'strong_downtrend', label: 'Baixa forte', desc: 'Tendência de baixa consistente', strat: 'Trend-following (venda)' },
