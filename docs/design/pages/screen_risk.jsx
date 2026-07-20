@@ -28,59 +28,17 @@ function DrawdownRow({ label, value, limit, status, action }) {
 }
 
 function ScreenRisk() {
-  const mock = !!window.USE_MOCK_DATA;
-
-  const mockProtections = [
-    { scope: 'daily',   value: CT.drawdown.daily.value,   limit: CT.drawdown.daily.limit,   status: CT.drawdown.daily.status,   action: CT.drawdown.daily.action },
-    { scope: 'weekly',  value: CT.drawdown.weekly.value,  limit: CT.drawdown.weekly.limit,  status: CT.drawdown.weekly.status,  action: CT.drawdown.weekly.action },
-    { scope: 'monthly', value: CT.drawdown.monthly.value, limit: CT.drawdown.monthly.limit, status: CT.drawdown.monthly.status, action: CT.drawdown.monthly.action },
-  ];
-  const mockCB = {
-    status:            CT.circuitBreaker.status === 'closed' ? 'armed' : 'triggered',
-    triggers:          CT.circuitBreaker.triggers.map(t => t.key),
-    cooldown_hours:    CT.circuitBreaker.cooldownHours,
-    cooldown_remaining:CT.circuitBreaker.cooldownRemaining,
-  };
-  const mockKelly = {
-    win_rate:         CT.kelly.winRate,
-    avg_win_pct:      CT.kelly.avgWinPct,
-    avg_loss_pct:     CT.kelly.avgLossPct,
-    full_kelly:       CT.kelly.fullKelly,
-    fraction:         CT.kelly.fraction,
-    fractional_kelly: CT.kelly.fractionalKelly,
-    risk_of_ruin:     CT.kelly.riskOfRuin,
-    trades:           CT.kelly.trades,
-  };
-  const mockEquity = CT.equity.map(e => ({ t: String(e.i), equity: e.equity, drawdown: e.dd }));
-  // N3: slot occupancy + per-pair exposure and the "why no order" feed.
-  const mockSlots = {
-    slots_used: 2, slots_max: 3, capital: 10000, capital_free: 7984,
-    slots: [
-      { symbol: 'BTC/USDT', side: 'buy', notional: 1836, opened_at: null },
-      { symbol: 'SOL/USDT', side: 'buy', notional: 180, opened_at: null },
-    ],
-    exposure: [
-      { symbol: 'BTC/USDT', notional: 1836, pct_of_capital: 18.36 },
-      { symbol: 'SOL/USDT', notional: 180, pct_of_capital: 1.8 },
-    ],
-  };
-  const mockSkips = [
-    { symbol: 'ETH/USDT', reason: 'confidence_low', count: 4, confidence: 0.42 },
-    { symbol: 'XRP/USDT', reason: 'no_slot', count: 2 },
-    { symbol: 'BNB/USDT', reason: 'insufficient_capital', count: 1 },
-  ];
-
-  const [protections, setProtections] = useState(mock ? mockProtections : null);
-  const [cb,          setCb]          = useState(mock ? mockCB : null);
-  const [kelly,       setKelly]       = useState(mock ? mockKelly : null);
-  const [equity,      setEquity]      = useState(mock ? mockEquity : null);
-  const [slots,       setSlots]       = useState(mock ? mockSlots : null);
-  const [skips,       setSkips]       = useState(mock ? mockSkips : null);
-  const [loading,     setLoading]     = useState(!mock);
+  const [protections, setProtections] = useState(null);
+  const [cb,          setCb]          = useState(null);
+  const [kelly,       setKelly]       = useState(null);
+  const [equity,      setEquity]      = useState(null);
+  const [slots,       setSlots]       = useState(null);
+  const [skips,       setSkips]       = useState(null);
+  const [metrics,     setMetrics]     = useState(null);
+  const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState(null);
 
   useEffect(() => {
-    if (mock) return;
     setLoading(true);
     Promise.all([
       CT_API.getProtections(),
@@ -89,18 +47,20 @@ function ScreenRisk() {
       CT_API.getEquity('90d'),
       CT_API.getSlots().catch(() => null),
       CT_API.getSkips().catch(() => []),
+      CT_API.getMetrics('30d').catch(() => null),
     ])
-      .then(([p, c, k, eq, sl, sk]) => {
+      .then(([p, c, k, eq, sl, sk, m]) => {
         setProtections(Array.isArray(p) ? p : []);
         setCb(c);
         setKelly(k);
         setEquity(Array.isArray(eq) ? eq : []);
         setSlots(sl);
         setSkips(Array.isArray(sk) ? sk : []);
+        setMetrics(m);
         setLoading(false);
       })
       .catch(e => { setError(e); setLoading(false); });
-  }, [mock]);
+  }, []);
 
   const SKIP_META = {
     confidence_low:       { label: 'Confiança baixa',     cls: 'badge-warn' },
@@ -113,7 +73,15 @@ function ScreenRisk() {
   if (loading) return <LoadingState label="Carregando dados de risco…" />;
   if (error)   return <ErrorState message="Erro ao carregar risco" onRetry={() => { setError(null); setLoading(true); }} />;
 
-  const cap = CT.capital;
+  // Capital KPIs from the real portfolio metrics (was the CT.capital mock).
+  const cap = metrics ? {
+    value: metrics.portfolio_value_usdt,
+    pnlPct: (metrics.pnl_period_pct ?? 0) * 100,
+    exposurePct: (metrics.exposure_pct ?? 0) * 100,
+    openPositions: metrics.open_positions,
+  } : null;
+  // Header badge derived from the real protections (was CT.drawdown.overallStatus).
+  const overallStatus = (protections || []).some(p => p.status && p.status !== 'ok') ? 'warn' : 'ok';
   const cbArmed = cb?.status === 'armed';
   const kellyOk = kelly?.data_quality === 'ok';
   const riskOfRuinHigh = kellyOk && kelly.risk_of_ruin != null && kelly.risk_of_ruin > 5;
@@ -125,8 +93,8 @@ function ScreenRisk() {
           <h1 className="page-title">Gestão de Risco</h1>
           <div className="page-sub">Proteções, circuit breaker, Kelly e curva de capital</div>
         </div>
-        <Badge variant={CT.drawdown.overallStatus === 'ok' ? 'ok' : 'warn'}>
-          {CT.drawdown.overallStatus}
+        <Badge variant={overallStatus === 'ok' ? 'ok' : 'warn'}>
+          {overallStatus}
         </Badge>
       </div>
 

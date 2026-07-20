@@ -95,14 +95,88 @@ export const ONBOARDING = { completed: true, dismissed: false, steps: [] };
 // GET /health — the header's connectivity dot.
 export const HEALTH = { status: "ok", paper_trading: true, dry_run: false };
 
-// GET /v1/metrics — Visão Geral KPIs. has_data:false → the honest "no trades yet"
-// empty state (the overview mounts briefly before the Mesa-landing redirect).
+// GET /v1/metrics — portfolio KPIs (overview + the Risco capital cards).
 export function metrics() {
-  return { has_data: false, calculated_at: new Date().toISOString() };
+  return {
+    has_data: true, calculated_at: new Date().toISOString(),
+    portfolio_value_usdt: 10842.15, pnl_period_usdt: 842.15, pnl_period_pct: 0.0842,
+    total_trades: 27, open_positions: 2, exposure_pct: 0.201,
+    sharpe_ratio: 1.42, win_rate: 0.63, max_drawdown: 0.087, profit_factor: 1.9,
+  };
 }
 
-// GET /v1/metrics/equity — the overview equity curve (empty = no history yet).
+// GET /v1/metrics/equity — the equity curve (empty = no history yet).
 export const EQUITY = [];
+
+// ---- Risco (screen_risk) — ported from the screen's inline mock blocks --------
+export const RISK_PROTECTIONS = [
+  { scope: "daily",   value: 1.2, limit: 4.0,  status: "ok", action: "none" },
+  { scope: "weekly",  value: 3.1, limit: 8.0,  status: "ok", action: "none" },
+  { scope: "monthly", value: 5.4, limit: 15.0, status: "ok", action: "none" },
+];
+export const RISK_CIRCUIT_BREAKER = {
+  status: "armed", triggers: [], cooldown_hours: 24, cooldown_remaining: 0,
+};
+export const RISK_KELLY = {
+  win_rate: 0.63, avg_win_pct: 2.1, avg_loss_pct: 1.2, full_kelly: 0.28,
+  fraction: 0.5, fractional_kelly: 0.14, risk_of_ruin: 1.8, trades: 27, data_quality: "ok",
+};
+export const RISK_SLOTS = {
+  slots_used: 2, slots_max: 3, capital: 10000, capital_free: 7984,
+  slots: [
+    { symbol: "BTC/USDT", side: "buy", notional: 1836, opened_at: null },
+    { symbol: "SOL/USDT", side: "buy", notional: 180, opened_at: null },
+  ],
+  exposure: [
+    { symbol: "BTC/USDT", notional: 1836, pct_of_capital: 18.36 },
+    { symbol: "SOL/USDT", notional: 180, pct_of_capital: 1.8 },
+  ],
+};
+export const RISK_SKIPS = [
+  { symbol: "ETH/USDT", reason: "confidence_low", count: 4, confidence: 0.42 },
+  { symbol: "XRP/USDT", reason: "no_slot", count: 2 },
+  { symbol: "BNB/USDT", reason: "insufficient_capital", count: 1 },
+];
+
+// GET /v1/process/events (Observabilidade) — XES cycle traces with per-symbol
+// durations (N6). Ported from screen_observability._mockProcessEvents.
+export function processEvents() {
+  const now = Date.now();
+  const iso = (sAgo) => new Date(now - sAgo * 1000).toISOString();
+  const cyc = (id, sAgo, perSymbol, failed) => {
+    const syms = Object.keys(perSymbol);
+    const dur = Object.values(perSymbol).reduce((a, b) => a + b, 0);
+    const evs = [
+      { case_id: id, activity: "agent_cycle_started", actor: "orchestrator",
+        timestamp: iso(sAgo + 1), attributes: { symbols: syms } },
+      { case_id: id, activity: "agent_cycle_completed", actor: "orchestrator",
+        timestamp: iso(sAgo), attributes: {
+          duration_ms: dur, ran: ["strategy", "risk"], failures: failed ? 1 : 0,
+          per_symbol: perSymbol } },
+    ];
+    if (failed) evs.push({ case_id: id, activity: "agent_cycle_failed", actor: "strategy",
+      timestamp: iso(sAgo + 0.5), attributes: { symbol: "ETH/USDT", error: "timeout" } });
+    return evs;
+  };
+  return [
+    ...cyc("cycle_a1b2", 12, { "BTC/USDT": 812, "ETH/USDT": 640, "SOL/USDT": 590 }, false),
+    ...cyc("cycle_c3d4", 74, { "BTC/USDT": 903, "ETH/USDT": 1180, "SOL/USDT": 610 }, true),
+    ...cyc("cycle_e5f6", 135, { "BTC/USDT": 780, "ETH/USDT": 655, "SOL/USDT": 602 }, false),
+  ];
+}
+
+// ---- Config (screen_settings) — ported from the screen's inline mock blocks ----
+export const SYS_CONFIG = {
+  exchange: "binance", dry_run: true, initial_capital: 10000,
+  orchestrator_interval_seconds: 60, autonomy_level: 1, app_env: "development",
+};
+export const RISK_CONFIG = {
+  max_position_size_pct: 5, stop_loss_default_pct: 3, take_profit_default_pct: 6,
+  max_daily_loss_pct: 4, max_weekly_loss_pct: 8, max_monthly_loss_pct: 15,
+  kelly_fraction: 0.5, circuit_breaker_enabled: true,
+};
+// GET /v1/agents — the Config screen lists agents; empty is a valid honest state.
+export const AGENTS = [];
 
 // GET /v1/hitl/config — the header's autonomy badge.
 export const HITL_CONFIG = { level: 1, threshold_usdt: 100.0, label: "Assistido" };

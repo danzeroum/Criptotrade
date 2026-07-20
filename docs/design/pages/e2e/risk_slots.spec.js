@@ -1,9 +1,10 @@
 // N3 — Risco ganha slots + exposição por par e o feed "decisões do ciclo"
-// (por que um sinal não virou ordem). Mock data.
+// (por que um sinal não virou ordem). Dados servidos pelo fixture page.route.
 import { test, expect } from "@playwright/test";
+import { installMockApi } from "./fixtures/mockApi.js";
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
+  await installMockApi(page, { authMode: "user" });
 });
 
 test("slots + exposição por par aparecem no Risco", async ({ page }) => {

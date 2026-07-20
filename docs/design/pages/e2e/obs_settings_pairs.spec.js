@@ -1,9 +1,12 @@
 // Fase 10 · N6 + N8¹ — dimensão de símbolo na Observabilidade e a seção
-// somente-leitura "Pares operados" nas Configurações. Mock data.
+// "Pares operados" nas Configurações. Dados servidos pelo fixture page.route
+// (Obs + Config de-mockadas na 5.3). O último teste (seletor no Mercado) segue
+// no caminho USE_MOCK_DATA até o Mercado ser de-mockado na 5.3b.
 import { test, expect } from "@playwright/test";
+import { installMockApi } from "./fixtures/mockApi.js";
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
+  await installMockApi(page, { authMode: "user" });
 });
 
 test("N6 — Observabilidade: duração por símbolo no traço do ciclo", async ({ page }) => {
@@ -79,7 +82,10 @@ test("11c — Config: criar grupo, atribuir par e excluir devolve a 'sem grupo'"
 });
 
 test("11c — seletor agrupa os operados pela watchlist", async ({ page }) => {
+  // Mercado ainda não de-mockado (5.3b) — este teste segue no caminho mock até lá;
+  // o fixture do beforeEach fica dormente (o mock não dispara fetch de /api).
   await page.addInitScript(() => {
+    window.USE_MOCK_DATA = true;
     localStorage.setItem("ct.groups", JSON.stringify({
       names: ["majors"], members: { "BTC/USDT": "majors" },
     }));
