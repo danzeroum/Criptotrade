@@ -73,12 +73,44 @@ async def test_manual_approval_completes_to_filled(tmp_path):
     pending = store.list(status=OrderStatus.pending)
     assert len(pending) == 1
     assert pending[0].pair == "BTC/USDT"  # follow-up #2: symbol injected, not UNKNOWN
+    assert pending[0].confidence == 0.9   # Fix #3: signal confidence reaches the order
 
     # The "API" approves on the shared store; the loop executes and marks filled.
     store.resolve(pending[0].id, approved=True, operator="daniel")
     result = await asyncio.wait_for(task, timeout=2.0)
     assert result["success"] is True
     assert store.get(pending[0].id).status == OrderStatus.filled
+
+
+@pytest.mark.asyncio
+async def test_order_carries_signal_confidence(tmp_path):
+    # Fix #3: confidence lives as a SIBLING of the signal dict, so the order path
+    # (make_approval_handler → Order.confidence → OrderOut) read 0.0 for every order
+    # ("Conf. 0%"). The order must now carry the real value. Regression: 0.83, not 0.0.
+    ledger = TradingLedger(tmp_path / "trades.jsonl")
+    store = OrderStore(
+        ledger, threshold_provider=lambda: 0.0,  # nothing auto-approves → stays pending
+        db_path=str(tmp_path / "orders.db"), poll_interval=0.02,
+    )
+    orchestrator = SquadOrchestrator(
+        _DummyExchange(), approval_handler=make_approval_handler(store),
+    )
+    orchestrator.ledger = ledger
+
+    async def _strategy(task):
+        sig = dict(_PIPELINE_BUY)
+        sig["symbol"] = task["symbol"]
+        return {"success": True, "agent": "strategy", "signal": sig,
+                "confidence": 0.83, "analysis": {}}
+    orchestrator.strategy_agent.execute = _strategy
+
+    task = asyncio.create_task(orchestrator.analyze_and_trade("BTC/USDT"))
+    await asyncio.sleep(0.05)
+    pending = store.list(status=OrderStatus.pending)
+    assert len(pending) == 1
+    assert pending[0].confidence == 0.83  # was 0.0 before the fix
+    store.resolve(pending[0].id, approved=True, operator="daniel")
+    await asyncio.wait_for(task, timeout=2.0)
 
 
 @pytest.mark.asyncio

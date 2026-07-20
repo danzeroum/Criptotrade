@@ -425,6 +425,15 @@ class SquadOrchestrator:
                 "slots_open": len(self._open_positions),
             }
 
+        # Fix #3 — stamp the signal's confidence onto the order-bound payload. It
+        # lives as a SIBLING of signal (strategy_result["confidence"]), so the order
+        # path (make_approval_handler → Order.confidence → OrderOut) read 0.0 for
+        # every order ("Conf. 0%" on the Orders/HITL screens). Set it here — after
+        # log_signal (signal_generated stays pristine), before the HITL handler — so
+        # it also covers auto-approved orders (same handler). Mirrors the existing
+        # signal["symbol"] setdefault above.
+        strategy_result["signal"]["confidence"] = strategy_result["confidence"]
+
         logger.info("⏸️  HITL approval required")
         human_approved = await self._request_human_approval(strategy_result["signal"])
 
