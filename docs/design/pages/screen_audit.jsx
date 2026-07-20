@@ -121,28 +121,17 @@ function AuditDetailModal({ event, onClose }) {
 }
 
 function ScreenAudit({ addToast }) {
-  const mock = !!window.USE_MOCK_DATA;
   const empty = { action: '', actor: '', entity: '', from: '', to: '' };
   const [draft,    setDraft]    = useAudState(empty);   // filter inputs
   const [filters,  setFilters]  = useAudState(empty);   // applied filters
   const [page,     setPage]     = useAudState(0);
   const [events,   setEvents]   = useAudState(null);
   const [total,    setTotal]    = useAudState(0);
-  const [loading,  setLoading]  = useAudState(!mock);
+  const [loading,  setLoading]  = useAudState(true);
   const [error,    setError]    = useAudState(null);
   const [selected, setSelected] = useAudState(null);
 
   const load = useAudCallback(() => {
-    if (mock) {
-      // e2e/mock: same filter semantics as the backend, applied client-side.
-      const all = (CT.auditEvents ?? []).filter(e =>
-        (!filters.action || e.action === filters.action) &&
-        (!filters.actor || e.actor === filters.actor) &&
-        (!filters.entity || (e.entity ?? '').toLowerCase().includes(filters.entity.toLowerCase())));
-      setTotal(all.length);
-      setEvents(all.slice(page * AUDIT_PAGE_SIZE, (page + 1) * AUDIT_PAGE_SIZE));
-      return;
-    }
     setLoading(true);
     setError(null);
     CT_API.getAudit({ ...filters, limit: AUDIT_PAGE_SIZE, offset: page * AUDIT_PAGE_SIZE })
@@ -152,7 +141,7 @@ function ScreenAudit({ addToast }) {
         setLoading(false);
       })
       .catch(e => { setError(e); setLoading(false); });
-  }, [mock, filters, page]);
+  }, [filters, page]);
 
   useAudEffect(() => { load(); }, [load]);
 
@@ -160,14 +149,12 @@ function ScreenAudit({ addToast }) {
   const clear = () => { setDraft(empty); setPage(0); setFilters(empty); };
 
   const openDetail = (ev) => {
-    if (mock) { setSelected(ev); return; }
     CT_API.getAuditEvent(ev.id)
       .then(setSelected)
       .catch(() => setSelected(ev));  // fallback: show the row we already have
   };
 
   const doExport = async (format) => {
-    if (mock) { addToast?.('Modo demo: export não disponível.', 'info'); return; }
     try {
       const blob = await CT_API.exportAudit(format, filters);
       const url = URL.createObjectURL(blob);

@@ -332,6 +332,51 @@ export const PLATFORM_KEYS = [
 ];
 export const EGRESS_IP = { ip: "203.0.113.42" };
 
+// ---- Conta (screen_account) ---------------------------------------------------
+export const ACCOUNT_PROFILE = {
+  email: "demo@criptotrade.dev", name: "Operador Demo", job_title: "Operador", avatar_color: "ink", role: "admin",
+};
+export const PREFERENCES = {
+  locale: "pt-BR", timezone: "America/Sao_Paulo", number_locale: "auto", date_locale: "auto",
+};
+
+// ---- Segurança (screen_security) — espelha data.js; UAs parseáveis pela heurística
+export const SECURITY_SESSIONS = [
+  { id: "s1", created_at: "2026-07-18T08:00:00+00:00", last_seen_at: "2026-07-18T09:30:00+00:00",
+    ip: "187.20.14.2", user_agent: "Mozilla/5.0 (X11; Linux x86_64) Chrome/126.0", remember: false, current: true },
+  { id: "s2", created_at: "2026-07-16T21:10:00+00:00", last_seen_at: "2026-07-17T07:45:00+00:00",
+    ip: "177.94.3.71", user_agent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5) Safari/604.1", remember: true, current: false },
+];
+// getLoginHistory usa unwrap:false → a tela lê l.data; o envelope do fixture já é {data:[…]}.
+export const SECURITY_LOGINS = [
+  { id: 93, ts: "2026-07-18T08:00:00+00:00", action: "login", actor: "demo@criptotrade.dev", ip: "187.20.14.2", ua: "Mozilla/5.0 (X11; Linux x86_64) Chrome/126.0", success: true },
+  { id: 90, ts: "2026-07-17T23:41:00+00:00", action: "login", actor: "demo@criptotrade.dev", ip: "45.12.9.30", ua: "Mozilla/5.0 (Windows NT 10.0) Firefox/128.0", success: false },
+  { id: 88, ts: "2026-07-16T21:10:00+00:00", action: "login", actor: "demo@criptotrade.dev", ip: "177.94.3.71", ua: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5) Safari/604.1", success: true },
+];
+
+// ---- Auditoria (screen_audit) — 8 eventos; id 7 (config_changed) tem before→after
+export const AUDIT_EVENTS = [
+  { id: 8, ts: "2026-07-18T09:12:00+00:00", action: "login", actor: "demo@criptotrade.dev", entity: "demo@criptotrade.dev", ip: "187.20.14.2", ua: "Chrome/Linux", success: true, before: null, after: null, detail: null },
+  { id: 7, ts: "2026-07-18T08:55:00+00:00", action: "config_changed", actor: "demo@criptotrade.dev", entity: "risk", ip: null, ua: null, success: null,
+    before: { max_daily_loss_pct: 5.0 }, after: { max_daily_loss_pct: 4.0 }, detail: null,
+    data: { actor: "demo@criptotrade.dev", scope: "risk", before: { max_daily_loss_pct: 5.0 }, after: { max_daily_loss_pct: 4.0 } } },
+  { id: 6, ts: "2026-07-18T08:40:00+00:00", action: "autonomy_changed", actor: "ana@criptotrade.dev", entity: null, ip: null, ua: null, success: null, before: { level: 1 }, after: { level: 2 }, detail: "Mercado estável, subindo autonomia" },
+  { id: 5, ts: "2026-07-18T08:10:00+00:00", action: "order_approved", actor: "ana@criptotrade.dev", entity: "BTC/USDT", ip: null, ua: null, success: null, before: null, after: null, detail: null },
+  { id: 4, ts: "2026-07-17T22:05:00+00:00", action: "order_rejected", actor: "ana@criptotrade.dev", entity: "ETH/USDT", ip: null, ua: null, success: null, before: null, after: null, detail: null },
+  { id: 3, ts: "2026-07-17T21:00:00+00:00", action: "position_closed", actor: "orchestrator", entity: "BTC/USDT", ip: null, ua: null, success: null, before: null, after: null, detail: "P&L +12.40 USDT" },
+  { id: 2, ts: "2026-07-17T20:30:00+00:00", action: "user_management", actor: "demo@criptotrade.dev", entity: "novo@criptotrade.dev", ip: null, ua: null, success: true, before: null, after: null, detail: "novo@criptotrade.dev as visualizador" },
+  { id: 1, ts: "2026-07-17T19:00:00+00:00", action: "circuit_breaker", actor: "orchestrator", entity: null, ip: null, ua: null, success: null, before: null, after: null, detail: "3 perdas consecutivas" },
+];
+// GET /v1/audit — filtra por action (mesma semântica do SQL do backend); envelope
+// {data:[…]} → a tela usa env.data e cai no fallback env.data.length para o total.
+export function auditList(reqUrl) {
+  const action = new URL(reqUrl).searchParams.get("action");
+  return action ? AUDIT_EVENTS.filter((e) => e.action === action) : AUDIT_EVENTS;
+}
+export function auditEvent(id) {
+  return AUDIT_EVENTS.find((e) => e.id === Number(id)) || null;
+}
+
 // POST /v1/api-keys — a chave em claro é mostrada UMA vez na criação (canned).
 // A chave é montada por template (sem literal de alta entropia no source) para não
 // disparar o gitleaks generic-api-key — é valor de teste fake, nunca um secret real.
