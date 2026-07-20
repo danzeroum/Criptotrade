@@ -18,6 +18,8 @@ import {
   metrics, ONBOARDING, ORDERS, PAIRS_FLAT, PAIRS_RICH, processEvents, RISK_CIRCUIT_BREAKER,
   RISK_CONFIG, RISK_KELLY, RISK_PROTECTIONS, RISK_SKIPS, RISK_SLOTS, ROLES, SYS_CONFIG,
   ticker, TRADES, USERS,
+  NOTIF_CHANNELS, NOTIF_RULES, NOTIF_SETTINGS, CONNECTIONS, PLATFORM_KEYS, EGRESS_IP,
+  createdPlatformKey,
 } from "./datasets.js";
 
 // Wrap a payload in the API envelope the client's req() unwraps ({ data, meta }).
@@ -61,6 +63,15 @@ function baseline({ authMode, role }) {
     // Diário (screen_journal)
     "GET /v1/journal": () => JOURNAL,
     "GET /v1/journal/metrics": () => JOURNAL_METRICS,
+    // Notificações (screen_notifications)
+    "GET /v1/notifications/channels": () => NOTIF_CHANNELS,
+    "GET /v1/notifications/rules": () => NOTIF_RULES,
+    "GET /v1/notifications/settings": () => NOTIF_SETTINGS,
+    // Conexões & Chaves (screen_connections)
+    "GET /v1/exchanges/connections": () => CONNECTIONS,
+    "GET /v1/exchanges/egress-ip": () => EGRESS_IP,
+    "GET /v1/api-keys": () => PLATFORM_KEYS,
+    "POST /v1/api-keys": (req) => createdPlatformKey((req.postDataJSON() || {}).label),
   };
 }
 

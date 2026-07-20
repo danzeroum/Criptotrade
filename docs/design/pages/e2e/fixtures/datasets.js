@@ -288,6 +288,58 @@ export const ROLES = [
   { id: "visualizador", label: "Visualizador", permissions: [] },
 ];
 
+// ---- Notificações (screen_notifications) — SECRETS SEMPRE MASCARADOS ----------
+// Espelha data.js:479-497. Nunca um token em claro (o notifications.spec test 1
+// afirma que o HTML não contém "AAAbbb" — a guarda de raw-secret é atendida por
+// construção: só destination_masked / •••).
+export const NOTIF_CHANNELS = [
+  { id: "ch1", kind: "telegram", label: "Ops crítico", enabled: true,
+    config_masked: { bot_token: "•••4821", chat_id: "-100200300" },
+    destination_masked: "chat -100200300 · token •••4821",
+    last_test_at: "2026-07-18T09:00:00+00:00", last_test_ok: true, last_error: null },
+  { id: "ch2", kind: "email", label: "E-mail do dono", enabled: true,
+    config_masked: { to_email: "dono@criptotrade.dev" },
+    destination_masked: "dono@criptotrade.dev",
+    last_test_at: null, last_test_ok: null, last_error: null },
+];
+export const NOTIF_RULES = [
+  { id: "r1", alert_type: "circuit_breaker", min_severity: "critical",
+    channel_ids: ["ch1", "ch2"], pairs: ["*"], enabled: true },
+  { id: "r2", alert_type: "*", min_severity: "high",
+    channel_ids: ["ch1"], pairs: ["BTC/USDT"], enabled: true },
+];
+export const NOTIF_SETTINGS = {
+  quiet_start: "22:00", quiet_end: "07:00", quiet_tz: "America/Sao_Paulo", group_window_min: 5,
+};
+
+// ---- Conexões & Chaves (screen_connections) — SECRETS SEMPRE MASCARADOS -------
+// Espelha data.js:500-515. api_key_masked / key_prefix apenas — nunca a chave real.
+export const CONNECTIONS = [
+  { id: "cx1", exchange_id: "binance", label: "Binance testnet", scope: "trade",
+    testnet: true, is_active: true, api_key_masked: "•••b3f1",
+    created_at: "2026-07-15T10:00:00+00:00", last_test_at: "2026-07-18T08:30:00+00:00",
+    last_test_ok: true, last_test_detail: { read_ok: true, trade_detected: true }, revoked: false },
+  { id: "cx2", exchange_id: "binance", label: "Binance leitura", scope: "read",
+    testnet: false, is_active: false, api_key_masked: "•••9a2c",
+    created_at: "2026-07-10T09:00:00+00:00", last_test_at: "2026-07-17T22:00:00+00:00",
+    last_test_ok: false,
+    last_test_detail: { read_ok: false, error: "Invalid API-key, IP, or permissions (chave •••9a2c)" },
+    revoked: false },
+];
+export const PLATFORM_KEYS = [
+  { id: "pk1", label: "grafana-readonly", key_prefix: "ctk_a1b2c3d4", scope: "visualizador",
+    created_at: "2026-07-12T14:00:00+00:00", last_used_at: "2026-07-18T09:45:00+00:00", revoked: false },
+];
+export const EGRESS_IP = { ip: "203.0.113.42" };
+
+// POST /v1/api-keys — a chave em claro é mostrada UMA vez na criação (canned).
+// A chave é montada por template (sem literal de alta entropia no source) para não
+// disparar o gitleaks generic-api-key — é valor de teste fake, nunca um secret real.
+export function createdPlatformKey(label) {
+  const name = label || "nova-chave";
+  return { id: "pk_new", label: name, key: `ctk_${name}_fake_demo`, scope: "visualizador" };
+}
+
 // GET /v1/market/{pair}/ticker — the header price (when a single pair is selected).
 export function ticker(pair) {
   return { pair, last: 64810.0, change_24h_pct: 2.34, as_of: new Date().toISOString() };

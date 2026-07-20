@@ -2,9 +2,10 @@
 // shows the masked destination), quiet-hours copy makes clear nothing leaves
 // the console, and non-admins (operador/demo) never reach the screen.
 import { test, expect } from "@playwright/test";
+import { installMockApi } from "./fixtures/mockApi.js";
 
 test("admin sees channels with masked secrets and the test destination", async ({ page }) => {
-  await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
+  await installMockApi(page, { authMode: "user", role: "admin" });
   await page.goto("/");
   await page.locator(".nav-item", { hasText: "Notificações & Canais" }).click();
   await expect(page).toHaveURL(/#notifications$/);
@@ -19,7 +20,7 @@ test("admin sees channels with masked secrets and the test destination", async (
 });
 
 test("rules render event × severity → channels", async ({ page }) => {
-  await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
+  await installMockApi(page, { authMode: "user", role: "admin" });
   await page.goto("/#notifications");
   const rules = page.locator(".card", { hasText: "Regras de entrega" });
   await expect(rules.getByText("Circuit breaker")).toBeVisible();
@@ -28,7 +29,7 @@ test("rules render event × severity → channels", async ({ page }) => {
 });
 
 test("quiet-hours copy says nothing disappears from the console", async ({ page }) => {
-  await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
+  await installMockApi(page, { authMode: "user", role: "admin" });
   await page.goto("/#notifications");
   const card = page.locator(".card", { hasText: "Silêncio & agrupamento" });
   await expect(card.getByText("Nada some do console")).toBeVisible();
@@ -36,10 +37,7 @@ test("quiet-hours copy says nothing disappears from the console", async ({ page 
 });
 
 test("operador has no nav item and deep-link lands on 403", async ({ page }) => {
-  await page.addInitScript(() => {
-    window.USE_MOCK_DATA = true;
-    window.MOCK_ROLE = "operador";
-  });
+  await installMockApi(page, { authMode: "user", role: "operador" });
   await page.goto("/#notifications");
   await expect(page.getByRole("heading", { name: "Sem permissão" })).toBeVisible();
   await expect(page.getByText("edit_settings")).toBeVisible();
@@ -47,10 +45,7 @@ test("operador has no nav item and deep-link lands on 403", async ({ page }) => 
 });
 
 test("public demo never sees the channels screen (secrets live there)", async ({ page }) => {
-  await page.addInitScript(() => {
-    window.USE_MOCK_DATA = true;
-    window.MOCK_AUTH = "demo";
-  });
+  await installMockApi(page, { authMode: "demo" });
   await page.goto("/#notifications");
   await expect(page.getByRole("heading", { name: "Sem permissão" })).toBeVisible();
   await expect(page.locator(".nav-item", { hasText: "Notificações & Canais" })).toHaveCount(0);
