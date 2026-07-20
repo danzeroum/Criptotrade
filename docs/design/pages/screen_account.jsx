@@ -47,14 +47,9 @@ function AccountAvatar({ name, email, colorId, size = 56 }) {
 }
 
 function ScreenAccount({ addToast }) {
-  const mock = !!window.USE_MOCK_DATA;
-  const authUser = CT_AUTH.state()?.user ?? {};
-  const [profile, setProfile] = useAccState(mock ? {
-    email: authUser.email, name: authUser.name, job_title: authUser.job_title ?? null,
-    avatar_color: authUser.avatar_color ?? 'ink', role: authUser.role,
-  } : null);
-  const [prefs, setPrefs] = useAccState(mock ? CT_PREFS.get() : null);
-  const [loading, setLoading] = useAccState(!mock);
+  const [profile, setProfile] = useAccState(null);
+  const [prefs, setPrefs] = useAccState(null);
+  const [loading, setLoading] = useAccState(true);
   const [error, setError] = useAccState(null);
 
   // drafts
@@ -64,13 +59,6 @@ function ScreenAccount({ addToast }) {
   const [busy, setBusy] = useAccState(null);  // 'profile' | 'prefs' | 'password'
 
   const load = () => {
-    if (mock) {
-      setPDraft({ name: profile.name ?? '', job_title: profile.job_title ?? '',
-                  avatar_color: profile.avatar_color ?? 'ink' });
-      setFDraft({ locale: prefs.locale, timezone: prefs.timezone,
-                  regional: regionalOf(prefs) });
-      return;
-    }
     setLoading(true);
     Promise.all([CT_API.getAccountProfile(), CT_API.getPreferences()])
       .then(([p, f]) => {
@@ -112,7 +100,6 @@ function ScreenAccount({ addToast }) {
 
   const saveProfile = async (e) => {
     e.preventDefault();
-    if (mock) { addToast?.('Modo demo: ação não aplicada.', 'info'); return; }
     setBusy('profile');
     try {
       const out = await CT_API.patchAccountProfile({
@@ -134,11 +121,6 @@ function ScreenAccount({ addToast }) {
       number_locale: fDraft.regional,
       date_locale: fDraft.regional,
     };
-    if (mock) {
-      CT_PREFS.apply({ ...prefs, ...body });
-      addToast?.('Preferências aplicadas (demo).', 'check');
-      return;
-    }
     setBusy('prefs');
     try {
       const out = await CT_API.patchPreferences(body);
@@ -155,7 +137,6 @@ function ScreenAccount({ addToast }) {
       addToast?.('A confirmação não confere com a nova senha.', 'alert');
       return;
     }
-    if (mock) { addToast?.('Modo demo: ação não aplicada.', 'info'); return; }
     setBusy('password');
     try {
       const out = await CT_API.changePassword({

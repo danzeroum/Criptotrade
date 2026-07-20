@@ -2,12 +2,11 @@
 // (sessions with the current one marked, 2FA card, own login history); the
 // public demo has no session to manage and lands on the 403 page.
 import { test, expect } from "@playwright/test";
+import { installMockApi } from "./fixtures/mockApi.js";
 
 test("authenticated user reaches Segurança & Sessões from the nav", async ({ page }) => {
-  await page.addInitScript(() => {
-    window.USE_MOCK_DATA = true;
-    window.MOCK_ROLE = "visualizador";  // self-service: role does not matter
-  });
+  // self-service: role does not matter
+  await installMockApi(page, { authMode: "user", role: "visualizador" });
   await page.goto("/");
   await page.locator(".nav-item", { hasText: "Segurança & Sessões" }).click();
   await expect(page).toHaveURL(/#security$/);
@@ -22,7 +21,7 @@ test("authenticated user reaches Segurança & Sessões from the nav", async ({ p
 });
 
 test("login history shows own e-mail attempts with success and failure", async ({ page }) => {
-  await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
+  await installMockApi(page, { authMode: "user", role: "admin" });
   await page.goto("/#security");
   const history = page.locator(".card", { hasText: "Histórico de logins" });
   await expect(history.getByText("somente o seu e-mail")).toBeVisible();
@@ -31,7 +30,7 @@ test("login history shows own e-mail attempts with success and failure", async (
 });
 
 test("2FA card offers enabling when disabled", async ({ page }) => {
-  await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
+  await installMockApi(page, { authMode: "user", role: "admin" });
   await page.goto("/#security");
   const card = page.locator(".card", { hasText: "Verificação em duas etapas" });
   await expect(card.getByText("Inativa")).toBeVisible();
@@ -39,10 +38,7 @@ test("2FA card offers enabling when disabled", async ({ page }) => {
 });
 
 test("public demo has no session to manage: nav hidden, deep-link 403", async ({ page }) => {
-  await page.addInitScript(() => {
-    window.USE_MOCK_DATA = true;
-    window.MOCK_AUTH = "demo";
-  });
+  await installMockApi(page, { authMode: "demo" });
   await page.goto("/#security");
   await expect(page.getByRole("heading", { name: "Sem permissão" })).toBeVisible();
   await expect(page.locator(".nav-item", { hasText: "Segurança & Sessões" })).toHaveCount(0);

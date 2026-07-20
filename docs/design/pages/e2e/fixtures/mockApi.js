@@ -20,6 +20,7 @@ import {
   ticker, TRADES, USERS,
   NOTIF_CHANNELS, NOTIF_RULES, NOTIF_SETTINGS, CONNECTIONS, PLATFORM_KEYS, EGRESS_IP,
   createdPlatformKey,
+  ACCOUNT_PROFILE, PREFERENCES, SECURITY_SESSIONS, SECURITY_LOGINS, auditList, auditEvent,
 } from "./datasets.js";
 
 // Wrap a payload in the API envelope the client's req() unwraps ({ data, meta }).
@@ -72,6 +73,15 @@ function baseline({ authMode, role }) {
     "GET /v1/exchanges/egress-ip": () => EGRESS_IP,
     "GET /v1/api-keys": () => PLATFORM_KEYS,
     "POST /v1/api-keys": (req) => createdPlatformKey((req.postDataJSON() || {}).label),
+    // Conta (screen_account)
+    "GET /v1/account/profile": () => ACCOUNT_PROFILE,
+    "GET /v1/account/preferences": () => PREFERENCES,
+    "PATCH /v1/account/preferences": (req) => ({ ...PREFERENCES, ...(req.postDataJSON() || {}) }),
+    // Segurança (screen_security)
+    "GET /v1/security/sessions": () => SECURITY_SESSIONS,
+    "GET /v1/security/logins": () => SECURITY_LOGINS, // unwrap:false → tela lê .data
+    // Auditoria (screen_audit) — GET /v1/audit filtra por action; /v1/audit/{id} = detalhe
+    "GET /v1/audit": (req, url) => auditList(url),
   };
 }
 
@@ -86,6 +96,7 @@ const PATTERNS = [
   { re: /^GET \/v1\/market\/[^/]+\/patterns$/, payload: () => MARKET_PATTERNS },
   { re: /^GET \/v1\/market\/[^/]+\/signal$/, payload: () => MARKET_SIGNAL },
   { re: /^GET \/v1\/market\/[^/]+\/confluence$/, payload: () => null },
+  { re: /^GET \/v1\/audit\/(\d+)$/, payload: (m) => auditEvent(m[1]) }, // detalhe do evento
 ];
 
 // EventSource endpoints — fulfilled as a short text/event-stream so the client

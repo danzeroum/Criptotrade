@@ -149,17 +149,15 @@ function Enable2FAModal({ onDone, onClose }) {
 }
 
 function ScreenSecurity({ addToast }) {
-  const mock = !!window.USE_MOCK_DATA;
-  const [sessions, setSessions] = useSecState(mock ? (CT.securitySessions ?? []) : null);
-  const [logins, setLogins] = useSecState(mock ? (CT.securityLogins ?? []) : null);
-  const [loading, setLoading] = useSecState(!mock);
+  const [sessions, setSessions] = useSecState(null);
+  const [logins, setLogins] = useSecState(null);
+  const [loading, setLoading] = useSecState(true);
   const [error, setError] = useSecState(null);
   const [modal, setModal] = useSecState(null);  // 'enable' | 'disable' | 'regen'
   const [codes, setCodes] = useSecState(null);
   const [totpOn, setTotpOn] = useSecState(!!CT_AUTH.state()?.user?.totp_enabled);
 
   const load = useSecCallback(() => {
-    if (mock) return;
     setLoading(true);
     Promise.all([CT_API.getSessions(), CT_API.getLoginHistory(20)])
       .then(([s, l]) => {
@@ -168,12 +166,11 @@ function ScreenSecurity({ addToast }) {
         setLoading(false); setError(null);
       })
       .catch(e => { setError(e); setLoading(false); });
-  }, [mock]);
+  }, []);
 
   useSecEffect(() => { load(); }, [load]);
 
   const act = async (fn, okMsg) => {
-    if (mock) { addToast?.('Modo demo: ação não aplicada.', 'info'); return; }
     try { await fn(); addToast?.(okMsg, 'check'); load(); }
     catch (e) { addToast?.(e?.message ?? 'Falha na ação.', 'alert'); }
   };
@@ -262,18 +259,15 @@ function ScreenSecurity({ addToast }) {
           </p>
           {totpOn ? (
             <span style={{ display: 'flex', gap: 8 }}>
-              <Btn variant="ghost" size="sm" onClick={() =>
-                mock ? addToast?.('Modo demo: ação não aplicada.', 'info') : setModal('regen')}>
+              <Btn variant="ghost" size="sm" onClick={() => setModal('regen')}>
                 Regenerar códigos de backup
               </Btn>
-              <Btn variant="ghost" size="sm" onClick={() =>
-                mock ? addToast?.('Modo demo: ação não aplicada.', 'info') : setModal('disable')}>
+              <Btn variant="ghost" size="sm" onClick={() => setModal('disable')}>
                 Desativar
               </Btn>
             </span>
           ) : (
-            <Btn variant="primary" size="sm" onClick={() =>
-              mock ? addToast?.('Modo demo: ação não aplicada.', 'info') : setModal('enable')}>
+            <Btn variant="primary" size="sm" onClick={() => setModal('enable')}>
               Ativar 2FA
             </Btn>
           )}

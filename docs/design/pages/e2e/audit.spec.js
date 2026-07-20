@@ -2,12 +2,10 @@
 // list, the detail modal renders the before→after diff, and roles without
 // view_audit (or the public demo) land on the 403 page.
 import { test, expect } from "@playwright/test";
+import { installMockApi } from "./fixtures/mockApi.js";
 
 test("operador reaches the audit screen from the nav and sees the events", async ({ page }) => {
-  await page.addInitScript(() => {
-    window.USE_MOCK_DATA = true;
-    window.MOCK_ROLE = "operador";
-  });
+  await installMockApi(page, { authMode: "user", role: "operador" });
   await page.goto("/");
   await page.locator(".nav-item", { hasText: "Trilha de Auditoria" }).click();
   await expect(page).toHaveURL(/#audit$/);
@@ -18,10 +16,7 @@ test("operador reaches the audit screen from the nav and sees the events", async
 });
 
 test("action filter narrows the list (same semantics as the backend SQL)", async ({ page }) => {
-  await page.addInitScript(() => {
-    window.USE_MOCK_DATA = true;
-    window.MOCK_ROLE = "operador";
-  });
+  await installMockApi(page, { authMode: "user", role: "operador" });
   await page.goto("/#audit");
   await page.getByLabel("Ação").selectOption("config_changed");
   await page.getByRole("button", { name: "Filtrar" }).click();
@@ -32,10 +27,7 @@ test("action filter narrows the list (same semantics as the backend SQL)", async
 });
 
 test("event detail opens with the before→after diff", async ({ page }) => {
-  await page.addInitScript(() => {
-    window.USE_MOCK_DATA = true;
-    window.MOCK_ROLE = "operador";
-  });
+  await installMockApi(page, { authMode: "user", role: "operador" });
   await page.goto("/#audit");
   await page.locator(".card .tbl tbody tr", { hasText: "Config alterada" }).click();
   const modal = page.getByRole("dialog", { name: "Detalhe do evento" });
@@ -49,10 +41,7 @@ test("event detail opens with the before→after diff", async ({ page }) => {
 });
 
 test("visualizador gets the 403 page on a direct #audit deep-link", async ({ page }) => {
-  await page.addInitScript(() => {
-    window.USE_MOCK_DATA = true;
-    window.MOCK_ROLE = "visualizador";
-  });
+  await installMockApi(page, { authMode: "user", role: "visualizador" });
   await page.goto("/#audit");
   await expect(page.getByRole("heading", { name: "Sem permissão" })).toBeVisible();
   await expect(page.getByText("view_audit")).toBeVisible();
@@ -61,10 +50,7 @@ test("visualizador gets the 403 page on a direct #audit deep-link", async ({ pag
 });
 
 test("public demo never sees the audit trail (real e-mails/IPs live there)", async ({ page }) => {
-  await page.addInitScript(() => {
-    window.USE_MOCK_DATA = true;
-    window.MOCK_AUTH = "demo";
-  });
+  await installMockApi(page, { authMode: "demo" });
   await page.goto("/#audit");
   await expect(page.getByRole("heading", { name: "Sem permissão" })).toBeVisible();
   await expect(page.locator(".nav-item", { hasText: "Trilha de Auditoria" })).toHaveCount(0);
