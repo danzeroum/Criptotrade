@@ -81,37 +81,20 @@ function ObSummary({ summary }) {
 }
 
 function ScreenOnboarding({ navigate, addToast }) {
-  const mock = !!window.USE_MOCK_DATA;
-  const [status, setStatus] = useObState(mock ? (CT.onboarding ?? null) : null);
-  const [loading, setLoading] = useObState(!mock);
+  const [status, setStatus] = useObState(null);
+  const [loading, setLoading] = useObState(true);
   const [error, setError] = useObState(null);
 
   const load = useObCallback(() => {
-    if (mock) return;
     setLoading(true);
     CT_API.getOnboarding()
       .then(s => { setStatus(s); setLoading(false); setError(null); })
       .catch(e => { setError(e); setLoading(false); });
-  }, [mock]);
+  }, []);
 
   useObEffect(() => { load(); }, [load]);
 
   const patch = async (body, okMsg) => {
-    if (mock) {
-      // e2e: apply locally with the same semantics.
-      setStatus(prev => {
-        const steps = prev.steps.map(s => {
-          if (s.id !== body.step) return s;
-          if (body.action === 'skip') return { ...s, status: 'skipped', detail: 'pulado' };
-          return { ...s, status: 'done_manual', detail: 'marcado por você' };
-        });
-        const completed = steps.every(s => s.status !== 'pending');
-        return { ...prev, steps, completed,
-                 dismissed: body.dismiss ?? prev.dismissed };
-      });
-      if (okMsg) addToast?.(okMsg, 'check');
-      return;
-    }
     try {
       const out = await CT_API.patchOnboarding(body);
       setStatus(out);
@@ -225,13 +208,11 @@ function ScreenOnboarding({ navigate, addToast }) {
         );
       })}
 
-      {!mock && (
-        <div style={{ textAlign: 'center', margin: '16px 0' }}>
-          <Btn variant="ghost" size="sm" onClick={load}>
-            <Icon name="refresh" size={13} /> Re-detectar estado
-          </Btn>
-        </div>
-      )}
+      <div style={{ textAlign: 'center', margin: '16px 0' }}>
+        <Btn variant="ghost" size="sm" onClick={load}>
+          <Icon name="refresh" size={13} /> Re-detectar estado
+        </Btn>
+      </div>
     </div>
   );
 }

@@ -90,7 +90,30 @@ export function deskSummary() {
 }
 
 // GET /v1/onboarding/status — completed so the first-run redirect stays quiet.
+// GET /v1/onboarding/status — baseline COMPLETED: o boot dos outros specs não é
+// sequestrado. O cenário pending (onboarding.spec) é servido stateful por-teste.
 export const ONBOARDING = { completed: true, dismissed: false, steps: [] };
+
+// Cenário pending (onboarding.spec T1/T2): 2 auto-detectados, 1 pulado, 2 pendentes
+// (→ "3/5"); os 2 pendentes são review + start_dryrun (os passos que o T2 conclui).
+export function onboardingPending() {
+  return {
+    completed: false, dismissed: false,
+    steps: [
+      { id: "connect_exchange", status: "done_auto", detail: "conexão ativa detectada" },
+      { id: "risk_capital", status: "done_auto", detail: "guardrails configurados" },
+      { id: "strategy_agents", status: "skipped", detail: "pulado" },
+      { id: "review", status: "pending", detail: null },
+      { id: "start_dryrun", status: "pending", detail: null },
+    ],
+    summary: {
+      connection: { label: "Binance testnet", exchange: "binance", scope: "trade", testnet: true, tested_ok: true },
+      routing: "testnet", dry_run: true, autonomy_level: 1,
+      risk: { max_position_size_pct: 5, max_daily_loss_pct: 4 },
+      pairs: "BTC/USDT, ETH/USDT", initial_capital: 10000,
+    },
+  };
+}
 
 // GET /health — the header's connectivity dot.
 export const HEALTH = { status: "ok", paper_trading: true, dry_run: false };

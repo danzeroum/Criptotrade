@@ -21,6 +21,7 @@ import {
   NOTIF_CHANNELS, NOTIF_RULES, NOTIF_SETTINGS, CONNECTIONS, PLATFORM_KEYS, EGRESS_IP,
   createdPlatformKey,
   ACCOUNT_PROFILE, PREFERENCES, SECURITY_SESSIONS, SECURITY_LOGINS, auditList, auditEvent,
+  onboardingPending,
 } from "./datasets.js";
 
 // Wrap a payload in the API envelope the client's req() unwraps ({ data, meta }).
@@ -110,13 +111,16 @@ const SSE_PATHS = new Set(["/v1/alerts"]);
  * @returns {{ unstubbed: string[] }} handle exposing any unstubbed endpoints hit
  */
 export async function installMockApi(page, scenario = {}) {
-  const { authMode = "user", role = "admin", routes = {} } = scenario;
+  const { authMode = "user", role = "admin", routes = {}, onboarding = null } = scenario;
   const table = { ...baseline({ authMode, role }), ...routes };
   const unstubbed = [];
   // Stateful operated pairs (N8²/N9): POST/PATCH/DELETE mutate; GET /v1/pairs reflects.
   // Seeded fresh per test from PAIRS_RICH (BNB starts paused).
   const operated = PAIRS_RICH.operados.map((o) => ({ ...o }));
   const decode = (seg) => decodeURIComponent(seg).replace("-", "/");
+  // Stateful onboarding (onboarding.spec T1/T2) — só quando o cenário pede 'pending';
+  // caso contrário o baseline completed responde /v1/onboarding/status.
+  const obState = onboarding === "pending" ? onboardingPending() : null;
 
   await page.route("**/api/**", async (route) => {
     const req = route.request();
@@ -125,6 +129,23 @@ export async function installMockApi(page, scenario = {}) {
     // Strip the API base prefix so keys are stable ("GET /v1/..." / "GET /health").
     const path = url.pathname.replace(/^\/api/, "");
     const key = `${method} ${path}`;
+
+    // --- stateful onboarding (cenário 'pending') ---------------------------
+    if (obState && path === "/v1/onboarding/status") {
+      if (method === "GET") return fulfillJson(route, obState);
+      if (method === "PATCH") {
+        const body = req.postDataJSON() || {};
+        if (body.step) {
+          obState.steps = obState.steps.map((s) => s.id === body.step
+            ? { ...s, status: body.action === "skip" ? "skipped" : "done_manual",
+                detail: body.action === "skip" ? "pulado" : "marcado por você" }
+            : s);
+        }
+        if (body.dismiss != null) obState.dismissed = body.dismiss;
+        obState.completed = obState.steps.every((s) => s.status !== "pending");
+        return fulfillJson(route, obState);
+      }
+    }
 
     // --- stateful operated pairs -------------------------------------------
     if (path === "/v1/pairs" && method === "GET") {

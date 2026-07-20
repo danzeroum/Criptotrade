@@ -168,19 +168,17 @@ function AgentCard({ agent, onConfigure }) {
 }
 
 function ScreenAgents() {
-  const mock = !!window.USE_MOCK_DATA;
-  const [agents,  setAgents]  = useState(mock ? CT.agents : null);
-  const [loading, setLoading] = useState(!mock);
+  const [agents,  setAgents]  = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(null);
   const [configAgent, setConfigAgent] = useState(null);
 
   useEffect(() => {
-    if (mock) return;
     setLoading(true);
     CT_API.getAgents()
       .then(d => { setAgents(Array.isArray(d) ? d : []); setLoading(false); })
       .catch(e => { setError(e); setLoading(false); });
-  }, [mock]);
+  }, []);
 
   if (loading) return <LoadingState label="Carregando agentes…" />;
   if (error)   return <ErrorState message="Erro ao carregar agentes" onRetry={() => { setError(null); setLoading(true); }} />;
