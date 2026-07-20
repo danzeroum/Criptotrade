@@ -1,12 +1,11 @@
 // A3 RBAC in the console: role-driven visibility (visualizador hides actions,
 // demo shows them disabled with the discovery tooltip, admin sees everything).
+// Cenários de auth/role vêm do fixture (/v1/auth/me), não mais de MOCK_ROLE/MOCK_AUTH.
 import { test, expect } from "@playwright/test";
+import { installMockApi } from "./fixtures/mockApi.js";
 
 test("visualizador sees no approve/reject and no admin nav", async ({ page }) => {
-  await page.addInitScript(() => {
-    window.USE_MOCK_DATA = true;
-    window.MOCK_ROLE = "visualizador";
-  });
+  await installMockApi(page, { authMode: "user", role: "visualizador" });
   await page.goto("/#hitl");
   await expect(page.locator(".page-title")).toContainText("HITL");
   await expect(page.getByRole("button", { name: "Aprovar" })).toHaveCount(0);
@@ -18,10 +17,7 @@ test("visualizador sees no approve/reject and no admin nav", async ({ page }) =>
 });
 
 test("demo mode shows actions disabled with the discovery tooltip", async ({ page }) => {
-  await page.addInitScript(() => {
-    window.USE_MOCK_DATA = true;
-    window.MOCK_AUTH = "demo";
-  });
+  await installMockApi(page, { authMode: "demo" });
   await page.goto("/#hitl");
   const approve = page.getByRole("button", { name: "Aprovar" }).first();
   await expect(approve).toBeVisible();
@@ -34,7 +30,7 @@ test("demo mode shows actions disabled with the discovery tooltip", async ({ pag
 });
 
 test("admin sees the Administração group and the users screen", async ({ page }) => {
-  await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
+  await installMockApi(page, { authMode: "user", role: "admin" });
   await page.goto("/");
   await page.locator(".nav-item", { hasText: "Usuários & Permissões" }).click();
   await expect(page).toHaveURL(/#users$/);
@@ -44,10 +40,7 @@ test("admin sees the Administração group and the users screen", async ({ page 
 });
 
 test("operador keeps approve buttons but has no admin nav", async ({ page }) => {
-  await page.addInitScript(() => {
-    window.USE_MOCK_DATA = true;
-    window.MOCK_ROLE = "operador";
-  });
+  await installMockApi(page, { authMode: "user", role: "operador" });
   await page.goto("/#hitl");
   await expect(page.getByRole("button", { name: "Aprovar" }).first()).toBeEnabled();
   await expect(page.locator(".nav-item", { hasText: "Usuários & Permissões" }))

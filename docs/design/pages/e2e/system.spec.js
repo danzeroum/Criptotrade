@@ -25,6 +25,9 @@ test("route without permission shows 403 with the required permission", async ({
 });
 
 test("admin still reaches the users screen directly", async ({ page }) => {
+  // Users de-mockada (5.4) → serve /v1/users + /v1/roles pelo fixture; USE_MOCK_DATA
+  // segue só para a auth mock admin (o route-guard). Coexistência transitória.
+  await installMockApi(page, { authMode: "user", role: "admin" });
   await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
   await page.goto("/#users");
   await expect(page.locator(".page-title")).toContainText("Usuários & Permissões");

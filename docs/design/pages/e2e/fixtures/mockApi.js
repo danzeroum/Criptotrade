@@ -15,8 +15,9 @@ import {
   AGENTS, authMe, candles, deskSummary, EQUITY, HEALTH, HITL_CONFIG, MARKET_INDICATORS,
   JOURNAL, JOURNAL_METRICS, MARKET_LEVELS, MARKET_PATTERNS, MARKET_REGIME, MARKET_SIGNAL,
   MARKET_VOLUME_PROFILE,
-  metrics, ONBOARDING, PAIRS_FLAT, PAIRS_RICH, processEvents, RISK_CIRCUIT_BREAKER,
-  RISK_CONFIG, RISK_KELLY, RISK_PROTECTIONS, RISK_SKIPS, RISK_SLOTS, SYS_CONFIG, ticker,
+  metrics, ONBOARDING, ORDERS, PAIRS_FLAT, PAIRS_RICH, processEvents, RISK_CIRCUIT_BREAKER,
+  RISK_CONFIG, RISK_KELLY, RISK_PROTECTIONS, RISK_SKIPS, RISK_SLOTS, ROLES, SYS_CONFIG,
+  ticker, TRADES, USERS,
 } from "./datasets.js";
 
 // Wrap a payload in the API envelope the client's req() unwraps ({ data, meta }).
@@ -41,7 +42,10 @@ function baseline({ authMode, role }) {
     "GET /v1/metrics/equity": () => EQUITY,
     "GET /v1/onboarding/status": () => ONBOARDING,
     "GET /v1/desk/summary": () => deskSummary(),
-    "GET /v1/orders": () => [], // sidebar pending-count poll → empty
+    "GET /v1/orders": () => ORDERS, // sidebar poll + HITL queue + Ordens
+    "GET /v1/trades": () => TRADES, // Ordens: P&L realizado por par (N5)
+    "GET /v1/users": () => USERS,   // Usuários & Permissões (exatamente 3)
+    "GET /v1/roles": () => ROLES,   // matriz de permissões
     // Risco (screen_risk)
     "GET /v1/risk/protections": () => RISK_PROTECTIONS,
     "GET /v1/risk/circuit-breaker": () => RISK_CIRCUIT_BREAKER,

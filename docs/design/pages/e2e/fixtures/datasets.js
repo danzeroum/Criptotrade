@@ -236,8 +236,57 @@ export const MARKET_SIGNAL = {
   valid_until: new Date(Date.now() + 3600e3).toISOString(), as_of: new Date().toISOString(),
 };
 
-// GET /v1/hitl/config — the header's autonomy badge.
-export const HITL_CONFIG = { level: 1, threshold_usdt: 100.0, label: "Assistido" };
+// GET /v1/hitl/config — header autonomy badge + the HITL Controls screen.
+export const HITL_CONFIG = {
+  level: 1, current_level: 1, threshold_usdt: 100.0, label: "Assistido",
+  level_description: "Ordens acima do limite exigem aprovação humana.",
+  pending_orders_count: 2, human_approved_today: 5, human_rejected_today: 1,
+  levels: [
+    { level: 0, threshold_usdt: 0, description: "Manual — toda ordem exige aprovação." },
+    { level: 1, threshold_usdt: 100, description: "Assistido — ordens acima do limite exigem aprovação." },
+    { level: 2, threshold_usdt: 500, description: "Semi-autônomo — só ordens grandes exigem aprovação." },
+    { level: 3, threshold_usdt: 999999, description: "Autônomo — sem aprovação (confirmação extra)." },
+  ],
+};
+
+// GET /v1/orders — pending queue (HITL) + Orders table. ≥2 pares incl. BTC/USDT
+// para os chips de par (N4); confidence (Fix #3) + confidence_breakdown por ordem.
+export const ORDERS = [
+  { id: "ord_a1", pair: "BTC/USDT", side: "buy", quantity: 0.03, price: 64500, entry: 64500,
+    stop_loss: 63200, take_profit: 66800, position_size_pct: 2, confidence: 0.82, status: "pending",
+    strategy: "trend_following", agent_id: "strategy_agent", reason: "Rompimento confirmado por volume.",
+    created_at: new Date().toISOString(),
+    confidence_breakdown: [{ key: "trend", score: 0.85 }, { key: "momentum", score: 0.7 }, { key: "volume", score: 0.8 }] },
+  { id: "ord_b2", pair: "ETH/USDT", side: "buy", quantity: 0.5, price: 3200, entry: 3200,
+    stop_loss: 3080, take_profit: 3450, position_size_pct: 2, confidence: 0.71, status: "pending",
+    strategy: "mean_reversion", agent_id: "strategy_agent", reason: "Reversão no suporte confirmada.",
+    created_at: new Date().toISOString(),
+    confidence_breakdown: [{ key: "trend", score: 0.6 }, { key: "momentum", score: 0.75 }, { key: "volume", score: 0.8 }] },
+];
+
+// GET /v1/trades — trades fechados (P&L realizado por par, N5). ≥2 símbolos incl. BTC/USDT.
+export const TRADES = [
+  { order_id: "t1", symbol: "BTC/USDT", side: "buy", entry_price: 61200, exit_price: 64810, quantity: 0.03, fee: 0.5, pnl: 108.30, pnl_pct: 5.9 },
+  { order_id: "t2", symbol: "BTC/USDT", side: "buy", entry_price: 65000, exit_price: 63600, quantity: 0.03, fee: 0.5, pnl: -42.10, pnl_pct: -2.1 },
+  { order_id: "t3", symbol: "ETH/USDT", side: "buy", entry_price: 3100, exit_price: 3223, quantity: 0.5, fee: 0.3, pnl: 61.50, pnl_pct: 4.0 },
+  { order_id: "t4", symbol: "SOL/USDT", side: "buy", entry_price: 150, exit_price: 160.3, quantity: 1.2, fee: 0.2, pnl: 12.38, pnl_pct: 1.5 },
+  { order_id: "t5", symbol: "SOL/USDT", side: "buy", entry_price: 148, exit_price: 168.7, quantity: 1.2, fee: 0.2, pnl: 24.90, pnl_pct: 3.0 },
+  { order_id: "t6", symbol: "XRP/USDT", side: "buy", entry_price: 0.62, exit_price: 0.60, quantity: 400, fee: 0.1, pnl: -8.20, pnl_pct: -1.3 },
+];
+
+// GET /v1/users — exatamente 3 (rbac test 3 afirma tbody tr === 3).
+export const USERS = [
+  { id: "u_demo", name: "Operador Demo", email: "demo@criptotrade.dev", role: "admin", status: "active", last_login_at: new Date().toISOString(), invite_id: null },
+  { id: "u_ana", name: "Ana", email: "ana@criptotrade.dev", role: "operador", status: "active", last_login_at: new Date(Date.now() - 86400e3).toISOString(), invite_id: null },
+  { id: "u_novo", name: null, email: "novo@criptotrade.dev", role: "visualizador", status: "pending", last_login_at: null, invite_id: "inv_1" },
+];
+
+// GET /v1/roles — a "Matriz de permissões" renderiza de r.permissions.
+export const ROLES = [
+  { id: "admin", label: "Admin", permissions: ["approve_order", "change_autonomy", "change_risk", "edit_settings", "manage_keys", "view_audit", "manage_users"] },
+  { id: "operador", label: "Operador", permissions: ["approve_order", "change_autonomy", "view_audit"] },
+  { id: "visualizador", label: "Visualizador", permissions: [] },
+];
 
 // GET /v1/market/{pair}/ticker — the header price (when a single pair is selected).
 export function ticker(pair) {

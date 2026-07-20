@@ -58,25 +58,22 @@ function InviteModal({ roles, onClose, onInvited, addToast }) {
 }
 
 function ScreenUsers({ addToast }) {
-  const mock = !!window.USE_MOCK_DATA;
-  const [users, setUsers] = useUsersState(mock ? (CT.adminUsers ?? []) : null);
-  const [roles, setRoles] = useUsersState(mock ? (CT.roles ?? []) : []);
-  const [loading, setLoading] = useUsersState(!mock);
+  const [users, setUsers] = useUsersState(null);
+  const [roles, setRoles] = useUsersState([]);
+  const [loading, setLoading] = useUsersState(true);
   const [error, setError] = useUsersState(null);
   const [inviting, setInviting] = useUsersState(false);
 
   const load = useUsersCallback(() => {
-    if (mock) return;
     setLoading(true);
     Promise.all([CT_API.getUsers(), CT_API.getRoles()])
       .then(([u, r]) => { setUsers(u); setRoles(r); setLoading(false); setError(null); })
       .catch(e => { setError(e); setLoading(false); });
-  }, [mock]);
+  }, []);
 
   useUsersEffect(() => { load(); }, [load]);
 
   const act = async (fn, okMsg) => {
-    if (mock) { addToast?.('Modo demo: ação não aplicada.', 'info'); return; }
     try { await fn(); addToast?.(okMsg, 'check'); load(); }
     catch (e) { addToast?.(e?.message ?? 'Falha na ação.', 'alert'); }
   };

@@ -2,9 +2,10 @@
 // N4: HITL ganha mini-contexto do par (preço/regime) + filtro por par na fila.
 // N5: Ordens ganham o rodapé de P&L realizado por par no modo ∑.
 import { test, expect } from "@playwright/test";
+import { installMockApi } from "./fixtures/mockApi.js";
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => { window.USE_MOCK_DATA = true; });
+  await installMockApi(page, { authMode: "user" });
 });
 
 test("N4 — HITL: cada ordem mostra o mini-contexto do par (preço atual)", async ({ page }) => {
