@@ -20,15 +20,19 @@ Realised-P&L / audit history in ``ledger_events`` (in ``trades.db``) is NOT
 touched — that is the audit trail. Only the live breaker / position / order
 state is cleared; the ``orders`` table is operational, not the trail.
 
-Usage:
+Usage (SEMPRE como módulo, a partir da raiz do repo — `python scripts/reset_paper_state.py`
+daria ``ModuleNotFoundError: src``, pois a raiz não estaria no ``sys.path``):
     python -m scripts.reset_paper_state              # prompts for confirmation
-    python -m scripts.reset_paper_state --yes        # skip the prompt
+    python -m scripts.reset_paper_state --yes        # skip the prompt (non-interactive)
     python -m scripts.reset_paper_state --dry-run    # report only, change nothing
 
-Stop the orchestrator first (or restart it after) so it reloads the cleared
-state instead of re-persisting the in-memory breaker:
+Na VPS (dockerizado): pare o orchestrator para ele recarregar o estado limpo em vez
+de re-persistir o breaker em memória; rode o reset DENTRO do container ``app`` (que
+segue DE PÉ e compartilha o mesmo volume ``./data`` — ``exec`` exige um container
+rodando, por isso mira ``app``, não o ``orchestrator`` parado). ``--yes`` é obrigatório
+porque ``docker compose exec`` não tem TTY para o prompt (sem ele → EOFError):
     docker compose -f docker-compose.vps.yml stop orchestrator
-    python -m scripts.reset_paper_state --yes
+    docker compose -f docker-compose.vps.yml exec app python -m scripts.reset_paper_state --yes
     docker compose -f docker-compose.vps.yml start orchestrator
 """
 from __future__ import annotations
@@ -145,9 +149,16 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if not args.yes:
-        reply = input(
-            "\nClear breaker + open-position book + orders? [y/N] "
-        ).strip().lower()
+        try:
+            reply = input(
+                "\nClear breaker + open-position book + orders? [y/N] "
+            ).strip().lower()
+        except EOFError:
+            # Sem TTY (ex.: `docker compose exec` sem -it) o prompt não pode ser
+            # respondido — aborta limpo apontando --yes, em vez de estourar um
+            # traceback de EOFError.
+            print("\nSem TTY para confirmar. Rode de novo com --yes para pular o prompt.")
+            return 1
         if reply not in ("y", "yes"):
             print("Aborted.")
             return 1

@@ -8,6 +8,8 @@ audit trail (``ledger_events``) is left intact.
 """
 from __future__ import annotations
 
+from scripts.reset_paper_state import main as reset_main
+from scripts.reset_paper_state import reset_paper_state
 from src.core.ledger import TradingLedger
 from src.hitl.orders import Order, OrderStore
 from src.orchestration.position_store import (
@@ -16,7 +18,6 @@ from src.orchestration.position_store import (
     load_circuit_state,
     save_circuit_state,
 )
-from scripts.reset_paper_state import reset_paper_state
 
 _POS = {
     "symbol": "BTC/USDT", "side": "buy", "entry_price": 100.0, "quantity": 0.5,
@@ -161,3 +162,44 @@ def test_dry_run_reports_orders_but_changes_nothing(tmp_path):
     assert result["dry_run"] is True
     assert result["orders_cleared"] == 1  # what WOULD be removed
     assert store.count() == 1  # ...but untouched
+
+
+# --------------------------------------------------------------------- main() CLI
+# M4: o ledger db E o app db derivam de LEDGER_DIR (get_db_path), então apontá-lo ao
+# tmp isola os dois; main() lê esse mesmo estado.
+def _seed_dirty(monkeypatch, tmp_path):
+    monkeypatch.setenv("LEDGER_DIR", str(tmp_path))
+    ledger = TradingLedger()
+
+    def db():
+        return ledger.db_path
+
+    PositionStore(db).upsert("o1", _POS)
+    save_circuit_state(db, 123.0, 6, -74.5)
+    return db
+
+
+def test_main_yes_resets_without_prompting(tmp_path, monkeypatch):
+    db = _seed_dirty(monkeypatch, tmp_path)
+
+    def _no_input(*_a, **_k):
+        raise AssertionError("input() não deve ser chamado com --yes")
+
+    monkeypatch.setattr("builtins.input", _no_input)
+    assert reset_main(["--yes"]) == 0
+    assert PositionStore(db).count() == 0
+    assert load_circuit_state(db) is None
+
+
+def test_main_eof_without_yes_aborts_cleanly(tmp_path, monkeypatch):
+    # M4: sem --yes e sem TTY (docker exec sem -it), input() levanta EOFError — o
+    # script deve abortar limpo (return 1, sem traceback) e NÃO tocar o estado.
+    db = _seed_dirty(monkeypatch, tmp_path)
+
+    def _raise_eof(*_a, **_k):
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", _raise_eof)
+    assert reset_main([]) == 1
+    assert PositionStore(db).count() == 1
+    assert load_circuit_state(db) is not None
