@@ -43,7 +43,53 @@ def test_add_validates_and_persists(env):
     r = c.post("/v1/pairs/operated", json={"symbol": "ETH/USDT"})
     assert r.status_code == 201, r.text
     assert "ETH/USDT" in [o["symbol"] for o in r.json()["data"]["operados"]]
-    assert OperatedPairStore().symbols() == ["ETH/USDT"]
+    # M3: a 1ª adição semeia o conjunto efetivo do env (SYMBOLS=BTC/USDT) antes de
+    # inserir o novo par — o BTC não some ao materializar a tabela.
+    assert set(OperatedPairStore().symbols()) == {"BTC/USDT", "ETH/USDT"}
+
+
+def test_add_is_idempotent_409(env):
+    # M2: adicionar um par já operado retorna 409 (não 201), sem linha duplicada.
+    OperatedPairStore().add("ETH/USDT")  # tabela já não-vazia → sem semeadura
+    c = TestClient(create_app())
+    r = c.post("/v1/pairs/operated", json={"symbol": "ETH/USDT"})
+    assert r.status_code == 409, r.text
+    assert r.json()["error"] == "already_operated"  # handler passa o detail como body
+    assert OperatedPairStore().symbols() == ["ETH/USDT"]  # sem duplicata
+
+
+def test_add_already_effective_via_env_is_409(env):
+    # M2: um par já operado via fallback do env (tabela vazia) também é 409 — e NÃO
+    # dispara semeadura (a request de conflito não altera estado).
+    assert OperatedPairStore().symbols() == []
+    c = TestClient(create_app())
+    r = c.post("/v1/pairs/operated", json={"symbol": "BTC/USDT"})  # BTC vem do env
+    assert r.status_code == 409, r.text
+    assert OperatedPairStore().symbols() == []  # nada semeado/adicionado
+
+
+def test_first_add_seeds_env_pairs(env):
+    # M3: reproduz e corrige o incidente do BTC — tabela vazia + env=BTC, adicionar
+    # ETH pela primeira vez preserva o BTC (não cai em silêncio na transição env→DB).
+    assert OperatedPairStore().symbols() == []
+    assert operated_pairs() == ["BTC/USDT"]  # env fallback
+    c = TestClient(create_app())
+    r = c.post("/v1/pairs/operated", json={"symbol": "ETH/USDT"})
+    assert r.status_code == 201, r.text
+    assert set(OperatedPairStore().symbols()) == {"BTC/USDT", "ETH/USDT"}
+    assert set(operated_pairs()) == {"BTC/USDT", "ETH/USDT"}
+
+
+def test_first_add_audit_diff_is_incremental(env):
+    # M3: a auditoria registra a migração honesta ["BTC/USDT"]→["BTC","ETH"], não
+    # ["]→["ETH"] (que escondia o BTC sumindo).
+    ledger = env
+    c = TestClient(create_app())
+    c.post("/v1/pairs/operated", json={"symbol": "ETH/USDT"})
+    evt = next(e for e in ledger.get_events("config_changed")
+               if e["data"].get("scope") == "pairs")
+    assert evt["data"]["before"]["operated"] == ["BTC/USDT"]
+    assert set(evt["data"]["after"]["operated"]) == {"BTC/USDT", "ETH/USDT"}
 
 
 def test_add_rejects_non_usdt_and_non_allowlisted(env):
