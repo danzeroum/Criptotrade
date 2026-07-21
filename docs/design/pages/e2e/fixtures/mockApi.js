@@ -60,7 +60,9 @@ function baseline({ authMode, role }) {
     "GET /v1/process/events": () => processEvents(),
     // Config (screen_settings)
     "GET /v1/config": () => SYS_CONFIG,
+    "PATCH /v1/config": (req) => ({ ...SYS_CONFIG, ...(req.postDataJSON() || {}) }),
     "GET /v1/risk/config": () => RISK_CONFIG,
+    // PATCH /v1/risk/config é tratado no route handler (gate confirm=true, M1).
     "GET /v1/agents": () => AGENTS,
     // Diário (screen_journal)
     "GET /v1/journal": () => JOURNAL,
@@ -151,6 +153,20 @@ export async function installMockApi(page, scenario = {}) {
         obState.completed = obState.steps.every((s) => s.status !== "pending");
         return fulfillJson(route, obState);
       }
+    }
+
+    // --- M1: PATCH /v1/risk/config exige confirm=true (espelha risk.py:310) -
+    if (path === "/v1/risk/config" && method === "PATCH") {
+      const body = req.postDataJSON() || {};
+      if (body.confirm !== true) {
+        return route.fulfill({
+          status: 400, contentType: "application/json",
+          body: JSON.stringify({ error: "confirmation_required",
+            message: "Defina confirm=true para alterar parâmetros de risco." }),
+        });
+      }
+      const { confirm, ...patch } = body;
+      return fulfillJson(route, { ...RISK_CONFIG, ...patch });
     }
 
     // --- stateful desk summary (reflete pausar/retomar da Mesa, N9) --------

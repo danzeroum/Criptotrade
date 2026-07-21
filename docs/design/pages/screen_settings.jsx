@@ -91,6 +91,55 @@ function PairGroupsManager({ operated, canEdit, addToast }) {
   );
 }
 
+// M1: rótulos legíveis dos parâmetros para o resumo before→after da confirmação.
+const CONFIG_FIELD_LABELS = {
+  initial_capital: 'Capital inicial ($)',
+  orchestrator_interval_seconds: 'Intervalo do orquestrador (s)',
+  max_position_size_pct: 'Tamanho máximo de posição (%)',
+  stop_loss_default_pct: 'Stop loss padrão (%)',
+  max_daily_loss_pct: 'Drawdown máximo diário (%)',
+  max_weekly_loss_pct: 'Drawdown máximo semanal (%)',
+  max_monthly_loss_pct: 'Drawdown máximo mensal (%)',
+  kelly_fraction: 'Fração Kelly',
+  circuit_breaker_enabled: 'Circuit breaker',
+  revenge_size_multiplier: 'Multiplicador revenge trading',
+  euphoria_size_multiplier: 'Multiplicador euforia',
+  overconfidence_margin: 'Gap overconfidence',
+  risk_of_ruin_alert_pct: 'Alerta risco de ruína',
+};
+const fmtCfgVal = (v) => (typeof v === 'boolean' ? (v ? 'ativado' : 'desativado') : String(v));
+
+// M1: confirmação explícita antes de gravar config — resumo before→after (mesmo
+// padrão do aviso do A5). Só depois de confirmar é que o PATCH é enviado (risco
+// exige confirm=true no backend; sys/alertas não têm o gate mas ganham o mesmo
+// fluxo, eliminando o PATCH-a-cada-onChange).
+function ConfigConfirmModal({ title, changes, onConfirm, onClose }) {
+  return (
+    <div className="lock-overlay" role="dialog" aria-label={title} onClick={onClose}>
+      <div className="lock-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+        <h3 style={{ marginTop: 0 }}>{title}</h3>
+        <p style={{ fontSize: 13, color: 'var(--ink-2)' }}>Confira as alterações antes de aplicar:</p>
+        <table className="tbl" data-testid="config-confirm-diff" style={{ marginBottom: 14 }}>
+          <thead><tr><th>Parâmetro</th><th>Antes</th><th>Depois</th></tr></thead>
+          <tbody>
+            {changes.map(c => (
+              <tr key={c.key}>
+                <td>{c.label}</td>
+                <td style={{ color: 'var(--ink-3)' }}>{fmtCfgVal(c.before)}</td>
+                <td style={{ fontWeight: 600 }}>{fmtCfgVal(c.after)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <Btn variant="ghost" size="sm" onClick={onClose}>Cancelar</Btn>
+          <Btn variant="primary" size="sm" onClick={onConfirm}>Confirmar e salvar</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ScreenSettings({ addToast }) {
   const [sysConfig,    setSysConfig]    = useState(null);
   const [riskConfig,   setRiskConfig]   = useState(null);
@@ -102,6 +151,12 @@ function ScreenSettings({ addToast }) {
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState(null);
   const [saved,        setSaved]        = useState(null);
+  // M1: edições acumulam num draft por card; "Salvar" abre a confirmação (before→
+  // after) e SÓ ENTÃO dispara o PATCH — nada de PATCH a cada onChange de slider.
+  const [sysDraft,     setSysDraft]     = useState(null);
+  const [riskDraft,    setRiskDraft]    = useState(null);
+  const [alertDraft,   setAlertDraft]   = useState(null);
+  const [pendingSave,  setPendingSave]  = useState(null);
 
   // N8¹: pares operados, da fonte dinâmica /v1/pairs (N1). N8²: editável abaixo.
   const reloadPairs = () => loadPairsRich(true).then(setPairsRich).catch(() => {});
@@ -145,28 +200,55 @@ function ScreenSettings({ addToast }) {
     setTimeout(() => setSaved(null), 2500);
   };
 
-  const saveSysConfig = async (patch) => {
-    try {
-      const updated = await CT_API.patchConfig(patch);
-      setSysConfig(updated);
+  // M1: os drafts espelham a config salva (no load e após cada save bem-sucedido).
+  useEffect(() => { setSysDraft(sysConfig ? { ...sysConfig } : null); }, [sysConfig]);
+  useEffect(() => { setRiskDraft(riskConfig ? { ...riskConfig } : null); }, [riskConfig]);
+  useEffect(() => { setAlertDraft(alertConfig ? { ...alertConfig } : null); }, [alertConfig]);
+
+  const changedKeys = (draft, cfg) =>
+    (draft && cfg) ? Object.keys(draft).filter(k => draft[k] !== cfg[k]) : [];
+
+  // "Salvar" de cada card abre a confirmação com o resumo before→after; o apply()
+  // (que contém o PATCH real) só roda ao confirmar.
+  const requestSave = (title, keys, cfg, draft, apply) => {
+    if (!keys.length) return;
+    const changes = keys.map(k => ({
+      key: k, label: CONFIG_FIELD_LABELS[k] ?? k, before: cfg[k], after: draft[k],
+    }));
+    setPendingSave({ title, changes, apply });
+  };
+  const confirmSave = async () => {
+    const p = pendingSave;
+    setPendingSave(null);
+    if (!p) return;
+    try { await p.apply(); }
+    catch (e) { console.error(e); addToast?.(e?.message ?? 'Erro ao salvar configuração', 'alert'); }
+  };
+
+  const saveSys = () => {
+    const keys = changedKeys(sysDraft, sysConfig);
+    requestSave('Salvar configuração do sistema', keys, sysConfig, sysDraft, async () => {
+      const patch = Object.fromEntries(keys.map(k => [k, sysDraft[k]]));
+      setSysConfig(await CT_API.patchConfig(patch));
       flash('Config salva');
-    } catch (e) { console.error(e); addToast?.('Erro ao salvar configuração', 'alert'); }
+    });
   };
-
-  const saveRiskConfig = async (patch) => {
-    try {
-      const updated = await CT_API.patchRiskConfig(patch);
-      setRiskConfig(updated);
+  const saveRisk = () => {
+    const keys = changedKeys(riskDraft, riskConfig);
+    requestSave('Salvar parâmetros de risco', keys, riskConfig, riskDraft, async () => {
+      // A5: o backend exige confirm=true (400 confirmation_required sem ele).
+      const patch = { ...Object.fromEntries(keys.map(k => [k, riskDraft[k]])), confirm: true };
+      setRiskConfig(await CT_API.patchRiskConfig(patch));
       flash('Risco salvo');
-    } catch (e) { console.error(e); addToast?.('Erro ao salvar parâmetros de risco', 'alert'); }
+    });
   };
-
-  const saveAlertConfig = async (patch) => {
-    try {
-      const updated = await CT_API.patchAlertsConfig(patch);
-      setAlertConfig(updated);
+  const saveAlert = () => {
+    const keys = changedKeys(alertDraft, alertConfig);
+    requestSave('Salvar guardrails comportamentais', keys, alertConfig, alertDraft, async () => {
+      const patch = Object.fromEntries(keys.map(k => [k, alertDraft[k]]));
+      setAlertConfig(await CT_API.patchAlertsConfig(patch));
       flash('Alertas salvos');
-    } catch (e) { console.error(e); addToast?.('Erro ao salvar alertas', 'alert'); }
+    });
   };
 
   if (loading) return <LoadingState label="Carregando configurações…" />;
@@ -221,21 +303,25 @@ function ScreenSettings({ addToast }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <NumField
                   label="Capital inicial ($)"
-                  value={sysConfig.initial_capital}
-                  onChange={v => saveSysConfig({ initial_capital: v })}
+                  value={(sysDraft ?? sysConfig).initial_capital}
+                  onChange={v => setSysDraft(d => ({ ...(d ?? sysConfig), initial_capital: v }))}
                   min={100}
                   step={100}
                   unit="$"
                 />
                 <NumField
                   label="Intervalo do orquestrador (s)"
-                  value={sysConfig.orchestrator_interval_seconds}
-                  onChange={v => saveSysConfig({ orchestrator_interval_seconds: v })}
+                  value={(sysDraft ?? sysConfig).orchestrator_interval_seconds}
+                  onChange={v => setSysDraft(d => ({ ...(d ?? sysConfig), orchestrator_interval_seconds: v }))}
                   min={10}
                   max={300}
                   step={10}
                   unit="s"
                 />
+              </div>
+              <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
+                <Btn variant="primary" size="sm" disabled={!changedKeys(sysDraft, sysConfig).length}
+                  onClick={saveSys}>Salvar</Btn>
               </div>
             </div>
             </fieldset>
@@ -251,53 +337,57 @@ function ScreenSettings({ addToast }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <SliderField
                   label="Tamanho máximo de posição"
-                  value={riskConfig.max_position_size_pct}
-                  onChange={v => saveRiskConfig({ max_position_size_pct: v })}
+                  value={(riskDraft ?? riskConfig).max_position_size_pct}
+                  onChange={v => setRiskDraft(d => ({ ...(d ?? riskConfig), max_position_size_pct: v }))}
                   min={0.5} max={10} step={0.5}
                   unit="%"
                 />
                 <SliderField
                   label="Stop loss padrão"
-                  value={riskConfig.stop_loss_default_pct}
-                  onChange={v => saveRiskConfig({ stop_loss_default_pct: v })}
+                  value={(riskDraft ?? riskConfig).stop_loss_default_pct}
+                  onChange={v => setRiskDraft(d => ({ ...(d ?? riskConfig), stop_loss_default_pct: v }))}
                   min={0.5} max={10} step={0.5}
                   unit="%"
                 />
                 <SliderField
                   label="Drawdown máximo diário"
-                  value={riskConfig.max_daily_loss_pct}
-                  onChange={v => saveRiskConfig({ max_daily_loss_pct: v })}
+                  value={(riskDraft ?? riskConfig).max_daily_loss_pct}
+                  onChange={v => setRiskDraft(d => ({ ...(d ?? riskConfig), max_daily_loss_pct: v }))}
                   min={1} max={10} step={0.5}
                   unit="%"
                 />
                 <SliderField
                   label="Drawdown máximo semanal"
-                  value={riskConfig.max_weekly_loss_pct}
-                  onChange={v => saveRiskConfig({ max_weekly_loss_pct: v })}
+                  value={(riskDraft ?? riskConfig).max_weekly_loss_pct}
+                  onChange={v => setRiskDraft(d => ({ ...(d ?? riskConfig), max_weekly_loss_pct: v }))}
                   min={2} max={20} step={1}
                   unit="%"
                 />
                 <SliderField
                   label="Drawdown máximo mensal"
-                  value={riskConfig.max_monthly_loss_pct}
-                  onChange={v => saveRiskConfig({ max_monthly_loss_pct: v })}
+                  value={(riskDraft ?? riskConfig).max_monthly_loss_pct}
+                  onChange={v => setRiskDraft(d => ({ ...(d ?? riskConfig), max_monthly_loss_pct: v }))}
                   min={5} max={30} step={1}
                   unit="%"
                 />
                 <SliderField
                   label="Fração Kelly"
-                  value={riskConfig.kelly_fraction}
-                  onChange={v => saveRiskConfig({ kelly_fraction: v })}
+                  value={(riskDraft ?? riskConfig).kelly_fraction}
+                  onChange={v => setRiskDraft(d => ({ ...(d ?? riskConfig), kelly_fraction: v }))}
                   min={0.1} max={1} step={0.05}
                 />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 13 }}>Circuit breaker</span>
                   <button
-                    className={`toggle${riskConfig.circuit_breaker_enabled ? ' on' : ''}`}
-                    onClick={() => saveRiskConfig({ circuit_breaker_enabled: !riskConfig.circuit_breaker_enabled })}
+                    className={`toggle${(riskDraft ?? riskConfig).circuit_breaker_enabled ? ' on' : ''}`}
+                    onClick={() => setRiskDraft(d => ({ ...(d ?? riskConfig), circuit_breaker_enabled: !(d ?? riskConfig).circuit_breaker_enabled }))}
                     type="button"
                   />
                 </div>
+              </div>
+              <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
+                <Btn variant="primary" size="sm" disabled={!canRisk || !changedKeys(riskDraft, riskConfig).length}
+                  onClick={saveRisk}>Salvar risco</Btn>
               </div>
             </div>
             </fieldset>
@@ -313,32 +403,36 @@ function ScreenSettings({ addToast }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <SliderField
                   label="Multiplicador revenge trading"
-                  value={parseFloat(((alertConfig.revenge_size_multiplier - 1) * 100).toFixed(0))}
-                  onChange={v => saveAlertConfig({ revenge_size_multiplier: 1 + v / 100 })}
+                  value={parseFloat((((alertDraft ?? alertConfig).revenge_size_multiplier - 1) * 100).toFixed(0))}
+                  onChange={v => setAlertDraft(d => ({ ...(d ?? alertConfig), revenge_size_multiplier: 1 + v / 100 }))}
                   min={10} max={100} step={5}
                   unit="%"
                 />
                 <SliderField
                   label="Multiplicador euforia"
-                  value={parseFloat(((alertConfig.euphoria_size_multiplier - 1) * 100).toFixed(0))}
-                  onChange={v => saveAlertConfig({ euphoria_size_multiplier: 1 + v / 100 })}
+                  value={parseFloat((((alertDraft ?? alertConfig).euphoria_size_multiplier - 1) * 100).toFixed(0))}
+                  onChange={v => setAlertDraft(d => ({ ...(d ?? alertConfig), euphoria_size_multiplier: 1 + v / 100 }))}
                   min={5} max={80} step={5}
                   unit="%"
                 />
                 <SliderField
                   label="Gap overconfidence"
-                  value={parseFloat((alertConfig.overconfidence_margin * 100).toFixed(0))}
-                  onChange={v => saveAlertConfig({ overconfidence_margin: v / 100 })}
+                  value={parseFloat(((alertDraft ?? alertConfig).overconfidence_margin * 100).toFixed(0))}
+                  onChange={v => setAlertDraft(d => ({ ...(d ?? alertConfig), overconfidence_margin: v / 100 }))}
                   min={5} max={40} step={5}
                   unit="%"
                 />
                 <SliderField
                   label="Alerta risco de ruína"
-                  value={alertConfig.risk_of_ruin_alert_pct}
-                  onChange={v => saveAlertConfig({ risk_of_ruin_alert_pct: v })}
+                  value={(alertDraft ?? alertConfig).risk_of_ruin_alert_pct}
+                  onChange={v => setAlertDraft(d => ({ ...(d ?? alertConfig), risk_of_ruin_alert_pct: v }))}
                   min={1} max={15} step={0.5}
                   unit="%"
                 />
+              </div>
+              <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
+                <Btn variant="primary" size="sm" disabled={!changedKeys(alertDraft, alertConfig).length}
+                  onClick={saveAlert}>Salvar</Btn>
               </div>
               {/* A6: entrega externa (e-mail/Telegram/Slack/webhook) mora em
                   Notificações & Canais — link da seção, conforme o card. */}
@@ -464,6 +558,15 @@ function ScreenSettings({ addToast }) {
           );
         })()}
       </div>
+
+      {pendingSave && (
+        <ConfigConfirmModal
+          title={pendingSave.title}
+          changes={pendingSave.changes}
+          onConfirm={confirmSave}
+          onClose={() => setPendingSave(null)}
+        />
+      )}
     </div>
   );
 }
