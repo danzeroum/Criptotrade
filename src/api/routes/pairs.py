@@ -125,8 +125,23 @@ async def add_operated(
     principal: Principal = Depends(require_perm("edit_settings")),
 ) -> APIResponse[PairsOut]:
     store = OperatedPairStore()
-    before = store.symbols()
     sym = await _validate_addable(body.symbol, client)
+    # `before` é o conjunto EFETIVO (DB > env), não a tabela crua: é o que o loop
+    # realmente opera e o que a auditoria deve registrar.
+    before = operated_pairs()
+    # M2: idempotência. Checar contra o efetivo cobre o duplicado na tabela E o par
+    # já operado via fallback do env (tabela vazia) — nos dois casos é 409, não 201.
+    if sym in before:
+        raise HTTPException(status_code=409, detail={
+            "error": "already_operated",
+            "message": f"'{sym}' já está no conjunto operado."})
+    # M3: na PRIMEIRA adição (tabela crua vazia — `store.symbols()`, não
+    # `operated_pairs()`, que nunca é vazio por causa do default), semeia o conjunto
+    # efetivo do env ANTES de adicionar o novo par. Sem isso, inserir o 1º par
+    # tornaria a tabela não-vazia e os pares do env (DB > env) cairiam em silêncio.
+    if not store.symbols():
+        for s in before:
+            store.add(s)
     store.add(sym)
     after = store.symbols()
     ledger.log_decision("config_changed", {
